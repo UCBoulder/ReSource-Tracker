@@ -1,0 +1,10 @@
+name: resourcetracker
+title:
+username: resourcetracker
+account: resourcetracker
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 16677314
+bundleId: 11582815
+url: https://resourcetracker.shinyapps.io/resourcetracker/
+version: 1

@@ -1,0 +1,106 @@
+PWSID,PWS Name,PWS Type,Primary Source,Population Served,Full Address,Latitude,Longitude,Disinfectant ,Disinfectant Source 
+CO0130001,ARVADA CITY OF,Community water system,Surface water,146743,"18975 W 66th Ave, Arvada, CO 80007 Colorado",39.815355,-105.1716076,Free chlorine ,http://arvadaco.gov/FAQ.aspx?QID=401
+CO0149122,ASPEN CITY OF,Community water system,Surface water,"31,100",,39.185013,-106.837852,Free chlorine ,https://aspen.gov/1541/About-Aspen-Water
+CO0103005,AURORA CITY OF,Community water system,Surface water,487365,"14201 E Hampden Ave, Aurora, CO 80014 Colorado",39.656523,-104.821023,Chloramines ,https://www.auroragov.org/residents/water/water_system/water_quality
+CO0103005,AURORA CITY OF,Community water system,Surface water,487365,"18301 E Quincy Ave, Aurora, CO 80015 Colorado",39.63995,-104.774606,Chloramines ,https://www.auroragov.org/residents/water/water_system/water_quality
+CO0103005,AURORA CITY OF,Community water system,Surface water,487365,5070 S Robertsdale Way Aurora CO 80016 Colorado,39.623853,-104.666079,Chloramines ,https://www.auroragov.org/residents/water/water_system/water_quality
+CO0123133,BATTLEMENT MESA MD,Community water system,Surface water,4100,"Co Rd 307, Battlement Mesa, CO 81635 Colorado",39.436197,-108.048258,Emailed 4/8,https://bmmetro.com/documents/1740/CCR.pdf
+CO0134030,BAYFIELD TOWN OF,Community water system,Surface water,2300,"215 E Lakeside Dr, Bayfield, CO 81122 Colorado",37.2401255,-107.5975528,UV/Chlorine,https://www.bayfieldgov.org/water-service
+CO0135138,BERTHOUD TOWN OF,Community water system,Surface water,14211,"424 W Co Rd 10E  Berthoud, CO Colorado",40.32892,-105.080789,Free chlorine ,https://berthoudsurveyor.com/new-director-of-water-utilities-provides-a-closer-look-at-berthouds-water-treatment-and-future-outlook/
+CO0124147,BLACK HAWK CITY OF,Community water system,Surface water,15167,"1040 Dory Hill Rd, Black Hawk, CO 80422 Colorado",39.804963,-105.491991,Free chlorine ,https://www.cityofblackhawk.org/water-department/page/water-department-faqs
+CO0107152,BOULDER CITY OF,Community water system,Surface water,166080,"5605 63rd St, Boulder, CO 80301 Colorado",40.07523545,-105.20706,Free chlorine ,In-lab experiments 
+CO0107152,BOULDER CITY OF,Community water system,Surface water,166080,"1094 BETASSO RD Boulder, CO Colorado",40.0121405,-105.3352818,Free chlorine ,In-lab experiments 
+CO0159020,BRECKENRIDGE TOWN OF,Community water system,Surface water,28315,"38 Stan Miller Dr, Breckenridge, CO 80424 Colorado",39.526881,-106.046325,Free chlorine ,https://www.sustainablebreck.com/brecktapwater?pgid=m1kuyw6z-cb108036-3aaf-4b74-91d3-98f950aeabeb
+CO0107155,BROOMFIELD CITY AND COUNTY OF,Community water system,Surface water,106153,"4395 W 144 AVE Broomfield, CO Colorado",39.959064,-105.042878,Chloramines ,https://www.broomfield.org/DocumentCenter/View/2377/Chloramine-disinfection?bidId=
+CO0122100,CANON CITY CITY OF,Community water system,Surface water,34800,"103 TUNNEL DR, Canon City Colorado",38.43680033,-105.2580213,Free chlorine ,Email 
+CO0123167,CARBONDALE TOWN OF,Community water system,Surface water,6700,"8840 CO-133, Carbondale, CO 81623 Colorado",39.38849156,-107.206744,Free chlorine ,Email 
+CO0118010,CASTLE ROCK TOWN OF,Community water system,Surface water,106822,"175 KELLOGG CT Castle Rock, CO Colorado",39.39956245,-104.8657458,Chloramines ,"https://www.crgov.com/2803/Water-Quality-Report#:~:text=Chloramines,disinfection%20byproducts%20than%20chlorine%20alone."
+CO0115171,CEDAREDGE TOWN OF,Community water system,Surface water,2400,"21953 Surface Creek Rd, Cedaredge, CO 81413 Colorado",38.976556,-107.871423,Emailed 4/8,
+CO0118015,CENTENNIAL WSD,Community water system,Surface water,103444,"1999 Plaza Dr. Highlands Ranch, CO Colorado",39.560434,-105.019578,Chloramines ,https://www.highlandsranchwater.org/water-treatment
+CO0124171,CENTRAL CITY CITY OF,Community water system,Surface water,3750,"1040 Dory Hill Rd, Black Hawk, CO 80422 Colorado",39.804963,-105.491991,Free chlorine ,Email 
+CO0139180,CLIFTON WD,Community water system,Surface water,34500,"510 34 RD Clifton, CO 81520 Colorado",39.078007,-108.422347,Free chlorine ,Email 
+CO0151200,COLORADO CITY MD,Community water system,Surface water,2755,"5600 Cuerno Verde Blvd, Colorado City, CO 81019 Colorado",37.9543905,-104.8486798,Emailed 4/21,
+CO0121150,COLORADO SPRINGS UTILITIES,Community water system,Surface water,464111,"2715 Mesa Road, Colorado Springs, 80904 Colorado",38.87004412,-104.8620037,Free chlorine,Email 
+CO0121150,COLORADO SPRINGS UTILITIES,Community water system,Surface water,464111,"977 Marksheffel Road, Colorado Springs, CO 80929 Colorado",38.84207175,-104.68289,Free chlorine,Email 
+CO0130020,CONSOLIDATED MUTUAL MAPLE GROVE,Community water system,Surface water,81400,12700 W 27TH AVE Lakewood CO Colorado,39.755414,-105.141997,Chloramines ,https://www.cmwc.net/wp-content/uploads/2024/10/CONSOLIDATED-MUTUAL-MAPLE-GROVE-2024-CCR-.pdf
+CO0142200,CORTEZ CITY OF,Community water system,Surface water,8770,"27999 County Rd N, Cortez, CO 81321 Colorado",37.401745,-108.536945,Free chlorine ,
+CO0141188,CRAIG CITY OF,Community water system,Surface water,8930,"111 Ranney St, Craig, CO 81625 Colorado",40.50878171,-107.5530195,Chloramines ,https://cityofcraig.org/departments/water/chloramines.php
+CO0126188,CRESTED BUTTE TOWN OF,Community water system,Surface water,2440,"100 Gothic Road, Mt. Crested Butte, CO 81225 Colorado",38.880543,-106.97618,Free chlorine,Email 
+CO0116001,DENVER WATER BOARD,Community water system,Surface water,1287000,"6100 W Quincy Ave, Denver, CO 80235 Colorado",39.63865535,-105.0658632,Chloramines ,https://www.denverwater.org/your-water/water-quality/disinfection-byproducts
+CO0116001,DENVER WATER BOARD,Community water system,Surface water,1287000,"10901 W 20th Ave, Lakewood, CO 80215 Colorado",39.7477236,-105.1211916,Chloramines ,https://www.denverwater.org/your-water/water-quality/disinfection-byproducts
+CO0116001,DENVER WATER BOARD,Community water system,Surface water,1287000,6730 North Rampart Range Road Colorado,39.45978998,-105.0729239,Chloramines ,https://www.denverwater.org/your-water/water-quality/disinfection-byproducts
+CO0159035,DILLON TOWN OF,Community water system,Surface water,3254,"636 Cr, Dillon, CO 80435 Colorado",39.635704,-106.037595,Free chlorine,https://www.dillonco.gov/departments/utilities/water
+CO0159040,DILLON VALLEY DISTRICT,Community water system,Surface water,3063,"1414 Straight Creek Dr, Dillon, CO 80435 Colorado",39.644343,-106.029368,Free chlorine ,Email 
+CO0134150,DURANGO CITY OF,Community water system,Surface water,33787,"Durango Regulatory Reservoir Durango, CO 81301 Colorado",37.289966,-107.849335,Free chlorine ,https://www.durangoco.gov/DocumentCenter/View/30174/2024-City-of-Durango-Consumer-Confidence-Report-ADA?bidId=
+CO0119802,EAGLE RIVER WSD,Community water system,Surface water,52182,"846 FOREST RD Vail, CO Colorado",39.641224,-106.393851,Free chlorine,https://www.erwsd.org/sites/default/files/Appendix-C.pdf
+CO0119233,EAGLE TOWN OF,Community water system,Surface water,7511,"8396 Brush Creek Rd, Eagle, CO 81631 Colorado",39.57508866,-106.76302,Free chlorine,Email 
+CO0103045,ENGLEWOOD CITY OF,Community water system,Surface water,57332,"1500 W LAYTON AVE Englewood, CO Colorado",39.62921105,-105.0054891,Chloramines ,https://www.englewoodco.gov/government/city-departments/utilities/services/water/water-disinfectant-precautions/chloramine-faqs
+CO0162255,ERIE TOWN OF,Community water system,Surface water,40061,"2901 N 119th St, Erie, CO 80516 Colorado",40.028227,-105.079486,Emailed 4/21,
+CO0135257,ESTES PARK TOWN OF,Community water system,Surface water,16722,"899 Lakewood Ct, Estes Park, CO 80517 Colorado",40.341415,-105.538625,Free chlorine ,Email 
+CO0135257,ESTES PARK TOWN OF,Community water system,Surface water,16722,"461 Caring Ln, Estes Park, CO 80511 Colorado",40.344714,-105.587304,Free chlorine ,Email 
+CO0130030,EVERGREEN MD,Community water system,Surface water,15750,"30920 STAGECOACH BLVD Evergreen, CO 80439 Colorado",39.65281481,-105.3503413,Free chlorine ,https://evergreenmetro.colorado.gov/about-us/departments/water-department
+CO0122500,FLORENCE CITY OF,Community water system,Surface water,7500,"500 Co Rd 100, Florence, CO 81226 Colorado",38.343858,-105.11752,Emailed 4/21,
+CO0159055,FRISCO TOWN OF,Community water system,Surface water,4495,"0300 N 10 Mile Rd, Frisco, CO 80443 Colorado",39.576045,-106.119599,Free chlorine,Email
+CO0135291,FT COLLINS CITY OF,Community water system,Surface water,179901,"4316 LAPORTE AVE, Fort Collins CO Colorado",40.59194795,-105.1471956,Free chlorine ,
+CO0162291,FT LUPTON CITY OF,Community water system,Surface water,15465,"7100 W County Rd 8e, Berthoud, CO 80513 Colorado",40.087316,-104.825079,Free chlorine ,
+CO0144005,FT MORGAN CITY OF,Community water system,Surface water,12000,14625 Morgan County Rd. 8 Colorado,40.213156,-104.004502,Free chlorine ,https://www.cityoffortmorgan.com/Faq.aspx?QID=92
+CO0130035,GENESEE WSD,Community water system,Surface water,3920,"2310 Bitterroot Ln, Golden, CO 80401 Colorado",39.674158,-105.271917,Free chlorine ,Email 
+CO0110015,GEORGETOWN TOWN OF,Community water system,Surface water,5315,"300 Third St, Georgetown, CO 80444 Colorado",39.702958,-105.694629,Emailed 4/22,
+CO0130040,GOLDEN CITY OF,Community water system,Surface water,38288,"1445 10TH ST, Goldon CO Colorado",39.753829,-105.231911,Free chlorine ,https://www.cityofgolden.gov/transparency/reports_data/water_quality_reports.php#collapse1740b3
+CO0125321,GRANBY TOWN OF NORTH SERVICE AREA,Community water system,Surface water,2025,3475 Co Rd 57 Colorado,39.6539035,-104.9605707,Free chlorine ,https://granbyco.govoffice3.com/vertical/sites/%7B89161B06-4754-446C-B6BF-16585CE8AB42%7D/uploads/PNA-Attachments-AllOthers.pdf
+CO0125323,GRAND COUNTY WATER NO 1,Community water system,Surface water,5400,"50 Vasquez Rd, Winter Park, CO 80482 Colorado",39.91684605,-105.7854787,Free chlorine,Email 
+CO0139321,GRAND JUNCTION CITY OF,Community water system,Surface water,26000,"244 26 1/4 Rd, Grand Junction, CO 81503 Colorado",39.03732505,-108.5620119,Free chlorine ,Email 
+CO0162321,GREELEY CITY OF,Community water system,Surface water,132310,"3119 E Eisenhower Blvd, Loveland, CO 80537 Colorado",40.41095,-105.032347,Free chlorine,Email 
+CO0162321,GREELEY CITY OF,Community water system,Surface water,132310,"4505 Filter Plant Rd, Bellvue, CO 80512 Colorado",40.65418,-105.191871,Free chlorine,Emails
+CO0119329,GYPSUM TOWN OF,Community water system,Surface water,7764,"3297 Cooley Mesa Rd, Gypsum, CO 81637 Colorado",39.63828234,-106.9488302,Free chlorine ,Email 
+CO0154333,HAYDEN TOWN OF,Community water system,Surface water,3915,"40500 Co Rd 183, Hayden, CO 81639 Colorado",40.501067,-107.255063,Emailed 6/2,
+CO0115352,HOTCHKISS TOWN OF,Community water system,Surface water,2050,"1250 3300 Rd, Hotchkiss, CO 81419 Colorado",38.816481,-107.746636,Emailed 4/22,
+CO0110020,IDAHO SPRINGS CITY OF,Community water system,Surface water,10432,"3407 Chicago Creek Rd, Idaho Springs, CO 80452 Colorado",39.717517,-105.56989,Emailed 4/22,
+CO0162418,JOHNSTOWN TOWN OF,Community water system,Surface water,24725,"23205 Co Rd 13, Johnstown, CO 80534 Colorado",40.337977,-104.959276,Free chlorine ,Email 
+CO0107473,LAFAYETTE CITY OF,Community water system,Surface water,28700,"3566 Baseline Rd, Lafayette, CO 80026 Colorado",40.00013467,-105.1459416,Free chlorine ,https://www.lafayetteco.gov/faq.aspx?TID=65
+CO0107471,LEFT HAND WD,Community water system,Surface water,20280,"6800 Nimbus Rd, Longmont, CO 80503 Colorado",40.108128,-105.194335,Free chlorine ,Email 
+CO0107485,LONGMONT CITY OF,Community water system,Surface water,106173,"501 1ST AVE Longmont, CO 80501 Colorado",40.215689,-105.225689,Free chlorine ,https://longmontcolorado.gov/wp-content/uploads/2024/07/2023-Water-Quality-Report.pdf
+CO0107486,LONGS PEAK WD,Community water system,Surface water,3200,"9875 VERMILLION RD Longmont, CO 80504 Colorado",40.217936,-105.122076,Free chlorine ,Email 
+CO0107487,LOUISVILLE CITY OF,Community water system,Surface water,20975,1955 N WASHINGTON AVE Louisville CO Colorado,39.991236,-105.153991,Free chlorine ,https://www.louisvilleco.gov/home/showpublisheddocument/11293/636125766448700000
+CO0135485,LOVELAND CITY OF,Community water system,Surface water,93142,200 N WILSON AVE Loveland CO Colorado,40.39409394,-105.115732,Free chlorine ,https://www.lovelandwaterandpower.org/city-government/departments/water-and-power/water-quality
+CO0121450,MANITOU SPRINGS CITY OF,Community water system,Surface water,6938,"1000 Water Treatment Plant Rd, Manitou Springs, CO 80829 Colorado",38.863165,-104.932825,Emailed 5/19,
+CO0142900,MONTEZUMA WC,Community water system,Surface water,13797,"28024 Rd T, PO Box 817, Dolores, CO 81323 Colorado",37.45588,-108.53652,Chloramines ,https://montezumawater.org/water-quality/chloramines/?doing_wp_cron=1747686969.1692540645599365234375
+CO0130085,MORRISON TOWN OF,Community water system,Surface water,9887,"300 Union Ave, Morrison, CO 80465 Colorado",39.65280015,-105.1981188,Emailed 5/19,
+CO0126190,MOUNT CRESTED BUTTE WSD,Community water system,Surface water,3296,"81225 100 Gothic Rd, Crested Butte, CO 81224 Colorado",38.892653,-106.970976,Free chlorine ,Email
+CO0154524,MT WERNER WD,Community water system,Surface water,16980,"3310 Clearwater Trail, Steamboat Springs, CO 80487 Colorado",40.4754019,-106.787813,Emailed 5/19,
+CO0107538,NEDERLAND TOWN OF,Community water system,Surface water,2406,"688 Eldora Rd, Nederland, CO 80466 Colorado",39.95697421,-105.5215208,,
+CO0130105,NORTH TABLE MOUNTAIN WSD,Community water system,Surface water,10000,"14806 W 52ND AVENUE Golden, CO 80403 Colorado",39.789816,-105.166372,,
+CO0101115,NORTHGLENN CITY OF,Community water system,Surface water,48927,"2350 W 112TH AVE, Northglenn CO Colorado",39.89793375,-105.0138567,,
+CO0104300,PAGOSA AREA WSD,Community water system,Surface water,11069,"100 Lyn Ave, Pagosa Springs, CO 81147 Colorado",37.254036,-107.102132,,
+CO0139600,PALISADE TOWN OF,Community water system,Surface water,3060,"661 Brentwood Dr, Palisade, CO 81526 Colorado",39.10226061,-108.3527576,Free chlorine ,Email 
+CO0121575,PALMER LAKE TOWN OF,Community water system,Surface water,2686,"600 Glen Ave, Palmer Lake, CO 80133 Colorado",39.11955472,-104.9221045,,
+CO0122600,PARK CENTER WD,Community water system,Surface water,4000,"1660 Reservoir Rd. Canon City, CO Colorado",38.497165,-105.227258,,
+CO0118040,PARKER WSD,Community water system,Surface water,75949,"13940 Ancestry Dr, Parker, CO 80134 Colorado",39.5042729,-104.8258485,,
+CO0133700,PARKVILLE WD,Community water system,Surface water,7500,"2015 N POPLAR Leadville, CO 80461 Colorado",39.26292161,-106.2909244,,
+CO0122700,PENROSE WD,Community water system,Surface water,3149,"210 BROADWAY Penrose, Colorado 81240 Colorado",38.424778,-105.0251542,,
+CO0151500,PUEBLO BOARD OF WW,Community water system,Surface water,113757,"1900 W 11th St, Pueblo, CO 81003 Colorado",38.276978,-104.639753,,
+CO0151650,PUEBLO WEST MD,Community water system,Surface water,30000,"20 W Palmer Lake Dr, Pueblo West, CO 81007 Colorado",38.31652479,-104.7403854,,
+CO0152666,RANGELY TOWN OF,Community water system,Surface water,2495,"2000 E Main St, Rangely, CO 81648 Colorado",40.089139,-108.7727962,,
+CO0118055,ROXBOROUGH WSD,Community water system,Surface water,13765,"8678 N. Roxborough Park Road, Littleton, CO Colorado",39.483451,-105.045532,,
+CO0108700,SALIDA CITY OF,Community water system,Surface water,5666,"8475 Co Rd 120, Salida, CO 81201 Colorado",38.526117,-106.033137,,
+CO0123710,SILT TOWN OF,Community water system,Surface water,3536,"500 Front St, Silt, CO 81652 Colorado",39.546365,-107.656728,,
+CO0149717,SNOWMASS VILLAGE WSD,Community water system,Surface water,6353,"177 Clubhouse Drive, Snowmass Village CO Colorado",39.220873,-106.923,,
+CO0151750,ST CHARLES MESA WD,Community water system,Surface water,9690,"1397 S ASPEN RD Pueblo, CO 81006 Colorado",38.245053,-104.579663,,
+CO0107725,SUPERIOR MD NO 1,Community water system,Surface water,17900,"1300 McCaslin Blvd, Louisville, CO 80027 Colorado",39.983698,-105.165446,,
+CO0101150,THORNTON CITY OF,Community water system,Surface water,226465,"920 Thornton Pkwy, Thornton, CO 80229 Colorado",39.8710107,-104.9750356,,
+CO0136800,TRINIDAD CITY OF,Community water system,Surface water,11400,"15741 County Rd 21.6, Weston, CO 81091 Colorado",37.211037,-105.010727,,
+CO0115784,UPPER SURFACE CREEK DOMESTIC WUA,Community water system,Surface water,2800,"17257 Meadow Dr, Cedaredge, CO 81413 Colorado",38.903902,-107.889942,,
+CO0139791,UTE WCD,Community water system,Surface water,88626,"3975 Rapid Creek Rd, Palisade, CO 81526 Colorado",39.133505,-108.306753,Chloramines ,https://www.utewater.org/chloramines
+CO0128900,WALSENBURG CITY OF,Community water system,Surface water,3230,"2965 Co Rd 346, Walsenburg, CO 81089 Colorado",37.596217,-104.850836,,
+CO0101170,WESTMINSTER CITY OF,Community water system,Surface water,192878,"8900 PIERCE ST, Westminster CO Colorado",39.858518,-105.070767,Chloramines ,https://www.westminsterco.gov/ArchiveCenter/ViewFile/Item/70
+CO0125843,WINTER PARK WSD,Community water system,Surface water,6635,"1540 Winter Park Dr, Winter Park, CO 80482 Colorado",39.895638,-105.7700715,,
+CO0121950,WOODMOOR WSD,Community water system,Surface water,17694,"1845 Woodmoor Dr, Monument, CO 80132 Colorado",39.09046284,-104.8453553,,
+CO0160100,CRIPPLE CREEK CITY OF,Community water system,Surface water,"2,817",NA,38.779771,-105.109676,,
+CO0123314,GLENWOOD SPRINGS CITY OF,Community water system,Surface water,"9,428",NA,39.544382,-107.339949,,
+CO0123538,NEW CASTLE TOWN OF,Community water system,Surface water,"5,024",NA,39.602022,-107.553987,,
+CO0123676,RIFLE CITY OF,Community water system,Surface water,"9,489",NA,39.53271,-107.76743,,
+CO0156600,SILVERTON TOWN OF,Community water system,Surface water,"2,387",NA,37.819464,-107.656201,,
+CO0157800,TELLURIDE TOWN OF,Community water system,Surface water,"7,900",NA,37.941853,-107.810183,,
+CO0135838,WELLINGTON TOWN OF,Community water system,Surface water,"11,500",NA,40.739651,-105.03934,,
+CO0160900,WOODLAND PARK CITY OF,Community water system,Surface water,"8,500",NA,39.019927,-105.02809,,
+CO0162724,ST VRAIN WATER AUTHORITY,Community water system,Groundwater under the influence of surface water,"18,589",NA,40.176001,-104.93798,Free chlorine,Email
