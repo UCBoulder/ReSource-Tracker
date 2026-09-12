@@ -6,6 +6,7 @@ library(sf)
 library(shiny)
 library(tigris)
 library(viridisLite)
+library(mapgl)
 
 setwd('/Users/milessalzer/Documents/GitHub/ReSource-Tracker')
 # --- Relative Paths ----------------------------------------------------------
@@ -827,7 +828,7 @@ ui <- navbarPage(
         
         column(
           width = 9,
-          leafletOutput("map", height = "900px")
+          maplibreOutput("map", height = "900px")
         )
       )
     )
@@ -1244,7 +1245,7 @@ server <- function(input, output, session) {
   )
   
   safe_round <- function(x) ifelse(is.finite(x), round(x, 1), "NA")
-  pal        <- leaflet::colorNumeric(palette = "plasma", domain = c(0, 100), na.color = "transparent")
+  pal        <- leaflet::colorNumeric(palette = "plasma", domain = c(0, 100), na.color = "transparent") ## Last use of leaflet function
   
   # Build popup string per gage with monthly mean±sd and low/high
   usgs_gages$popup_str <- sapply(seq_len(nrow(usgs_gages)), function(i) {
@@ -1267,13 +1268,14 @@ server <- function(input, output, session) {
   
   usgs_gages_sf <- sf::st_as_sf(usgs_gages, coords = c("dec_long_va", "dec_lat_va"), crs = 4326)
   
-  #For looking at tract polygons
-  observeEvent(input$map_shape_click, {
-    click <- input$map_shape_click
+  #For looking at tract polygons. Tracts is called later in mapgl function
+  observeEvent(input$map_feature_click, {
+    click <- input$map_feature_click
     if (is.null(click)) return()
-    if (!identical(click$group, "Census tracts")) return()
+    if (!identical(click$layer, "tracts")) return()
     
-    gid <- click$id
+    ## mapgl generates a numeric feature id, reading GEOID from properties
+    gid <- click$properties$GEOID
     if (is.null(gid)) return()
     
     # make sure it exists
@@ -1351,113 +1353,75 @@ server <- function(input, output, session) {
     )
   })
   
-  
   # ---- BASE MAP (Map tab) ----------------------------------------------------
-  output$map <- renderLeaflet({
-    leaflet::leaflet(options = leaflet::leafletOptions(preferCanvas = TRUE)) %>%
-      # define panes with increasing zIndex
-      leaflet::addMapPane("tracts",  zIndex = 410) %>%
-      leaflet::addMapPane("streams", zIndex = 420) %>%
-      leaflet::addMapPane("points",  zIndex = 430) %>%
-      leaflet::addTiles(
-        urlTemplate = "https://basemap.nationalmap.gov/arcgis/rest/services/USGSShadedReliefOnly/MapServer/tile/{z}/{y}/{x}",   # Base map data is pulled from USGS, opensource
-        attribution = "<a href='https://www.usgs.gov/'>U.S. Geological Survey</a>",
-        group = "Base", 
-        options = leaflet:: tileOptions(maxZoom = 16)
-) %>%
-      
-      ## --- census tract polygons (LOWEST pane) --------------------------------
-    leaflet::addPolygons(
-      data      = tracts_sf,
-      group     = "Census tracts",
-      layerId   = ~GEOID,        # used for click lookup
-      weight    = 0.4,
-      color     = "#666666",
-      fillColor = "#CCCCCC",
-      fillOpacity = 0.15,
-      highlightOptions = leaflet::highlightOptions(
-        weight = 2,
-        color  = "#000000",
-        bringToFront = TRUE
-      ),
-      options = leaflet::pathOptions(pane = "tracts"),
-      popup = ~paste0(
+  ## This is the bulk of the changes to mapgl. 
+  ## mapgl functions reference the entire 'sf' object when sent to functions. 
+  ## This helper function trims the tracts to what the map actually calls to reduce some comptuaiton. 
+
+  ## Trimming flowlines data in tracts_sf
+  tracts_map <- tracts_sf %>%
+    dplyr::mutate(
+      popup_html = paste0(
         "<b>Census tract: </b>", GEOID, "<br>",
-        "<b>Rurality: </b>", rurality, "<br>",
-        "<b>Low income tract? </b>",
-        ifelse(low_income, "Yes", "No"), "<br>",
-        ifelse(!is.na(status),
-               paste0("<b>Status: </b>", status, "<br>"),
-               ""),
-        "<i>Click to see tract-level wastewater metrics in the left panel.</i>"
+        "<b>Rurality: </b>", rurality, "<br>", 
+        "<b> Low income tract? </b>",
+        ifelse(low_income, "Yes", "No"), "<br>", 
+        ifelse(!is.na(status), 
+                paste0("<b>Status: </b>", status, "<br>"), 
+                ""), 
+        "<i>Click to see tract-level wastewater metrics in left panel.</i>"
       )
-    ) %>%
-      
-      ## --- DWTP markers (TOP pane for points) ----------------------------------
-    leaflet::addCircleMarkers(
-      data  = geocoded_dwtp,
-      lng   = ~Longitude, lat = ~Latitude,
-      popup = ~paste0("<b>", `PWS Name`, "</b><br>Pop: ", `Population Served`,
-                      "<br>Source: ", `Primary Source`),
-      radius = 6, color = "blue", fillOpacity = 0.8,
-      group = "DWTP",
-      options = leaflet::pathOptions(pane = "points")
-    ) %>%
-      
-      ## --- WWTP markers --------------------------------------------------------
-    leaflet::addCircleMarkers(
-      data  = wwtp_pts,
-      popup = ~paste0("<b>", Facility, "</b><br>Design Flow: ", DesignFlow, " MGD"),
-      radius = 6, color = "brown", fillOpacity = 0.8,
-      group = "WWTP",
-      options = leaflet::pathOptions(pane = "points")
-    ) %>%
-      
-      ## --- USGS gages ----------------------------------------------------------
-    leaflet::addCircleMarkers(
-      data   = usgs_gages_sf,
-      radius = 5, color = "black", fillOpacity = 1, stroke = TRUE, weight = 1,
-      label  = ~station_nm,
-      popup  = ~popup_str,
-      group  = "USGS Gages",
-      options = leaflet::pathOptions(pane = "points")
-    ) %>%
-      
-      leaflet::addLayersControl(
-        overlayGroups = c("Streams","DWTP","WWTP","USGS Gages"),
-        options = leaflet::layersControlOptions(collapsed = TRUE, autoZIndex = TRUE)
-      )
-  })
-  
-  observeEvent(input$reset_map, {
-    bb <- sf::st_bbox(flowlines)
-    leaflet::leafletProxy("map") %>%
-      leaflet::fitBounds(
-        lng1 = bb["xmin"], lat1 = bb["ymin"],
-        lng2 = bb["xmax"], lat2 = bb["ymax"]
-      )
-  })
-  
-  observeEvent(list(input$src, input$month), {
+    )%>%
+    dplyr::select(GEOID, popup_html)
+
+## Generates static object that is developed once. 
+  dwtp_map <- geocoded_dwtp
+  if (!inherits(dwtp_map, "sf")) {
+    dwtp_map <- dwtp_map %>%
+      dplyr::filter(!is.na(Longitude), !is.na(Latitude)) %>%
+      sf::st_as_sf(coords = c("Longitude", "Latitude"), crs = 4326)
+  }
+## Transmute drops trims columns not called explictly. Repeated for dwtp and wwtp
+  dwtp_map <- dwtp_map %>%
+    dplyr::transmute(
+      pws_name   = `PWS Name`,
+      popup_html = paste0("<b>", `PWS Name`, "</b><br>Pop: ", `Population Served`,
+                          "<br>Source: ", `Primary Source`)
+    )
+  wwtp_map <- wwtp_pts %>%
+    dplyr::transmute(
+      facility = Facility,
+      popup_html = paste0("<b>", Facility, "</b><br>Design Flow: ", DesignFlow, "MGD")
+    )
+  ## Uses select to filter gage sf
+  gages_map <- usgs_gages_sf %>%
+    dplyr::select(station_nm, popup_str)
+
+
+  # ---- STREAMS: colours + popups for the current month / denominator ---------
+  ## Updating color logic for heatmap with mapgl functions. 
+  ## Note steams_layer_data is reactive; depends on month and source to determine color, 
+  ## and thus are recomputed when dropdowns are changed. 
+  streams_layer_data <- reactive({
     spec <- cols_for()
     dat  <- filtered_flowlines()
     m    <- input$month
     mlab <- month_labels[m]
-    
-    vals <- dat[[spec$pct]]
-    dat$._color <- ifelse(is.na(vals), "#d9d9d9", pal(vals))
-    
+
+    vals     <- dat[[spec$pct]]
+    ww_color <- ifelse(is.na(vals), "#d9d9d9", pal(vals))
+
     if (input$src == "Gage-based") {
       ww_mean_col <- paste0("WW_cum_mean_", m)
       ww_low_col  <- paste0("WW_cum_low_",  m)
       ww_high_col <- paste0("WW_cum_high_", m)
       sd_col      <- paste0("WW_cum_sd_",   m)
-      
+
       pct_mean_col <- paste0("pct_mean_", m)
       pct_min_col  <- paste0("pct_min_",  m)
       pct_max_col  <- paste0("pct_max_",  m)
-      
-      dat$popup_tmp <- paste0(
+
+      popup_html <- paste0(
         "<b>Hydroseq:</b> ", dat$Hydroseq, "<br><br>",
         "<b>", mlab, " WW Flow (mean±sd):</b> ",
         safe_round(dat[[ww_mean_col]]), " cfs",
@@ -1481,8 +1445,8 @@ server <- function(input, output, session) {
     } else {
       q_nhd_col    <- paste0("QE_", m, "_nhd")
       pct_mean_nhd <- paste0("pct_mean_", m, "_nhd")
-      
-      dat$popup_tmp <- paste0(
+
+      popup_html <- paste0(
         "<b>Hydroseq:</b> ", dat$Hydroseq, "<br><br>",
         "<b>", mlab, " NHDPlus flow:</b> ",
         safe_round(dat[[q_nhd_col]]), " cfs<br><br>",
@@ -1491,36 +1455,27 @@ server <- function(input, output, session) {
         contrib_block(dat[[paste0("contributors_html_", m)]])
       )
     }
-    
-    proxy <- leaflet::leafletProxy("map") %>%
-      leaflet::clearGroup("Streams") %>%
-      leaflet::removeControl("pctLegend") %>%
-      leaflet::removeControl("symbolLegend") %>%
-      leaflet::addPolylines(
-        data   = dat,
-        weight = ~scales::rescale(log1p(QE_MA), to = c(0.2, 4)),
-        color  = ~._color,
-        opacity = 0.85,
-        popup   = dat$popup_tmp,
-        popupOptions = leaflet::popupOptions(maxWidth = 600),
-        group   = "Streams",
-        options = leaflet::pathOptions(pane = "streams")
-      )
-    
-    # Continuous legend for %WW colors
-    proxy <- proxy %>%
-      leaflet::addLegend(
-        position = "bottomright",
-        pal      = pal,
-        values   = c(0, 100),  # 0–100% range
-        title    = paste0("% Wastewater (", input$src, ", ", mlab, ")"),
-        opacity  = 1,
-        labFormat = leaflet::labelFormat(suffix = "%"),
-        layerId  = "pctLegend"
-      )
-  
+
+    sf::st_sf(
+      data.frame(
+        hydroseq   = dat$Hydroseq,
+        pct        = vals,
+        ww_color   = ww_color,
+        line_w     = scales::rescale(log1p(dat$QE_MA), to = c(0.2, 4)),
+        popup_html = popup_html,
+        stringsAsFactors = FALSE
+      ),
+      geometry = sf::st_geometry(dat)
+    )
+  })
+
+  pct_legend_title <- function(src, m) {
+    paste0("% Wastewater (", src, ", ", month_labels[m], ")")
+  }
+
+
     # Custom HTML legend with circle markers
-    symbol_legend_html <- HTML(
+    symbol_legend_html <-
       "<div style='background: white; padding: 6px 8px; font-size: 12px;
                box-shadow: 0 0 10px rgba(0,0,0,0.2);'>
      <b>Map symbols</b><br>
@@ -1545,16 +1500,132 @@ server <- function(input, output, session) {
        Stream with no %WW data
      </div>
    </div>"
-    )
+
+  # ---- BASE MAP ----------------------------------------------
+  # MapLibre draws layers inthe order they are called.
+  output$map <- renderMaplibre({
+    mapgl::maplibre(
+      style = mapgl::openfreemap_style("positron") # This matches Carto theme best I think 
+    ) %>%
+      mapgl::fit_bounds(flowlines, animate = FALSE) %>%
+      mapgl::add_navigation_control(position = "top-right") %>%
+      mapgl::add_scale_control(position = "bottom-left") %>%
+
+      ## --- Census Tract Polygons ------------------------------
+      ## Those drawn first are on the 'bottom' of the map
+      ## The color options here can be changed based on readability etc
+      mapgl::add_fill_layer(
+        id = "tracts", 
+        source = tracts_map, 
+        fill_color = "#CCCCCC", 
+        fill_opacity = 0.15, 
+        fill_outline_color = "#666666", 
+        hover_options = list(fill_color = "#000000", fill_opacity = 0.35), 
+        popup = "popup_html"
+      ) %>%
+      
+      ## --- Streams ---------------------------------------------------
+      ## source calls isolate() to not recompute on changes to month/source dropdown
+      mapgl::add_line_layer(
+        id = "streams", 
+        source = isolate(streams_layer_data()), 
+        line_color = mapgl::get_column("ww_color"), 
+        line_width = mapgl::get_column("line_w"), 
+        line_opacity = 0.85, 
+        popup = "popup_html"
+      ) %>%
     
-    proxy %>%
-      leaflet::addControl(
-        html     = symbol_legend_html,
-        position = "bottomleft",
-        layerId  = "symbolLegend"
-      )
+    ## --- DWTP Markers -------------------------------------------------
+    mapgl::add_circle_layer(
+      id = "dwtp", 
+      source = dwtp_map, 
+      circle_color = "blue", 
+      circle_radius = 6, 
+      circle_opacity = 0.8, 
+      popup = "popup_html", 
+      tooltip = "pws_name"
+    ) %>%
+
+    ## --- WWTP Markers -------------------------------------------------
+    mapgl::add_circle_layer(
+      id = "Wwtp", 
+      source = wwtp_map, 
+      circle_color = "brown", 
+      circle_radius = 6, 
+      circle_opacity = 0.8, 
+      popup = "popup_html", 
+      tooltip = "facility"
+    ) %>%
+
+    ## --- USGS Gages -------------------------------------------------
+    mapgl::add_circle_layer(
+      id = "gages", 
+      source = gages_map, 
+      circle_color = "black", 
+      circle_radius = 5, 
+      circle_opacity = 1, 
+      circle_stroke_color = "#ffffff", 
+      circle_stroke_width = 1,
+      popup = "popup_html", 
+      tooltip = "station_nm"
+    ) %>%
+
+    ## --- Controls -------------------------------------------------
+      mapgl::add_layers_control(
+        position = "top-left", 
+        layers = list(
+          "Streams" = "streams", 
+          "DWTP" = "dwtp", 
+          "WWTP" = "wwtp", 
+          "USGS Gages" = "gages", 
+          "Census tracts" = "tracts"
+        ), 
+        collapsible = TRUE
+      )%>%
+    mapgl::add_legend(
+      legend_title = pct_legend_title(isolate(input$src), isolate(input$month)), 
+      values = c("0%", "100%"), 
+      colors = pal(seq(0, 100, length.out = 11)), ##  uses same pallete from leaflet
+      type = "continuous",
+      position = "bottom-right", 
+      unique_id = "pctLegend"
+    ) %>%
+    mapgl::add_control(
+      html = symbol_legend_html, 
+      position = "bottom-left", 
+      id = "symbolLegend"
+    )
   })
   
+  observeEvent(input$reset_map, {
+    mapgl::maplibre_proxy("map") %>%
+      mapgl::fit_bounds(flowlines, animate = TRUE)
+  })
+
+  # --- Recolor and repopulate streams when dropdown changes --------------
+  observeEvent(list(input$src, input$month), {
+    mapgl::maplibre_proxy("map") %>%
+      mapgl::clear_layer("streams") %>%
+      mapgl::add_line_layer(
+        id           = "streams",
+        source       = streams_layer_data(),
+        line_color   = mapgl::get_column("ww_color"),
+        line_width   = mapgl::get_column("line_w"),
+        line_opacity = 0.85,
+        popup        = "popup_html",
+        before_id    = "dwtp"   # keep streams under the point layers
+      ) %>%
+      mapgl::clear_legend("pctLegend") %>%
+      mapgl::add_legend(
+        legend_title = pct_legend_title(input$src, input$month),
+        values       = c("0%", "100%"),
+        colors       = pal(seq(0, 100, length.out = 11)),
+        type         = "continuous",
+        position     = "bottom-right",
+        unique_id    = "pctLegend"
+      )
+  }, ignoreInit = TRUE)   # initial draw happens during renderMaplibre()
+
   # ================= SEASONALITY TAB LOGIC ====================
   season_cols_for <- reactive({
     src <- input$season_src %||% "Gage-based"
