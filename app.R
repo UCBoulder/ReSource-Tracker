@@ -7,7 +7,7 @@ library(shiny)
 library(tigris)
 library(viridisLite)
 
-setwd('/Users/milessalzer/Documents/GitHub/ReSourceTrackerFullApp')
+setwd('/Users/milessalzer/Documents/GitHub/ReSource-Tracker')
 # --- Relative Paths ----------------------------------------------------------
 data_dir <- "data-raw"
 
@@ -1359,8 +1359,12 @@ server <- function(input, output, session) {
       leaflet::addMapPane("tracts",  zIndex = 410) %>%
       leaflet::addMapPane("streams", zIndex = 420) %>%
       leaflet::addMapPane("points",  zIndex = 430) %>%
-      
-      leaflet::addProviderTiles(leaflet::providers$CartoDB.Positron, group = "Base") %>%
+      leaflet::addTiles(
+        urlTemplate = "https://basemap.nationalmap.gov/arcgis/rest/services/USGSShadedReliefOnly/MapServer/tile/{z}/{y}/{x}",   # Base map data is pulled from USGS, opensource
+        attribution = "<a href='https://www.usgs.gov/'>U.S. Geological Survey</a>",
+        group = "Base", 
+        options = leaflet:: tileOptions(maxZoom = 16)
+) %>%
       
       ## --- census tract polygons (LOWEST pane) --------------------------------
     leaflet::addPolygons(
@@ -2582,5 +2586,6 @@ server <- function(input, output, session) {
 
 # --- Launch App -------------------------------------------------------------
 shinyApp(ui = ui, server = server)
+
  
 
