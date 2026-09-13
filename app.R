@@ -8,7 +8,7 @@ library(tigris)
 library(viridisLite)
 library(mapgl)
 
-setwd('/Users/milessalzer/Documents/GitHub/ReSource-Tracker')
+setwd('/Users/kylieboenischoakes/Documents/ReSource-Tracker')
 # --- Relative Paths ----------------------------------------------------------
 data_dir <- "data-raw"
 
