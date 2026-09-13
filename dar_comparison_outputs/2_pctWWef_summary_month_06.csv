@@ -1,0 +1,4 @@
+method,n,median,mean,p90
+baseline,4904,0,0.061,0
+dar_regional,5014,0,0.055,0
+dar_statewide,5014,0,0.056,0
