@@ -1,4 +1,7 @@
-method,n_gage_months_total,n_reconstructed,pct_reconstructed,median_abs_pct_error,rmse_cfs,median_bias_cfs,pearson_r
-pred_baseline,4752,1767,37.2,39.7,404.12,-15.81,0.921
-pred_dar_state,4752,2188,46,28.8,391.57,0.84,0.906
-pred_dar_region,4752,2188,46,27.9,393.01,2.16,0.907
+method,confluence_method,n_gage_months_total,n_reconstructed,pct_reconstructed,median_abs_pct_error,rmse_cfs,median_bias_cfs,pearson_r
+baseline,old,4752,1767,37.2,39.7,404.12,-15.81,0.921
+baseline,new,4752,1781,37.5,26,231.31,-7.55,0.97
+dar_state,old,4752,2188,46,28.8,391.57,0.84,0.906
+dar_state,new,4752,2188,46,23.8,345.64,2.72,0.941
+dar_region,old,4752,2188,46,27.9,393.01,2.16,0.907
+dar_region,new,4752,2188,46,23.9,348.76,3.89,0.941

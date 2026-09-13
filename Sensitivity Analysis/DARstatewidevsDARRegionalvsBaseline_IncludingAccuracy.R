@@ -209,13 +209,8 @@ base_flow_order <- flow_order
 message("Data prep complete: ", nrow(base_flow_order), " network segments.")
 
 ## Note: this reproduces your BFS-fill data prep exactly through
-## `base_flow_order`. If app.R does additional confluence-summing (merging
-## multiple upstream branches at a junction) AFTER the single-parent
-## propagation below, that step isn't reproduced here since I don't have its
-## exact code - the comparison and LOOCV below use single-parent propagation
-## only. Paste that function if you want it folded in; it would apply
-## identically to all three methods below, so it shouldn't change which
-## method looks best, only the absolute coverage/flow numbers.
+## `base_flow_order`. Confluence handling (below, Section 2b) is ported
+## faithfully from your app.R code, verbatim in logic - see notes there.
 
 # ==============================================================================
 # 2. SHARED PROPAGATION ENGINE (matrix-based, preallocated queue)
@@ -235,8 +230,16 @@ QE_MA_vec <- base_flow_order$QE_MA
 DA_vec    <- base_flow_order$DA
 force_vec <- base_flow_order$force_gage
 
-propagate_fast <- function(seed_rows, mon, gate_mode = c("qema", "dar"),
-                           threshold = SIMILARITY_THRESHOLD, b_vec = NULL) {
+## ---- confluence-handling support structures (used by Section 2b) ----------
+Hydroseq_vec      <- base_flow_order$Hydroseq
+DnHydroseq_vec    <- base_flow_order$DnHydroseq
+site_no_vec       <- base_flow_order$site_no
+is_confluence_vec <- base_flow_order$is_confluence
+hseq_to_idx       <- setNames(seq_len(n_seg), Hydroseq_vec)
+confluence_rows   <- which(is_confluence_vec)
+
+single_parent_bfs <- function(seed_rows, mon, gate_mode = c("qema", "dar"),
+                              threshold = SIMILARITY_THRESHOLD, b_vec = NULL) {
   gate_mode <- match.arg(gate_mode)
   
   Qgage_col <- paste0("Qgage_", mon, "_prop")
@@ -295,6 +298,195 @@ propagate_fast <- function(seed_rows, mon, gate_mode = c("qema", "dar"),
 }
 
 # ==============================================================================
+# 2b. CONFLUENCE HANDLING - ported verbatim (in logic) from app.R
+# ==============================================================================
+# Your app.R does this as a SEPARATE, UNGATED pass after the main BFS:
+#   for each confluence Hydroseq with >=2 upstream branches that already carry
+#   a value, sum those branches' mean+variance, then walk downstream from the
+#   confluence - NO similarity/DA gate check at all - overwriting each
+#   segment's mean+variance with the running sum (+ that segment's own local
+#   WW, added unconditionally since by construction every segment on this walk
+#   is ungaged) until hitting a segment with a real direct gage, where the
+#   walk stops without overwriting it.
+#
+# This is intentionally NOT gated and NOT scaled - it mirrors your code
+# exactly, including that a confluence's downstream walk can overwrite values
+# the main BFS above already assigned via a different upstream path.
+#
+# Applied identically after EITHER gate_mode's main BFS - the branches
+# reaching the confluence already carry whatever scaling that method applied
+# to get there; the merge/summation step itself does not add further scaling,
+# same as your app.R (which only ever has one propagation method).
+
+apply_confluences_fast <- function(Qm, Vm, mon, confluence_rows_use = confluence_rows) {
+  WWm <- base_flow_order[[paste0("WW_mean_", mon)]]
+  WWv <- base_flow_order[[paste0("WW_var_",  mon)]]
+  
+  for (crow in confluence_rows_use) {
+    hseq_c <- Hydroseq_vec[crow]
+    upstream_idxs <- which(DnHydroseq_vec == hseq_c & !is.na(Qm))
+    if (length(upstream_idxs) < 2) next
+    
+    summed_mean <- sum(Qm[upstream_idxs], na.rm = TRUE)
+    summed_var  <- sum(Vm[upstream_idxs], na.rm = TRUE)
+    
+    current_hseq <- hseq_c
+    repeat {
+      idx <- unname(hseq_to_idx[current_hseq])   # NA if current_hseq not found (network edge)
+      if (is.na(idx) || !is.na(site_no_vec[idx])) break
+      
+      ww_local <- coalesce(WWm[idx], 0)
+      wv_local <- coalesce(WWv[idx], 0)
+      summed_mean <- summed_mean + ww_local
+      summed_var  <- summed_var  + wv_local
+      
+      Qm[idx] <- summed_mean
+      Vm[idx] <- summed_var
+      
+      current_hseq <- DnHydroseq_vec[idx]
+      if (is.na(current_hseq)) break
+    }
+  }
+  
+  list(Q = Qm, V = Vm)
+}
+
+## propagate_old() = your CURRENT app.R pipeline, unchanged: gated
+## single-parent BFS, THEN the ungated confluence merge/overwrite pass.
+## Kept exactly as-is so you can compare it against the fix below.
+## `confluence_rows_use` lets a caller (LOOCV) restrict which confluence nodes
+## get checked - see the ancestor-restriction note in Section 2c below.
+propagate_old <- function(seed_rows, mon, gate_mode = c("qema", "dar"),
+                          threshold = SIMILARITY_THRESHOLD, b_vec = NULL,
+                          confluence_rows_use = confluence_rows) {
+  main <- single_parent_bfs(seed_rows, mon, gate_mode, threshold, b_vec)
+  apply_confluences_fast(main$Q, main$V, mon, confluence_rows_use)
+}
+
+# ==============================================================================
+# 2c. NEW: confluence handling using the SAME gate as ordinary propagation
+# ==============================================================================
+# Fix discussed: a confluence stops being a special ungated case. Instead:
+#   - Sum upstream branches' mean+variance at the confluence node itself
+#     (mass balance - still unconditional, no gate needed for a true merge
+#     of two already-validated tributary estimates).
+#   - Everywhere else - single-predecessor nodes, and continuing downstream
+#     FROM a confluence - use the exact same gated single-hop rule as the
+#     rest of the network (QE_MA or DA-ratio, whichever gate_mode is active).
+#
+# This is implemented as ONE topological pass instead of two separate passes
+# (BFS + patch): NHDPlus Hydroseq strictly decreases downstream (checked
+# earlier in your data prep), so processing rows in descending-Hydroseq order
+# visits every node only after all of its upstream neighbors are already
+# finalized. That makes confluence merging and single-hop gating fall out of
+# the same loop, with no separate walk needed - and it naturally stops the
+# unconditional propagation problem, since anything downstream of a merge is
+# gated exactly like anywhere else.
+
+## Precompute once (independent of seed_rows / month / method):
+##   pred_list[[j]] = row indices of every direct upstream neighbor of j
+##   order_idx      = row processing order, most-upstream-first
+valid_edges <- which(!is.na(dn_index))
+pred_split  <- split(valid_edges, dn_index[valid_edges])
+pred_list   <- vector("list", n_seg)
+pred_list[as.integer(names(pred_split))] <- pred_split
+pred_list[sapply(pred_list, is.null)] <- list(integer(0))
+
+order_idx <- order(as.numeric(Hydroseq_vec), decreasing = TRUE)
+
+## ---- ancestor restriction (performance) -----------------------------------
+## LOOCV only needs the reconstructed value at ONE segment (the held-out
+## gage) per call - everything that isn't upstream of it can't possibly
+## affect that value. get_ancestors() walks pred_list backward from a target
+## row to find its full upstream watershed once; Part B then restricts the
+## topological order (propagate_new) and confluence check list (propagate_old)
+## to that watershed instead of scanning all ~66,000 segments on every one of
+## the ~28,000 LOOCV propagation calls. This changes nothing about the math -
+## it just skips segments that were always going to be no-ops for that call.
+get_ancestors <- function(target_row) {
+  visited <- logical(n_seg)
+  visited[target_row] <- TRUE
+  queue <- target_row
+  head_p <- 1L
+  while (head_p <= length(queue)) {
+    node <- queue[head_p]; head_p <- head_p + 1L
+    preds <- pred_list[[node]]
+    new_preds <- preds[!visited[preds]]
+    if (length(new_preds) > 0) {
+      visited[new_preds] <- TRUE
+      queue <- c(queue, new_preds)
+    }
+  }
+  which(visited)
+}
+
+propagate_new <- function(seed_rows, mon, gate_mode = c("qema", "dar"),
+                          threshold = SIMILARITY_THRESHOLD, b_vec = NULL,
+                          order_idx_use = order_idx) {
+  gate_mode <- match.arg(gate_mode)
+  
+  Qgage_col <- paste0("Qgage_", mon, "_prop")
+  Vgage_col <- paste0("Qgage_var_", mon, "_prop")
+  WWm <- base_flow_order[[paste0("WW_mean_", mon)]]
+  WWv <- base_flow_order[[paste0("WW_var_",  mon)]]
+  
+  Qm <- rep(NA_real_, n_seg)
+  Vm <- rep(NA_real_, n_seg)
+  Qm[seed_rows] <- base_flow_order[[Qgage_col]][seed_rows]
+  Vm[seed_rows] <- base_flow_order[[Vgage_col]][seed_rows]
+  
+  is_seed <- rep(FALSE, n_seg)
+  is_seed[seed_rows] <- TRUE
+  
+  for (j in order_idx_use) {
+    if (is_seed[j]) next   # real (non-held-out) gage - keep its own value, never overwrite
+    
+    preds     <- pred_list[[j]]
+    if (length(preds) == 0) next
+    preds_val <- preds[is.finite(Qm[preds])]
+    n_val     <- length(preds_val)
+    if (n_val == 0) next
+    
+    ww_local <- coalesce(WWm[j], 0)
+    wv_local <- coalesce(WWv[j], 0)
+    
+    if (n_val == 1) {
+      ## ordinary single-hop propagation - same gate as everywhere else
+      i <- preds_val
+      if (gate_mode == "qema") {
+        qi <- QE_MA_vec[i]; qj <- QE_MA_vec[j]
+        gate_ok <- is.finite(qi) && is.finite(qj) && abs(qi - qj) / max(qj, 1e-6) < threshold
+        scale_factor <- 1
+      } else {
+        ai <- DA_vec[i]; aj <- DA_vec[j]
+        gate_ok <- is.finite(ai) && is.finite(aj) && ai > 0 && aj > 0 &&
+          abs(ai - aj) / max(aj, 1e-6) < threshold
+        scale_factor <- if (is.finite(ai) && is.finite(aj) && ai > 0) (aj / ai) ^ b_vec[j] else 1
+      }
+      allow_propagate <- gate_ok || isTRUE(force_vec[j])
+      if (!allow_propagate) next
+      if (!gate_ok && isTRUE(force_vec[j])) scale_factor <- 1
+      
+      Qm[j] <- Qm[i] * scale_factor + ww_local
+      Vm[j] <- Vm[i] * (scale_factor ^ 2) + wv_local
+      
+    } else {
+      ## true confluence: >=2 branches carrying a value - sum unconditionally
+      ## (mass balance; no gate on the merge itself), then j is available to
+      ## be gated normally by whatever comes after it, same as any other node
+      Qm[j] <- sum(Qm[preds_val]) + ww_local
+      Vm[j] <- sum(Vm[preds_val]) + wv_local
+    }
+  }
+  
+  list(Q = Qm, V = Vm)
+}
+
+## Both pipelines share this signature - callers pick which to run:
+##   propagate_old(seed_rows, mon, gate_mode, threshold, b_vec)  - current app.R
+##   propagate_new(seed_rows, mon, gate_mode, threshold, b_vec)  - proposed fix
+
+# ==============================================================================
 # 3. EXPONENT FITTING (statewide + per-HUC8), refittable excluding one gage
 # ==============================================================================
 
@@ -347,10 +539,24 @@ write_csv(full_fit$region_table, file.path(out_dir, "0_region_exponent_fits.csv"
 # ==============================================================================
 # PART A - full-network comparison (all real gages in place, no hold-out)
 # ==============================================================================
+# Now run for BOTH confluence pipelines (old = current app.R, new = gated fix)
+# crossed with all 3 methods, so you can see each effect separately:
+#   - method (baseline / dar_statewide / dar_regional) changes the DENOMINATOR
+#     assumption everywhere
+#   - confluence pipeline (old / new) changes only how confluences behave
+# 6 combinations total.
 
-run_full_network <- function(gate_mode, b_vec = NULL, label) {
+## variant definitions: one row per (method) - confluence pipeline is looped separately
+method_variants <- list(
+  list(label = "baseline",      gate_mode = "qema", b_vec = NULL),
+  list(label = "dar_statewide", gate_mode = "dar",  b_vec = rep(full_fit$b_statewide, n_seg)),
+  list(label = "dar_regional",  gate_mode = "dar",  b_vec = full_fit$b_vec)
+)
+confluence_variants <- list(old = propagate_old, new = propagate_new)
+
+run_full_network <- function(propagate_fn, gate_mode, b_vec, label, confl_label) {
   per_month <- map_dfr(mon_codes, function(mm) {
-    run <- propagate_fast(gage_rows, mm, gate_mode = gate_mode, b_vec = b_vec)
+    run <- propagate_fn(gage_rows, mm, gate_mode = gate_mode, b_vec = b_vec)
     tibble(
       month           = mm,
       n_gaged_segs    = sum(is.finite(base_flow_order[[paste0("Qgage_", mm)]][gage_rows])),
@@ -360,16 +566,18 @@ run_full_network <- function(gate_mode, b_vec = NULL, label) {
       released_flow_mean   = mean(run$Q, na.rm = TRUE)
     )
   })
-  per_month$method <- label
+  per_month$method            <- label
+  per_month$confluence_method <- confl_label
   per_month
 }
 
-coverage_baseline   <- run_full_network("qema", label = "baseline")
-coverage_dar_state  <- run_full_network("dar", b_vec = rep(full_fit$b_statewide, n_seg), label = "dar_statewide")
-coverage_dar_region <- run_full_network("dar", b_vec = full_fit$b_vec, label = "dar_regional")
-
-coverage_comparison <- bind_rows(coverage_baseline, coverage_dar_state, coverage_dar_region) %>%
-  select(method, everything())
+coverage_comparison <- map_dfr(names(confluence_variants), function(confl_label) {
+  pfn <- confluence_variants[[confl_label]]
+  map_dfr(method_variants, function(v) {
+    run_full_network(pfn, v$gate_mode, v$b_vec, v$label, confl_label)
+  })
+}) %>%
+  select(method, confluence_method, everything())
 write_csv(coverage_comparison, file.path(out_dir, "1_network_coverage_by_method.csv"))
 
 compute_pctWWef <- function(run, mon) {
@@ -377,17 +585,16 @@ compute_pctWWef <- function(run, mon) {
   compute_pct(base_flow_order[[ww_col]], run$Q)
 }
 
-hl_baseline   <- propagate_fast(gage_rows, HIGHLIGHT_MONTH, "qema")
-hl_dar_state  <- propagate_fast(gage_rows, HIGHLIGHT_MONTH, "dar", b_vec = rep(full_fit$b_statewide, n_seg))
-hl_dar_region <- propagate_fast(gage_rows, HIGHLIGHT_MONTH, "dar", b_vec = full_fit$b_vec)
-
-pctWWef_summary <- bind_rows(
-  tibble(method = "baseline",      pctWWef = compute_pctWWef(hl_baseline,   HIGHLIGHT_MONTH)),
-  tibble(method = "dar_statewide", pctWWef = compute_pctWWef(hl_dar_state,  HIGHLIGHT_MONTH)),
-  tibble(method = "dar_regional",  pctWWef = compute_pctWWef(hl_dar_region, HIGHLIGHT_MONTH))
-) %>%
+pctWWef_summary <- map_dfr(names(confluence_variants), function(confl_label) {
+  pfn <- confluence_variants[[confl_label]]
+  map_dfr(method_variants, function(v) {
+    run <- pfn(gage_rows, HIGHLIGHT_MONTH, v$gate_mode, b_vec = v$b_vec)
+    tibble(method = v$label, confluence_method = confl_label,
+           pctWWef = compute_pctWWef(run, HIGHLIGHT_MONTH))
+  })
+}) %>%
   filter(is.finite(pctWWef)) %>%
-  group_by(method) %>%
+  group_by(method, confluence_method) %>%
   summarize(
     n      = n(),
     median = round(median(pctWWef), 3),
@@ -397,8 +604,8 @@ pctWWef_summary <- bind_rows(
   )
 write_csv(pctWWef_summary, file.path(out_dir, sprintf("2_pctWWef_summary_month_%s.csv", HIGHLIGHT_MONTH)))
 
-cat("\n=== PART A: full-network comparison ===\n")
-print(coverage_comparison)
+cat("\n=== PART A: full-network comparison (method x confluence pipeline) ===\n")
+print(coverage_comparison, n = 100)
 cat(sprintf("\n%%WWef summary (month %s):\n", HIGHLIGHT_MONTH))
 print(pctWWef_summary)
 
@@ -407,15 +614,27 @@ print(pctWWef_summary)
 # ==============================================================================
 # Run across every month, not just HIGHLIGHT_MONTH, since month-to-month flow
 # can differ a lot and a single-month accuracy number could be an outlier.
+# Now ALSO crossed with both confluence pipelines (old vs new), so each of the
+# 3 methods gets tested both ways: 6 prediction columns per gage x month.
 #
 # Cost-saving note: the DAR exponent is fit on ANNUAL mean flow (ann_mean_flow),
-# which doesn't depend on month - so for a given held-out gage, the "exclude
-# this gage" exponent fit is identical across all 12 months. fit_b_lookup() is
-# therefore called once per gage (not once per gage per month), cutting the
-# refitting cost 12x relative to naively nesting month inside the exclude-fit.
-# The propagation itself (which does depend on month) still runs fresh for
-# every gage x month x method combination, since that's the actual quantity
-# being tested.
+# which doesn't depend on month or confluence pipeline - so for a given
+# held-out gage, the "exclude this gage" exponent fit is done once here and
+# reused for every month AND both confluence pipelines.
+#
+# PERFORMANCE: LOOCV only needs the reconstructed value at the held-out
+# segment, not the whole 66,000-segment network, on every call. For each
+# held-out gage, we precompute its upstream ancestor set ONCE (before the
+# month loop) and restrict every propagate_old()/propagate_new() call for
+# that gage to just that watershed - the topological loop in propagate_new()
+# and the confluence-check loop in propagate_old() then only touch the
+# handful of segments that could possibly matter for this gage, instead of
+# scanning the entire state 28,000+ times. This changes nothing about the
+# math, only what gets skipped as a guaranteed no-op.
+#
+# If it's still too slow after this, the next levers are commenting out a
+# method in `method_variants` above, or shrinking mon_codes to a few
+# representative months.
 
 safe_pct_err <- function(pred, obs) {
   ok <- is.finite(pred) & is.finite(obs) & obs != 0
@@ -427,37 +646,52 @@ r <- 0L
 
 for (k in seq_along(gage_rows)) {
   hold_row  <- gage_rows[k]
-  seed_rows <- setdiff(gage_rows, hold_row)
+  
+  ## restrict this gage's work to its own upstream watershed (see note above)
+  ancestors_k        <- get_ancestors(hold_row)
+  seed_rows          <- intersect(setdiff(gage_rows, hold_row), ancestors_k)
+  order_idx_k        <- order_idx[order_idx %in% ancestors_k]
+  confluence_rows_k  <- confluence_rows[confluence_rows %in% ancestors_k]
   
   ## exponent fit excluding this gage - same for every month, so done once here
   fit_k <- fit_b_lookup(exclude_row = hold_row)
   b_state_vec_k  <- rep(fit_k$b_statewide, n_seg)
   b_region_vec_k <- fit_k$b_vec
   
+  method_variants_k <- list(
+    list(label = "baseline",      gate_mode = "qema", b_vec = NULL),
+    list(label = "dar_state",     gate_mode = "dar",  b_vec = b_state_vec_k),
+    list(label = "dar_region",    gate_mode = "dar",  b_vec = b_region_vec_k)
+  )
+  
   for (mm in mon_codes) {
     obs_val <- base_flow_order[[paste0("Qgage_", mm)]][hold_row]
     
-    pred_base       <- propagate_fast(seed_rows, mm, "qema")$Q[hold_row]
-    pred_dar_state  <- propagate_fast(seed_rows, mm, "dar", b_vec = b_state_vec_k)$Q[hold_row]
-    pred_dar_region <- propagate_fast(seed_rows, mm, "dar", b_vec = b_region_vec_k)$Q[hold_row]
+    row_vals <- list(Hydroseq = base_flow_order$Hydroseq[hold_row],
+                     site_no  = base_flow_order$site_no[hold_row],
+                     month    = mm,
+                     observed = obs_val)
+    
+    for (v in method_variants_k) {
+      row_vals[[paste0("pred_", v$label, "_old")]] <-
+        propagate_old(seed_rows, mm, v$gate_mode, b_vec = v$b_vec,
+                      confluence_rows_use = confluence_rows_k)$Q[hold_row]
+      row_vals[[paste0("pred_", v$label, "_new")]] <-
+        propagate_new(seed_rows, mm, v$gate_mode, b_vec = v$b_vec,
+                      order_idx_use = order_idx_k)$Q[hold_row]
+    }
     
     r <- r + 1L
-    loocv_results[[r]] <- tibble(
-      Hydroseq        = base_flow_order$Hydroseq[hold_row],
-      site_no         = base_flow_order$site_no[hold_row],
-      month           = mm,
-      observed        = obs_val,
-      pred_baseline   = pred_base,
-      pred_dar_state  = pred_dar_state,
-      pred_dar_region = pred_dar_region
-    )
+    loocv_results[[r]] <- as_tibble(row_vals)
   }
   
-  if (k %% 25 == 0) cat(sprintf("  LOOCV progress: %d / %d gages (all 12 months each)\n", k, length(gage_rows)))
+  if (k %% 25 == 0) cat(sprintf("  LOOCV progress: %d / %d gages (all 12 months, both confluence pipelines)\n", k, length(gage_rows)))
 }
 
 loocv_raw <- bind_rows(loocv_results)
 write_csv(loocv_raw, file.path(out_dir, "3_loocv_raw_predictions_all_months.csv"))
+
+pred_cols <- grep("^pred_", names(loocv_raw), value = TRUE)
 
 summarize_method <- function(df, pred_col) {
   pred <- df[[pred_col]]
@@ -467,7 +701,8 @@ summarize_method <- function(df, pred_col) {
   err_cfs <- (pred - obs)[reconstructed & is.finite(obs)]
   
   tibble(
-    method               = pred_col,
+    method               = sub("^pred_(.*)_(old|new)$", "\\1", pred_col),
+    confluence_method    = sub("^pred_.*_(old|new)$", "\\1", pred_col),
     n_gage_months_total  = nrow(df),
     n_reconstructed      = sum(reconstructed),
     pct_reconstructed    = round(100 * sum(reconstructed) / nrow(df), 1),
@@ -482,53 +717,71 @@ summarize_method <- function(df, pred_col) {
   )
 }
 
-## Overall summary, pooling all 12 months together
-loocv_summary_overall <- bind_rows(
-  summarize_method(loocv_raw, "pred_baseline"),
-  summarize_method(loocv_raw, "pred_dar_state"),
-  summarize_method(loocv_raw, "pred_dar_region")
-)
+## Overall summary, pooling all 12 months together - one row per method x confluence pipeline
+loocv_summary_overall <- map_dfr(pred_cols, ~ summarize_method(loocv_raw, .x))
 write_csv(loocv_summary_overall, file.path(out_dir, "4_loocv_summary_overall_all_months.csv"))
 
-## Per-month breakdown, so you can see whether accuracy varies seasonally
+## Per-month breakdown, so you can see whether accuracy (or the old-vs-new gap) varies seasonally
 loocv_summary_by_month <- map_dfr(mon_codes, function(mm) {
   df_mm <- loocv_raw %>% filter(month == mm)
-  bind_rows(
-    summarize_method(df_mm, "pred_baseline"),
-    summarize_method(df_mm, "pred_dar_state"),
-    summarize_method(df_mm, "pred_dar_region")
-  ) %>% mutate(month = mm, .before = 1)
+  map_dfr(pred_cols, ~ summarize_method(df_mm, .x)) %>% mutate(month = mm, .before = 1)
 })
 write_csv(loocv_summary_by_month, file.path(out_dir, "5_loocv_summary_by_month.csv"))
 
 plot_data <- loocv_raw %>%
-  pivot_longer(cols = starts_with("pred_"), names_to = "method", values_to = "predicted") %>%
+  pivot_longer(cols = starts_with("pred_"), names_to = "variant", values_to = "predicted") %>%
   filter(is.finite(predicted), is.finite(observed))
 
 p <- ggplot(plot_data, aes(x = observed, y = predicted)) +
   geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "grey50") +
   geom_point(alpha = 0.3, size = 0.8) +
   scale_x_log10() + scale_y_log10() +
-  facet_wrap(~ method) +
+  facet_wrap(~ variant, ncol = 3) +
   labs(
     title = "Leave-one-gage-out accuracy check - all 12 months pooled",
+    subtitle = "Rows/cols: method x confluence pipeline (_old = current app.R, _new = gated fix)",
     x = "Observed flow (cfs, log scale)",
     y = "Reconstructed flow (cfs, log scale)"
   ) +
   theme_bw()
-ggsave(file.path(out_dir, "6_loocv_observed_vs_predicted_all_months.png"), p, width = 10, height = 4, dpi = 150)
+ggsave(file.path(out_dir, "6_loocv_observed_vs_predicted_all_months.png"), p, width = 13, height = 8, dpi = 150)
 
-p_month <- ggplot(loocv_summary_by_month, aes(x = month, y = median_abs_pct_error, color = method, group = method)) +
+p_month <- ggplot(loocv_summary_by_month,
+                  aes(x = month, y = median_abs_pct_error, color = method,
+                      linetype = confluence_method, group = interaction(method, confluence_method))) +
   geom_line() + geom_point() +
   labs(
-    title = "Median absolute % error by month and method",
-    x = "Month", y = "Median absolute % error"
+    title = "Median absolute % error by month, method, and confluence pipeline",
+    x = "Month", y = "Median absolute % error",
+    linetype = "Confluence handling"
   ) +
   theme_bw()
-ggsave(file.path(out_dir, "7_loocv_error_by_month.png"), p_month, width = 8, height = 5, dpi = 150)
+ggsave(file.path(out_dir, "7_loocv_error_by_month.png"), p_month, width = 9, height = 5.5, dpi = 150)
 
-cat("\n=== PART B: LOOCV accuracy check (all 12 months pooled) ===\n")
-print(loocv_summary_overall)
-cat("\nPer-month breakdown (first 12 rows = January, all 3 methods):\n")
-print(loocv_summary_by_month, n = 12)
+cat("\n=== PART B: LOOCV accuracy check (all 12 months pooled, method x confluence pipeline) ===\n")
+print(loocv_summary_overall, n = 20)
+cat("\nPer-month breakdown (first 6 rows = January, all method x confluence combos):\n")
+print(loocv_summary_by_month, n = 6)
 
+# ---- Final summary -----------------------------------------------------------
+
+cat(sprintf("\nAll outputs written to ./%s/:\n", out_dir))
+cat("  0_region_exponent_fits.csv                 - per-HUC8 sample size, b, R^2\n")
+cat("  1_network_coverage_by_method.csv           - segments gaged/filled, by month, method x confluence pipeline\n")
+cat(sprintf("  2_pctWWef_summary_month_%s.csv          - %%WWef distribution, method x confluence pipeline, month %s\n",
+            HIGHLIGHT_MONTH, HIGHLIGHT_MONTH))
+cat("  3_loocv_raw_predictions_all_months.csv     - every held-out gage x month: observed vs. 6 predictions\n")
+cat("  4_loocv_summary_overall_all_months.csv     - reconstruction rate, error, RMSE, r - pooled, per combo\n")
+cat("  5_loocv_summary_by_month.csv               - the same metrics, broken out by month\n")
+cat("  6_loocv_observed_vs_predicted_all_months.png - scatter, one panel per method x confluence combo\n")
+cat("  7_loocv_error_by_month.png                  - median abs %% error by month; line color = method,\n")
+cat("                                                 line type = confluence pipeline (old vs new)\n\n")
+cat("Reading this for the reviewer response:\n")
+cat("  - Part A tells you HOW MUCH method and confluence handling each change coverage/flow/%WWef.\n")
+cat("  - Part B tells you WHICH COMBINATION is most accurate via held-out accuracy, across the full year.\n")
+cat("  - Compare _old vs _new within the SAME method first (e.g. dar_state_old vs dar_state_new) to\n")
+cat("    isolate the confluence fix's effect on its own, separate from the method choice.\n")
+cat("  - Expect _new to reconstruct SLIGHTLY FEWER gage-months than _old (it can now legitimately stop\n")
+cat("    at a failed gate downstream of a confluence) - that is the intended, more conservative behavior,\n")
+cat("    not a regression. What matters is whether accuracy (median_abs_pct_error, rmse_cfs, bias) improves\n")
+cat("    on the gage-months it does reconstruct.\n")
