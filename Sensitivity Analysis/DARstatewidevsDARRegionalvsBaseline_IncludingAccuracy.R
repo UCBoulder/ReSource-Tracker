@@ -199,7 +199,14 @@ flow_order$is_confluence <- flow_order$Hydroseq %in% flow_order$DnHydroseq[dupli
 flow_order <- flow_order %>%
   left_join(ww_local_wide, by = "Hydroseq") %>%
   mutate(across(starts_with("WW_mean_"), ~coalesce(as.numeric(.x), 0)),
-         across(starts_with("WW_var_"),  ~coalesce(as.numeric(.x), 0)))
+         across(starts_with("WW_var_"),  ~coalesce(as.numeric(.x), 0))) %>%
+  ## WW_cum_mean_MM = wastewater accumulated from every upstream WWTP (built
+  ## once via flow_map above) - this, not the LOCAL WW_mean_MM, is what your
+  ## app.R actually divides by when computing %WW. WW_mean_MM stays in the
+  ## table only because propagation needs it (self-adjustment at gaged seeds,
+  ## and the local addition at each newly-filled segment).
+  left_join(ww_cum_wide, by = "Hydroseq") %>%
+  mutate(across(starts_with("WW_cum_mean_"), ~coalesce(as.numeric(.x), 0)))
 for (mm in mon_codes) {
   mcol <- paste0("Qgage_", mm, "_prop"); ww_col <- paste0("WW_mean_", mm)
   seed_idx <- which(flow_order$Hydroseq %in% same_seg_ww_adj_seed)
@@ -581,7 +588,9 @@ coverage_comparison <- map_dfr(names(confluence_variants), function(confl_label)
 write_csv(coverage_comparison, file.path(out_dir, "1_network_coverage_by_method.csv"))
 
 compute_pctWWef <- function(run, mon) {
-  ww_col <- paste0("WW_mean_", mon)
+  ## WW_cum_mean_MM = wastewater accumulated from every upstream WWTP (matches
+  ## your app.R's actual %WW denominator logic) - NOT the local-only WW_mean_MM.
+  ww_col <- paste0("WW_cum_mean_", mon)
   compute_pct(base_flow_order[[ww_col]], run$Q)
 }
 
@@ -785,3 +794,155 @@ cat("  - Expect _new to reconstruct SLIGHTLY FEWER gage-months than _old (it can
 cat("    at a failed gate downstream of a confluence) - that is the intended, more conservative behavior,\n")
 cat("    not a regression. What matters is whether accuracy (median_abs_pct_error, rmse_cfs, bias) improves\n")
 cat("    on the gage-months it does reconstruct.\n")
+
+# ==============================================================================
+# PART C - SENSITIVITY ANALYSIS FOR THE SELECTED METHOD
+#          (DAR, statewide exponent, gated/new confluence handling)
+# ==============================================================================
+# This is the piece that directly answers the reviewers' original request:
+# quantify how much released flows and %WWef move under plausible alternative
+# values of the two key assumptions baked into the FINAL adopted method -
+#   (C1) the DA-ratio similarity threshold - the direct replacement for the
+#        old 50% QE_MA threshold the reviewers asked you to justify
+#   (C2) the fitted scaling exponent b - tested at its point estimate AND its
+#        95% CI bounds, so uncertainty in the exponent itself is represented,
+#        not just uncertainty in the threshold
+#
+# This is a "how much do the estimates move" sensitivity check (like Part A),
+# not an accuracy check (that's Part B) - it uses the full gaged network with
+# ALL real gages in place, no LOOCV hold-out.
+
+SELECTED_GATE_MODE <- "dar"
+b_statewide_vec    <- rep(full_fit$b_statewide, n_seg)
+
+## ---- C1. Threshold sensitivity ---------------------------------------------
+threshold_grid   <- c(0.10, 0.25, 0.50, 0.75, 1.00, 1.50, Inf)
+threshold_labels <- c("10%", "25%", "50% (adopted)", "75%", "100%", "150%", "No gate (Inf)")
+
+threshold_coverage_flow <- map2_dfr(threshold_grid, threshold_labels, function(th, lbl) {
+  map_dfr(mon_codes, function(mm) {
+    run <- propagate_new(gage_rows, mm, gate_mode = SELECTED_GATE_MODE,
+                         threshold = th, b_vec = b_statewide_vec)
+    tibble(
+      threshold_label       = lbl,
+      threshold_value       = th,
+      month                 = mm,
+      pct_network_filled    = round(100 * sum(is.finite(run$Q)) / n_seg, 2),
+      released_flow_median  = median(run$Q, na.rm = TRUE),
+      released_flow_mean    = mean(run$Q, na.rm = TRUE)
+    )
+  })
+})
+write_csv(threshold_coverage_flow, file.path(out_dir, "8_sensitivity_threshold_coverage_flow.csv"))
+
+threshold_pctWWef <- map2_dfr(threshold_grid, threshold_labels, function(th, lbl) {
+  run <- propagate_new(gage_rows, HIGHLIGHT_MONTH, gate_mode = SELECTED_GATE_MODE,
+                       threshold = th, b_vec = b_statewide_vec)
+  tibble(threshold_label = lbl, threshold_value = th,
+         pctWWef = compute_pctWWef(run, HIGHLIGHT_MONTH))
+}) %>%
+  filter(is.finite(pctWWef)) %>%
+  group_by(threshold_label, threshold_value) %>%
+  summarize(n = n(), median = round(median(pctWWef), 3), mean = round(mean(pctWWef), 3),
+            p90 = round(quantile(pctWWef, 0.90), 3), .groups = "drop") %>%
+  arrange(threshold_value)
+write_csv(threshold_pctWWef, file.path(out_dir, sprintf("9_sensitivity_threshold_pctWWef_month_%s.csv", HIGHLIGHT_MONTH)))
+
+p_threshold <- ggplot(
+  threshold_pctWWef %>% mutate(threshold_label = factor(threshold_label, levels = threshold_labels)),
+  aes(x = threshold_label, y = median)
+) +
+  geom_col(fill = "#4B6CB7") +
+  geom_text(aes(label = median), vjust = -0.4, size = 3.5) +
+  labs(
+    title = "Sensitivity of median %WWef to the DA-ratio similarity threshold",
+    subtitle = sprintf("DAR statewide exponent, gated confluence handling, month %s", HIGHLIGHT_MONTH),
+    x = "Similarity threshold", y = "Median %WWef"
+  ) +
+  theme_bw()
+ggsave(file.path(out_dir, "11_sensitivity_threshold_plot.png"), p_threshold, width = 8, height = 5, dpi = 150)
+
+## ---- C2. Exponent sensitivity (point estimate + 95% CI bounds) -------------
+full_fit_data <- base_flow_order[gage_rows, ] %>%
+  filter(is.finite(ann_mean_flow), is.finite(DA), ann_mean_flow > 0, DA > 0)
+full_lm <- lm(log(ann_mean_flow) ~ log(DA), data = full_fit_data)
+b_point <- unname(coef(full_lm)[2])
+b_ci    <- unname(confint(full_lm)["log(DA)", ])   # c(lower, upper)
+
+exponent_grid   <- c(b_ci[1], b_point, b_ci[2])
+exponent_labels <- c(
+  sprintf("Lower 95%% CI (b=%.3f)", b_ci[1]),
+  sprintf("Fitted (b=%.3f, adopted)", b_point),
+  sprintf("Upper 95%% CI (b=%.3f)", b_ci[2])
+)
+
+exponent_coverage_flow <- map2_dfr(exponent_grid, exponent_labels, function(b, lbl) {
+  map_dfr(mon_codes, function(mm) {
+    run <- propagate_new(gage_rows, mm, gate_mode = SELECTED_GATE_MODE,
+                         threshold = SIMILARITY_THRESHOLD, b_vec = rep(b, n_seg))
+    tibble(
+      exponent_label        = lbl,
+      exponent_value        = b,
+      month                 = mm,
+      pct_network_filled    = round(100 * sum(is.finite(run$Q)) / n_seg, 2),
+      released_flow_median  = median(run$Q, na.rm = TRUE),
+      released_flow_mean    = mean(run$Q, na.rm = TRUE)
+    )
+  })
+})
+write_csv(exponent_coverage_flow, file.path(out_dir, "12_sensitivity_exponent_coverage_flow.csv"))
+
+exponent_pctWWef <- map2_dfr(exponent_grid, exponent_labels, function(b, lbl) {
+  run <- propagate_new(gage_rows, HIGHLIGHT_MONTH, gate_mode = SELECTED_GATE_MODE,
+                       threshold = SIMILARITY_THRESHOLD, b_vec = rep(b, n_seg))
+  tibble(exponent_label = lbl, exponent_value = b,
+         pctWWef = compute_pctWWef(run, HIGHLIGHT_MONTH))
+}) %>%
+  filter(is.finite(pctWWef)) %>%
+  group_by(exponent_label, exponent_value) %>%
+  summarize(n = n(), median = round(median(pctWWef), 3), mean = round(mean(pctWWef), 3),
+            p90 = round(quantile(pctWWef, 0.90), 3), .groups = "drop") %>%
+  arrange(exponent_value)
+write_csv(exponent_pctWWef, file.path(out_dir, sprintf("13_sensitivity_exponent_pctWWef_month_%s.csv", HIGHLIGHT_MONTH)))
+
+p_exponent <- ggplot(
+  exponent_pctWWef %>% mutate(exponent_label = factor(exponent_label, levels = exponent_labels)),
+  aes(x = exponent_label, y = median)
+) +
+  geom_col(fill = "#54B887") +
+  geom_text(aes(label = median), vjust = -0.4, size = 3.5) +
+  labs(
+    title = "Sensitivity of median %WWef to the fitted scaling exponent (95% CI)",
+    subtitle = sprintf("DAR statewide, 50%% threshold, gated confluence handling, month %s", HIGHLIGHT_MONTH),
+    x = "Exponent", y = "Median %WWef"
+  ) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 15, hjust = 1))
+ggsave(file.path(out_dir, "14_sensitivity_exponent_plot.png"), p_exponent, width = 8, height = 5, dpi = 150)
+
+cat("\n=== PART C: sensitivity analysis for the adopted method ===\n")
+cat(sprintf("Fitted exponent: b = %.3f (95%% CI %.3f - %.3f)\n", b_point, b_ci[1], b_ci[2]))
+cat("\nThreshold sensitivity (%WWef, month ", HIGHLIGHT_MONTH, "):\n", sep = "")
+print(threshold_pctWWef)
+cat("\nExponent sensitivity (%WWef, month ", HIGHLIGHT_MONTH, "):\n", sep = "")
+print(exponent_pctWWef)
+
+cat(sprintf("\nPart C outputs written to ./%s/:\n", out_dir))
+cat("  8_sensitivity_threshold_coverage_flow.csv - coverage/flow by month, across threshold values\n")
+cat(sprintf("  9_sensitivity_threshold_pctWWef_month_%s.csv - %%WWef distribution, across threshold values\n", HIGHLIGHT_MONTH))
+cat("  11_sensitivity_threshold_plot.png          - median %WWef vs. threshold, bar chart\n")
+cat("  12_sensitivity_exponent_coverage_flow.csv  - coverage/flow by month, across exponent values (95% CI)\n")
+cat(sprintf("  13_sensitivity_exponent_pctWWef_month_%s.csv - %%WWef distribution, across exponent values\n", HIGHLIGHT_MONTH))
+cat("  14_sensitivity_exponent_plot.png           - median %WWef vs. exponent, bar chart\n\n")
+cat("Reading this for the reviewer response:\n")
+cat("  - This is the direct answer to 'was a sensitivity analysis conducted on the threshold,\n")
+cat("    and how much do alternative values change the released flows and %WWef estimates' -\n")
+cat("    now scoped to the actual adopted method (DAR statewide + gated confluence), not the\n")
+cat("    old QE_MA-based method.\n")
+cat("  - If %WWef stays roughly flat across most of the threshold grid and only shifts at the\n")
+cat("    extremes (very tight or no gate at all), that supports 50% as a reasonable, non-arbitrary\n")
+cat("    choice sitting in a stable part of the sensitivity curve.\n")
+cat("  - The exponent panel shows whether the uncertainty already reported in your fit\n")
+cat("    (the 95% CI) translates into a meaningfully different %WWef estimate - if the three\n")
+cat("    bars are close together, that's evidence the conclusions are not fragile to exponent\n")
+cat("    uncertainty; if they diverge a lot, that uncertainty needs to be stated as a limitation.\n")

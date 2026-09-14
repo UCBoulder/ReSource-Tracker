@@ -1,7 +1,7 @@
 method,confluence_method,n,median,mean,p90
-baseline,new,4904,0,0.061,0
-baseline,old,4909,0,0.061,0
-dar_regional,new,5026,0,0.055,0
-dar_regional,old,5014,0,0.055,0
-dar_statewide,new,5026,0,0.056,0
-dar_statewide,old,5014,0,0.056,0
+baseline,new,4904,0.161,6.697,28.117
+baseline,old,4909,0.17,7.242,30.318
+dar_regional,new,5026,0.144,5.968,24.43
+dar_regional,old,5014,0.145,6.546,25.76
+dar_statewide,new,5026,0.144,6.014,24.43
+dar_statewide,old,5014,0.145,6.591,26.463
