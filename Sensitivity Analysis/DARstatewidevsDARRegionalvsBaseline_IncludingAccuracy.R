@@ -946,3 +946,124 @@ cat("  - The exponent panel shows whether the uncertainty already reported in yo
 cat("    (the 95% CI) translates into a meaningfully different %WWef estimate - if the three\n")
 cat("    bars are close together, that's evidence the conclusions are not fragile to exponent\n")
 cat("    uncertainty; if they diverge a lot, that uncertainty needs to be stated as a limitation.\n")
+
+# ==============================================================================
+# PART D - IS THE DA-RATIO EXPONENT SEASONAL?
+# ==============================================================================
+# Everything above fits ONE exponent on ANNUAL MEAN flow (ann_mean_flow) and
+# applies it to every month. That's an assumption, not a tested fact - DAR
+# exponents can plausibly differ between baseflow-dominated months and
+# snowmelt/storm-driven months. This section tests that assumption directly:
+#
+#   (D1) Refit b separately for each month, using that month's own raw gage
+#        flow (Qgage_MM) instead of the annual mean - same regression form,
+#        same gage_rows, just done 12 times instead of once.
+#   (D2) Ask whether the log(DA) slope actually differs by month in a
+#        statistically defensible way, via a nested-model F-test on an
+#        interaction term (log(Q) ~ log(DA) * month vs. log(Q) ~ log(DA) +
+#        month) on the pooled monthly data - this is the real answer to
+#        "is there seasonal change in the exponent," not just eyeballing
+#        12 point estimates that will never be numerically identical anyway.
+#
+# This does NOT feed back into Parts A-C or change the adopted method - it's
+# a standalone check of whether a fixed annual exponent is defensible, for
+# the reviewer response and/or as a documented limitation.
+
+cat("\n=== PART D: is the DA-ratio exponent seasonal? ===\n")
+
+## ---- D1. Per-month exponent fits -------------------------------------------
+fit_b_month <- function(mon) {
+  qcol <- paste0("Qgage_", mon)
+  fit_data <- base_flow_order[gage_rows, ] %>%
+    filter(is.finite(.data[[qcol]]), is.finite(DA), .data[[qcol]] > 0, DA > 0)
+  
+  m  <- lm(as.formula(paste0("log(", qcol, ") ~ log(DA)")), data = fit_data)
+  ci <- confint(m)["log(DA)", ]
+  
+  tibble(
+    month    = mon,
+    n_gages  = nrow(fit_data),
+    b        = unname(coef(m)[2]),
+    se       = unname(summary(m)$coefficients["log(DA)", "Std. Error"]),
+    ci_lower = unname(ci[1]),
+    ci_upper = unname(ci[2]),
+    r2       = summary(m)$r.squared
+  )
+}
+
+monthly_exponent_fits <- map_dfr(mon_codes, fit_b_month)
+
+## annual (statewide, all-months-pooled-via-mean) fit for reference - already
+## computed in Part C as full_lm / b_point / b_ci
+monthly_exponent_fits <- monthly_exponent_fits %>%
+  mutate(annual_b = b_point, annual_ci_lower = b_ci[1], annual_ci_upper = b_ci[2])
+
+write_csv(monthly_exponent_fits, file.path(out_dir, "15_monthly_exponent_fits.csv"))
+
+cat("\nPer-month exponent fits (vs. annual b = ", sprintf("%.3f", b_point),
+    ", 95% CI ", sprintf("%.3f", b_ci[1]), "-", sprintf("%.3f", b_ci[2]), "):\n", sep = "")
+print(monthly_exponent_fits, n = 12)
+
+## ---- D2. Formal test: does the log(DA)-log(Q) slope actually vary by month? ----
+## Pool every month's (Q, DA) pairs into one long table, then compare a model
+## that shares one exponent across all months against one that lets the
+## exponent vary by month (interaction term). A significant interaction means
+## the exponent is NOT well described as a single seasonally-constant value.
+long_data <- map_dfr(mon_codes, function(mm) {
+  qcol <- paste0("Qgage_", mm)
+  base_flow_order[gage_rows, ] %>%
+    filter(is.finite(.data[[qcol]]), is.finite(DA), .data[[qcol]] > 0, DA > 0) %>%
+    transmute(Q = .data[[qcol]], DA = DA, month = mm)
+})
+
+model_shared_b      <- lm(log(Q) ~ log(DA) + month, data = long_data)
+model_month_varies_b <- lm(log(Q) ~ log(DA) * month, data = long_data)
+seasonal_b_test <- anova(model_shared_b, model_month_varies_b)
+
+seasonal_b_test_summary <- tibble(
+  df1        = seasonal_b_test$Df[2],
+  df2        = seasonal_b_test$Res.Df[2],
+  F_stat     = round(seasonal_b_test$F[2], 3),
+  p_value    = signif(seasonal_b_test[["Pr(>F)"]][2], 4),
+  n_obs      = nrow(long_data),
+  conclusion = if_else(seasonal_b_test[["Pr(>F)"]][2] < 0.05,
+                       "Exponent differs significantly by month (p < 0.05)",
+                       "No significant evidence the exponent differs by month (p >= 0.05)")
+)
+write_csv(seasonal_b_test_summary, file.path(out_dir, "16_seasonal_exponent_test.csv"))
+
+cat("\nFormal test - does log(DA) slope (the exponent) vary by month?\n")
+cat(sprintf("  F(%d, %d) = %.3f, p = %s\n",
+            seasonal_b_test_summary$df1, seasonal_b_test_summary$df2,
+            seasonal_b_test_summary$F_stat, format.pval(seasonal_b_test_summary$p_value, digits = 4)))
+cat(sprintf("  %s\n", seasonal_b_test_summary$conclusion))
+
+## ---- Plot: monthly exponent estimates + CI, vs. the adopted annual value ---
+p_seasonal <- ggplot(monthly_exponent_fits, aes(x = month, y = b, group = 1)) +
+  geom_hline(yintercept = b_point, color = "grey40", linetype = "dashed") +
+  geom_ribbon(aes(ymin = annual_ci_lower, ymax = annual_ci_upper), fill = "grey70", alpha = 0.25) +
+  geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper), width = 0.2, color = "#4B6CB7") +
+  geom_point(size = 2.2, color = "#4B6CB7") +
+  labs(
+    title = "Monthly DA-ratio exponent estimates vs. the adopted annual value",
+    subtitle = sprintf("Dashed line + shaded band = annual exponent (b=%.3f) and its 95%% CI. Points = per-month fits, own 95%% CI.", b_point),
+    x = "Month", y = "Fitted exponent (b)"
+  ) +
+  theme_bw()
+ggsave(file.path(out_dir, "17_seasonal_exponent_plot.png"), p_seasonal, width = 9, height = 5.5, dpi = 150)
+
+cat(sprintf("\nPart D outputs written to ./%s/:\n", out_dir))
+cat("  15_monthly_exponent_fits.csv   - b, SE, 95% CI, R^2, n per month, vs. the annual value\n")
+cat("  16_seasonal_exponent_test.csv  - nested-model F-test for whether the exponent varies by month\n")
+cat("  17_seasonal_exponent_plot.png  - per-month b with CI error bars, against the annual b + its CI band\n\n")
+cat("Reading this for the reviewer response:\n")
+cat("  - If every month's CI error bar overlaps the annual CI band, and the F-test p-value is >= 0.05,\n")
+cat("    that's a defensible basis for keeping ONE fixed annual exponent - the apparent month-to-month\n")
+cat("    wiggle in D1 is just sampling noise around a single true value, not a real seasonal effect.\n")
+cat("  - If several months' CIs sit clearly outside the annual band (especially if they cluster in\n")
+cat("    snowmelt/high-flow months like May-July) AND the F-test is significant, that's evidence the\n")
+cat("    fixed annual exponent is misspecified in those months - worth flagging as a limitation, and a\n")
+cat("    plausible explanation for the May-July positive bias already seen in the DAR LOOCV results\n")
+cat("    (Part B) rather than something further threshold or confluence tuning would fix.\n")
+cat("  - Either way, this is a check of the ASSUMPTION, not a change to the adopted method - nothing\n")
+cat("    above this section is affected by what you find here.\n")
