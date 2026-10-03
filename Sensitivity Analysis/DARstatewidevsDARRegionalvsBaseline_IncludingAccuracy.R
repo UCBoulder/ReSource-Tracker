@@ -1067,3 +1067,450 @@ cat("    plausible explanation for the May-July positive bias already seen in th
 cat("    (Part B) rather than something further threshold or confluence tuning would fix.\n")
 cat("  - Either way, this is a check of the ASSUMPTION, not a change to the adopted method - nothing\n")
 cat("    above this section is affected by what you find here.\n")
+
+# ==============================================================================
+# PART E - DOES DOWNSTREAM FLOW ACTUALLY GROW THE WAY DA-RATIO SCALING ASSUMES?
+# ==============================================================================
+# Two checks, in increasing order of rigor:
+#
+#   (E1) MECHANISM CHECK (self-consistency only): when the similarity threshold
+#        is loosened, which segments does that actually add to the reconstructed
+#        network, and do they look like the "bigger downstream river, more
+#        dilute" segments the threshold-sensitivity explanation assumes? This
+#        only checks internal consistency of the propagation output against
+#        itself - it cannot confirm the DA-ratio assumption is physically true.
+#
+#   (E2) PHYSICAL CHECK (real data, no propagation involved): for pairs of REAL
+#        gages where one is hydrologically upstream of the other, does the
+#        observed flow ratio between them actually track the DA-ratio
+#        prediction (Ad/Au)^b? This tests the actual physical assumption
+#        directly against paired observations, rather than the network-wide
+#        cross-sectional regression (Section 3 / Part C), which pools gages
+#        across different basins and so never actually tests whether flow
+#        accumulates as assumed ALONG a single flowpath. Also broken out by
+#        month, since a systematic breakdown in May-July here would be direct,
+#        independent evidence for what's driving the LOOCV seasonal bias.
+
+cat("\n=== PART E: does downstream flow really grow the way DA-ratio scaling assumes? ===\n")
+
+## ---- E1. What does loosening the gate actually add to the network? --------
+TIGHT_THRESHOLD <- 0.10
+LOOSE_THRESHOLD <- Inf
+
+run_tight <- propagate_new(gage_rows, HIGHLIGHT_MONTH, gate_mode = SELECTED_GATE_MODE,
+                           threshold = TIGHT_THRESHOLD, b_vec = b_statewide_vec)
+run_loose <- propagate_new(gage_rows, HIGHLIGHT_MONTH, gate_mode = SELECTED_GATE_MODE,
+                           threshold = LOOSE_THRESHOLD, b_vec = b_statewide_vec)
+pctWWef_loose <- compute_pctWWef(run_loose, HIGHLIGHT_MONTH)
+
+already_reconstructed <- which(is.finite(run_tight$Q))
+newly_added           <- which(is.finite(run_loose$Q) & !is.finite(run_tight$Q))
+
+summarize_segment_group <- function(idx, label) {
+  tibble(
+    group          = label,
+    n_segments     = length(idx),
+    median_DA_km2  = round(median(base_flow_order$DA[idx], na.rm = TRUE), 1),
+    mean_DA_km2    = round(mean(base_flow_order$DA[idx], na.rm = TRUE), 1),
+    median_pctWWef = round(median(pctWWef_loose[idx], na.rm = TRUE), 3),
+    mean_pctWWef   = round(mean(pctWWef_loose[idx], na.rm = TRUE), 3)
+  )
+}
+segment_composition <- bind_rows(
+  summarize_segment_group(already_reconstructed, sprintf("Reconstructed already at %s%% gate", TIGHT_THRESHOLD * 100)),
+  summarize_segment_group(newly_added, "Newly reconstructed ONLY once gate is loosened to no-gate")
+)
+write_csv(segment_composition, file.path(out_dir, "18_gate_loosening_segment_composition.csv"))
+
+cat(sprintf("\nSegment composition: what gets added when the gate loosens from %s%% to no-gate (month %s)?\n",
+            TIGHT_THRESHOLD * 100, HIGHLIGHT_MONTH))
+print(segment_composition)
+
+da_compare_data <- bind_rows(
+  tibble(group = sprintf("Reconstructed already at %s%% gate", TIGHT_THRESHOLD * 100),
+         DA = base_flow_order$DA[already_reconstructed], pctWWef = pctWWef_loose[already_reconstructed]),
+  tibble(group = "Newly reconstructed ONLY once gate is loosened",
+         DA = base_flow_order$DA[newly_added], pctWWef = pctWWef_loose[newly_added])
+) %>% filter(is.finite(DA))
+
+p_da_compare <- ggplot(da_compare_data, aes(x = group, y = DA)) +
+  geom_boxplot(fill = "#4B6CB7", alpha = 0.6, outlier.alpha = 0.2) +
+  scale_y_log10() +
+  labs(
+    title = "Drainage area of segments reconstructed under a tight gate vs. newly added by loosening it",
+    subtitle = sprintf("Month %s - if loosening mainly reaches bigger downstream rivers, the right box should sit higher", HIGHLIGHT_MONTH),
+    x = NULL, y = "Drainage area, km^2 (log scale)"
+  ) +
+  theme_bw() + theme(axis.text.x = element_text(angle = 10, hjust = 1))
+ggsave(file.path(out_dir, "19_gate_loosening_DA_comparison.png"), p_da_compare, width = 7.5, height = 5.5, dpi = 150)
+
+p_ww_compare <- ggplot(da_compare_data %>% filter(is.finite(pctWWef)), aes(x = group, y = pctWWef)) +
+  geom_boxplot(fill = "#54B887", alpha = 0.6, outlier.alpha = 0.2) +
+  labs(
+    title = "%WWef of segments reconstructed under a tight gate vs. newly added by loosening it",
+    subtitle = sprintf("Month %s - if newly added segments are more dilute, the right box should sit lower", HIGHLIGHT_MONTH),
+    x = NULL, y = "%WWef"
+  ) +
+  theme_bw() + theme(axis.text.x = element_text(angle = 10, hjust = 1))
+ggsave(file.path(out_dir, "20_gate_loosening_pctWWef_comparison.png"), p_ww_compare, width = 7.5, height = 5.5, dpi = 150)
+
+## ---- E2. Nested real-gage pairs: does observed flow track DA-ratio scaling? ----
+## A pair (u = upstream gage, d = downstream gage) qualifies whenever u lies in
+## d's upstream watershed (get_ancestors(d) - already precomputed for LOOCV) -
+## i.e. real water measured at u genuinely flows through d. This tests the
+## DA-ratio ASSUMPTION directly against paired observations, independent of
+## the network-wide cross-sectional exponent fit in Section 3.
+find_nested_gage_pairs <- function() {
+  pair_list <- vector("list", length(gage_rows))
+  for (k in seq_along(gage_rows)) {
+    d   <- gage_rows[k]
+    anc <- setdiff(get_ancestors(d), d)
+    ups <- intersect(anc, gage_rows)
+    if (length(ups) == 0) { pair_list[[k]] <- NULL; next }
+    pair_list[[k]] <- tibble(down_row = d, up_row = ups)
+  }
+  bind_rows(pair_list)
+}
+nested_pairs <- find_nested_gage_pairs()
+cat(sprintf("\nFound %d nested (upstream gage -> downstream gage) pairs across %d gaged segments.\n",
+            nrow(nested_pairs), length(gage_rows)))
+
+nested_ratio_by_month <- map_dfr(mon_codes, function(mm) {
+  qcol <- paste0("Qgage_", mm)
+  Qd <- base_flow_order[[qcol]][nested_pairs$down_row]
+  Qu <- base_flow_order[[qcol]][nested_pairs$up_row]
+  Ad <- base_flow_order$DA[nested_pairs$down_row]
+  Au <- base_flow_order$DA[nested_pairs$up_row]
+  
+  ok <- is.finite(Qd) & is.finite(Qu) & Qd > 0 & Qu > 0 &
+    is.finite(Ad) & is.finite(Au) & Au > 0 & Ad > Au   # only genuine downstream area growth
+  
+  obs_ratio  <- Qd[ok] / Qu[ok]
+  da_ratio   <- Ad[ok] / Au[ok]
+  pred_ratio <- da_ratio ^ full_fit$b_statewide
+  log_err    <- log(obs_ratio) - log(pred_ratio)           # 0 = perfect agreement with DA-ratio scaling
+  
+  tibble(
+    month                 = mm,
+    n_pairs               = sum(ok),
+    median_log_ratio_bias = round(median(log_err), 3),      # systematic over/under-prediction
+    median_abs_pct_error  = round(median(abs(exp(log_err) - 1) * 100), 1),
+    pearson_r_log_ratios  = round(suppressWarnings(cor(log(da_ratio), log(obs_ratio))), 3)
+  )
+})
+write_csv(nested_ratio_by_month, file.path(out_dir, "21_nested_gage_pair_validation_by_month.csv"))
+
+cat("\nNested real-gage pair validation - does observed Qd/Qu track (Ad/Au)^b by month?\n")
+cat("  median_log_ratio_bias: 0 = no bias; positive = observed grows MORE than DA-ratio predicts;\n")
+cat("                         negative = observed grows LESS than DA-ratio predicts (over-propagation risk)\n")
+print(nested_ratio_by_month, n = 12)
+
+p_nested <- ggplot(nested_ratio_by_month, aes(x = month, y = median_log_ratio_bias, group = 1)) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "grey50") +
+  geom_line(color = "#B85450") + geom_point(size = 2.2, color = "#B85450") +
+  labs(
+    title = "Nested real-gage pairs: bias of DA-ratio scaling vs. observed flow, by month",
+    subtitle = "0 = observed flow ratio matches (Ad/Au)^b exactly; away from 0 = the scaling assumption is off in that month",
+    x = "Month", y = "Median log(observed ratio) - log(predicted ratio)"
+  ) +
+  theme_bw()
+ggsave(file.path(out_dir, "22_nested_gage_pair_bias_by_month.png"), p_nested, width = 9, height = 5.5, dpi = 150)
+
+cat(sprintf("\nPart E outputs written to ./%s/:\n", out_dir))
+cat("  18_gate_loosening_segment_composition.csv    - DA and %WWef, tight-gate vs newly-added segments\n")
+cat("  19_gate_loosening_DA_comparison.png           - boxplot: are newly-added segments bigger rivers?\n")
+cat("  20_gate_loosening_pctWWef_comparison.png      - boxplot: are newly-added segments more dilute?\n")
+cat("  21_nested_gage_pair_validation_by_month.csv   - real paired-gage test of the DA-ratio assumption, by month\n")
+cat("  22_nested_gage_pair_bias_by_month.png         - the same, plotted; watch for a May-July departure from 0\n\n")
+cat("Reading this for the reviewer response / bias investigation:\n")
+cat("  - E1 confirms (or refutes) the MECHANISM: if the 'newly added' box in 19/20 shows clearly larger DA\n")
+cat("    and lower %WWef than the already-reconstructed box, that's confirmation the threshold-sensitivity\n")
+cat("    result (Part C) is a coverage/composition effect, not a re-estimation of existing segments.\n")
+cat("  - E2 is the real physical check, independent of everything above it: if median_log_ratio_bias sits\n")
+cat("    near 0 in every month, that's direct empirical support for DA-ratio scaling as a description of\n")
+cat("    how flow actually accumulates downstream in this network - not just a network-wide statistical fit.\n")
+cat("  - If E2's bias is notably worse (further from 0, or lower pearson_r) specifically in May-July, that is\n")
+cat("    independent, real-data evidence pointing at the same months flagged by the LOOCV bias (Part B) and\n")
+cat("    strengthens the case that the DA-ratio assumption itself - not the exponent, threshold, or confluence\n")
+cat("    handling - breaks down somewhat during snowmelt-driven months.\n")
+
+# ==============================================================================
+# PART F - IS E2's HUGE ERROR AN ARTIFACT OF FAR-FLUNG NESTED PAIRS?
+# ==============================================================================
+# Part E's nested-pair check (E2) pooled EVERY upstream/downstream gaged pair
+# in each other's watershed, including pairs separated by several other real
+# gages and large area jumps the propagation algorithm would never actually
+# use directly (it only ever steps to the IMMEDIATE next segment, gated by a
+# single-hop area-ratio check). That likely explains why E2's median error
+# (64-99%) is so much larger than the full network's LOOCV error (~24-30%):
+# it's testing DA-ratio scaling across distances/area-ratios far outside how
+# it's actually applied.
+#
+# This section re-runs the same real-data check two ways to isolate that:
+#   (F1) NEAREST-UPSTREAM-ONLY pairs - for each downstream gage, drop any
+#        upstream candidate that has another real gage sitting between it and
+#        the downstream gage. This is the closest real-data analogue to what
+#        a single propagation hop actually does.
+#   (F2) Bias binned by how large the area-ratio jump actually is, pooled
+#        across months - to see directly whether error shrinks toward the
+#        area-ratio range propagation actually operates in (near 1.0) and
+#        grows mainly for the large, rarely-used jumps.
+
+cat("\n=== PART F: is E2's error size driven by far-flung nested pairs? ===\n")
+
+## ---- F1. Restrict to nearest-upstream-gage pairs only ----------------------
+## Precompute each gaged segment's own upstream ancestor set once (reused to
+## test "does some OTHER candidate gage sit between u and d").
+anc_map <- vector("list", n_seg)
+for (r in gage_rows) anc_map[[r]] <- get_ancestors(r)
+
+keep_nearest_only <- function(pairs_df) {
+  keep_flags <- rep(TRUE, nrow(pairs_df))
+  split_idx  <- split(seq_len(nrow(pairs_df)), pairs_df$down_row)
+  for (idxs in split_idx) {
+    ups <- pairs_df$up_row[idxs]
+    if (length(ups) < 2) next
+    for (ii in seq_along(ups)) {
+      u <- ups[ii]
+      for (jj in seq_along(ups)) {
+        if (ii == jj) next
+        u2 <- ups[jj]
+        if (u %in% anc_map[[u2]]) { keep_flags[idxs[ii]] <- FALSE; break }  # u2 sits between u and d
+      }
+    }
+  }
+  pairs_df[keep_flags, ]
+}
+
+nested_pairs_nearest <- keep_nearest_only(nested_pairs)
+cat(sprintf("Nested pairs: %d total -> %d after restricting to nearest-upstream-gage only.\n",
+            nrow(nested_pairs), nrow(nested_pairs_nearest)))
+
+nested_ratio_summary_by_month <- function(pairs_df, b_exp) {
+  map_dfr(mon_codes, function(mm) {
+    qcol <- paste0("Qgage_", mm)
+    Qd <- base_flow_order[[qcol]][pairs_df$down_row]
+    Qu <- base_flow_order[[qcol]][pairs_df$up_row]
+    Ad <- base_flow_order$DA[pairs_df$down_row]
+    Au <- base_flow_order$DA[pairs_df$up_row]
+    
+    ok <- is.finite(Qd) & is.finite(Qu) & Qd > 0 & Qu > 0 &
+      is.finite(Ad) & is.finite(Au) & Au > 0 & Ad > Au
+    
+    obs_ratio  <- Qd[ok] / Qu[ok]
+    da_ratio   <- Ad[ok] / Au[ok]
+    pred_ratio <- da_ratio ^ b_exp
+    log_err    <- log(obs_ratio) - log(pred_ratio)
+    
+    tibble(
+      month                 = mm,
+      n_pairs               = sum(ok),
+      median_log_ratio_bias = round(median(log_err), 3),
+      median_abs_pct_error  = round(median(abs(exp(log_err) - 1) * 100), 1),
+      pearson_r_log_ratios  = round(suppressWarnings(cor(log(da_ratio), log(obs_ratio))), 3)
+    )
+  })
+}
+
+nested_ratio_nearest_by_month <- nested_ratio_summary_by_month(nested_pairs_nearest, full_fit$b_statewide)
+write_csv(nested_ratio_nearest_by_month, file.path(out_dir, "23_nested_gage_pair_validation_nearest_only_by_month.csv"))
+
+cat("\nNearest-upstream-gage-only validation, by month (compare against 21_..._by_month.csv):\n")
+print(nested_ratio_nearest_by_month, n = 12)
+
+comparison_plot_data <- bind_rows(
+  nested_ratio_by_month %>% mutate(pair_set = "All nested pairs (any distance)"),
+  nested_ratio_nearest_by_month %>% mutate(pair_set = "Nearest upstream gage only")
+)
+write_csv(comparison_plot_data, file.path(out_dir, "24_nested_gage_pair_all_vs_nearest_comparison.csv"))
+
+p_nearest_compare <- ggplot(comparison_plot_data, aes(x = month, y = median_abs_pct_error, color = pair_set, group = pair_set)) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "grey70") +
+  geom_line() + geom_point(size = 2) +
+  labs(
+    title = "Does restricting to the nearest upstream gage shrink the DA-ratio error?",
+    subtitle = "If the huge error in Part E was mainly a far-distance artifact, the nearest-only line should sit well below the all-pairs line",
+    x = "Month", y = "Median absolute % error", color = NULL
+  ) +
+  theme_bw()
+ggsave(file.path(out_dir, "25_nested_gage_pair_all_vs_nearest_plot.png"), p_nearest_compare, width = 9, height = 5.5, dpi = 150)
+
+## ---- F2. Bias binned by the size of the area-ratio jump, pooled across months ----
+## Uses the nearest-upstream-only pairs, since that's the relevant population
+## for "how does error behave near the area-ratio range propagation actually uses."
+pooled_nearest <- map_dfr(mon_codes, function(mm) {
+  qcol <- paste0("Qgage_", mm)
+  Qd <- base_flow_order[[qcol]][nested_pairs_nearest$down_row]
+  Qu <- base_flow_order[[qcol]][nested_pairs_nearest$up_row]
+  Ad <- base_flow_order$DA[nested_pairs_nearest$down_row]
+  Au <- base_flow_order$DA[nested_pairs_nearest$up_row]
+  ok <- is.finite(Qd) & is.finite(Qu) & Qd > 0 & Qu > 0 &
+    is.finite(Ad) & is.finite(Au) & Au > 0 & Ad > Au
+  tibble(month = mm, da_ratio = Ad[ok] / Au[ok], obs_ratio = Qd[ok] / Qu[ok])
+})
+pooled_nearest <- pooled_nearest %>%
+  mutate(
+    pred_ratio = da_ratio ^ full_fit$b_statewide,
+    log_err    = log(obs_ratio) - log(pred_ratio)
+  )
+
+area_ratio_breaks <- c(1, 1.25, 1.5, 2, 3, 5, 10, Inf)
+area_ratio_labels <- c("1.00-1.25", "1.25-1.50", "1.50-2.00", "2.00-3.00", "3.00-5.00", "5.00-10.00", ">10.00")
+pooled_nearest$area_ratio_bin <- cut(pooled_nearest$da_ratio, breaks = area_ratio_breaks,
+                                     labels = area_ratio_labels, include.lowest = TRUE)
+
+bias_by_area_ratio <- pooled_nearest %>%
+  filter(!is.na(area_ratio_bin)) %>%
+  group_by(area_ratio_bin) %>%
+  summarize(
+    n_obs                 = n(),
+    median_log_ratio_bias = round(median(log_err), 3),
+    median_abs_pct_error  = round(median(abs(exp(log_err) - 1) * 100), 1),
+    .groups = "drop"
+  )
+write_csv(bias_by_area_ratio, file.path(out_dir, "26_nested_gage_pair_bias_by_area_ratio_bin.csv"))
+
+cat("\nBias binned by area-ratio jump size (nearest-upstream pairs, all months pooled):\n")
+print(bias_by_area_ratio, n = 20)
+cat(sprintf("\nFor reference, the adopted single-hop similarity threshold is %.0f%%, i.e. propagation only ever\n",
+            SIMILARITY_THRESHOLD * 100))
+cat("takes area-ratio jumps within roughly the '1.00-1.50' bin directly - larger bins here reflect jumps\n")
+cat("that only arise from chains of several hops, or from pairs the network's own gate would never allow.\n")
+
+p_area_ratio_bin <- ggplot(bias_by_area_ratio, aes(x = area_ratio_bin, y = median_abs_pct_error)) +
+  geom_col(fill = "#B85450", alpha = 0.75) +
+  geom_text(aes(label = n_obs), vjust = -0.4, size = 3.2) +
+  labs(
+    title = "DA-ratio scaling error grows with the size of the area-ratio jump",
+    subtitle = "Nearest-upstream-gage pairs, all months pooled. Bar labels = n observations per bin.",
+    x = "Downstream/upstream drainage-area ratio", y = "Median absolute % error"
+  ) +
+  theme_bw()
+ggsave(file.path(out_dir, "27_nested_gage_pair_bias_by_area_ratio_plot.png"), p_area_ratio_bin, width = 8, height = 5.5, dpi = 150)
+
+cat(sprintf("\nPart F outputs written to ./%s/:\n", out_dir))
+cat("  23_nested_gage_pair_validation_nearest_only_by_month.csv - E2 redone, nearest-upstream-gage pairs only\n")
+cat("  24_nested_gage_pair_all_vs_nearest_comparison.csv         - all-pairs vs. nearest-only, side by side\n")
+cat("  25_nested_gage_pair_all_vs_nearest_plot.png                - the same, plotted by month\n")
+cat("  26_nested_gage_pair_bias_by_area_ratio_bin.csv              - error vs. size of the area-ratio jump\n")
+cat("  27_nested_gage_pair_bias_by_area_ratio_plot.png             - the same, plotted\n\n")
+cat("Reading this for the reviewer response / bias investigation:\n")
+cat("  - If the nearest-only line (25) sits well below the all-pairs line, E2's large error was mostly a\n")
+cat("    distance artifact - DA-ratio scaling is reasonably trustworthy at the range propagation actually\n")
+cat("    uses, and the literature-style bound (Hortness, 2006; ~0.5-1.5 area ratio) is doing real work.\n")
+cat("  - If error still climbs sharply in 26 even within the near-1.0 bins, that's evidence the exponent-\n")
+cat("    scaling assumption is shakier than the network-wide cross-sectional R^2 (0.591) suggests, even at\n")
+cat("    realistic single-hop distances - worth stating as a limitation regardless of the seasonal-bias\n")
+cat("    question this was originally meant to help answer.\n")
+cat("  - Compare the SHAPE of the nearest-only monthly line (23) against the LOOCV bias-by-month pattern\n")
+cat("    (Part B, dar_state_new's May-July departure) - if the nearest-only error is now roughly flat across\n")
+cat("    months, that further supports ruling out the physical growth relationship as the source of the\n")
+cat("    LOOCV seasonal bias, and points back toward hop-count/confluence-path effects as the likelier cause.\n")
+
+# ==============================================================================
+# PART G - IS THE SMALL PER-HOP BIAS, WITHIN THE GATE'S OWN RANGE, SEASONAL?
+# ==============================================================================
+# Part F's pooled area-ratio-bin table showed something worth chasing further:
+# within the area-ratio range a single hop under the 50% gate can actually
+# produce (Aj/Ai <= 2.0, since |Ai-Aj|/Aj < 0.50 solves to Aj/Ai < 2), error is
+# low (~25-29%) and bias is small but consistently NEGATIVE (slight
+# over-prediction) - the same DIRECTION as the LOOCV's May-July over-prediction
+# problem, unlike the large positive (under-prediction) bias seen at bigger
+# area-ratio jumps. A small per-hop over-prediction bias would compound across
+# a multi-hop propagation chain. This section tests whether that small
+# near-gate-range bias is itself worse in May-July - which would tie the whole
+# investigation together - using the same nearest-upstream-gage real pairs as
+# Part F, restricted to the gate's own operating range.
+
+cat("\n=== PART G: is the small within-gate-range bias itself seasonal? ===\n")
+
+## Solve |Ai - Aj| / Aj < threshold for Aj/Ai directly, matching the code's own gate:
+##   (Aj - Ai) / Aj < threshold  =>  Ai > Aj * (1 - threshold)  =>  Aj / Ai < 1 / (1 - threshold)
+GATE_MAX_RATIO <- 1 / (1 - SIMILARITY_THRESHOLD)
+cat(sprintf("Single-hop area-ratio bound implied by the %.0f%% gate: Aj/Ai < %.3f\n",
+            SIMILARITY_THRESHOLD * 100, GATE_MAX_RATIO))
+
+near_gate_range_by_month <- map_dfr(mon_codes, function(mm) {
+  qcol <- paste0("Qgage_", mm)
+  Qd <- base_flow_order[[qcol]][nested_pairs_nearest$down_row]
+  Qu <- base_flow_order[[qcol]][nested_pairs_nearest$up_row]
+  Ad <- base_flow_order$DA[nested_pairs_nearest$down_row]
+  Au <- base_flow_order$DA[nested_pairs_nearest$up_row]
+  
+  da_ratio <- Ad / Au
+  ok <- is.finite(Qd) & is.finite(Qu) & Qd > 0 & Qu > 0 &
+    is.finite(Ad) & is.finite(Au) & Au > 0 & Ad > Au &
+    is.finite(da_ratio) & da_ratio <= GATE_MAX_RATIO   # restrict to what one hop could actually produce
+  
+  obs_ratio  <- Qd[ok] / Qu[ok]
+  pred_ratio <- da_ratio[ok] ^ full_fit$b_statewide
+  log_err    <- log(obs_ratio) - log(pred_ratio)
+  
+  tibble(
+    month                 = mm,
+    n_pairs               = length(log_err),
+    median_log_ratio_bias = round(median(log_err), 3),
+    median_abs_pct_error  = round(median(abs(exp(log_err) - 1) * 100), 1)
+  )
+})
+write_csv(near_gate_range_by_month, file.path(out_dir, "28_within_gate_range_bias_by_month.csv"))
+
+cat(sprintf("\nBias within the gate's own operating range (Aj/Ai <= %.2f), nearest-upstream pairs, by month:\n", GATE_MAX_RATIO))
+print(near_gate_range_by_month, n = 12)
+
+## Finer resolution: same restriction, split into the three sub-bins from Part
+## F (1.00-1.25 / 1.25-1.50 / 1.50-2.00) AND by month, for a fuller picture.
+within_gate_bin_by_month <- map_dfr(mon_codes, function(mm) {
+  qcol <- paste0("Qgage_", mm)
+  Qd <- base_flow_order[[qcol]][nested_pairs_nearest$down_row]
+  Qu <- base_flow_order[[qcol]][nested_pairs_nearest$up_row]
+  Ad <- base_flow_order$DA[nested_pairs_nearest$down_row]
+  Au <- base_flow_order$DA[nested_pairs_nearest$up_row]
+  da_ratio <- Ad / Au
+  ok <- is.finite(Qd) & is.finite(Qu) & Qd > 0 & Qu > 0 &
+    is.finite(Ad) & is.finite(Au) & Au > 0 & Ad > Au &
+    is.finite(da_ratio) & da_ratio <= GATE_MAX_RATIO
+  tibble(month = mm, da_ratio = da_ratio[ok],
+         obs_ratio = (Qd[ok] / Qu[ok]))
+}) %>%
+  mutate(
+    pred_ratio = da_ratio ^ full_fit$b_statewide,
+    log_err    = log(obs_ratio) - log(pred_ratio),
+    area_ratio_bin = cut(da_ratio, breaks = c(1, 1.25, 1.5, GATE_MAX_RATIO),
+                         labels = c("1.00-1.25", "1.25-1.50", sprintf("1.50-%.2f", GATE_MAX_RATIO)),
+                         include.lowest = TRUE)
+  ) %>%
+  filter(!is.na(area_ratio_bin)) %>%
+  group_by(month, area_ratio_bin) %>%
+  summarize(n_obs = n(), median_log_ratio_bias = round(median(log_err), 3),
+            median_abs_pct_error = round(median(abs(exp(log_err) - 1) * 100), 1), .groups = "drop")
+write_csv(within_gate_bin_by_month, file.path(out_dir, "29_within_gate_bin_by_month_detail.csv"))
+
+p_within_gate <- ggplot(near_gate_range_by_month, aes(x = month, y = median_log_ratio_bias, group = 1)) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "grey50") +
+  geom_line(color = "#4B6CB7") + geom_point(size = 2.2, color = "#4B6CB7") +
+  labs(
+    title = "Bias within the gate's own single-hop range, by month",
+    subtitle = sprintf("Nearest-upstream real-gage pairs with Aj/Ai <= %.2f only. Below 0 = slight over-prediction.", GATE_MAX_RATIO),
+    x = "Month", y = "Median log(observed ratio) - log(predicted ratio)"
+  ) +
+  theme_bw()
+ggsave(file.path(out_dir, "30_within_gate_range_bias_by_month_plot.png"), p_within_gate, width = 9, height = 5.5, dpi = 150)
+
+cat(sprintf("\nPart G outputs written to ./%s/:\n", out_dir))
+cat("  28_within_gate_range_bias_by_month.csv      - bias/error using ONLY area ratios a single hop could produce, by month\n")
+cat("  29_within_gate_bin_by_month_detail.csv       - the same, finer-grained (3 sub-bins x 12 months)\n")
+cat("  30_within_gate_range_bias_by_month_plot.png  - 28, plotted; watch for a May-July dip below 0\n\n")
+cat("Reading this for the reviewer response / bias investigation:\n")
+cat("  - If median_log_ratio_bias goes MORE negative specifically in May-July here, that is the closing piece\n")
+cat("    of evidence: a small, real, per-hop over-prediction tendency that is worse in snowmelt months would\n")
+cat("    compound across multi-hop propagation chains and plausibly explain the LOOCV's May-July over-\n")
+cat("    prediction bias directly - pointing at a genuine (if small) seasonal weakness in the exponent's\n")
+cat("    fit to the SHORT-RANGE relationship specifically, distinct from the long-range/seasonal checks in\n")
+cat("    Parts D and E which came back clean.\n")
+cat("  - If this stays flat across months (near its all-months average), the seasonal LOOCV bias is more\n")
+cat("    likely a structural artifact of chain length or confluence handling itself (e.g. more/longer chains\n")
+cat("    are needed in May-July because more segments lack a nearby direct gage that season) rather than a\n")
+cat("    property of the DA-ratio relationship - in which case the hop-count/confluence-path diagnostics\n")
+cat("    discussed earlier become the next step, not further scrutiny of the exponent or gate.\n")
+
