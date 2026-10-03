@@ -74,7 +74,7 @@ rurality_colors <- c(
   "Rural" = "#7570b3"
 )
 
-#columns that need to be adjusted to whole number from decimal percent
+# Columns that need to be adjusted to whole number from decimal percent
 proportion_cols <- c(
   "Percent Black or African American alone",
   "Percent American Indian / Alaska Native",
@@ -89,6 +89,10 @@ proportion_cols <- c(
   "Percent age over 64",
   "Adjusted percent of individuals below 200% Federal Poverty Line",
   "Share of homes with no kitchen or indoor plumbing (percent)")
+
+# Similarity gate for gage propagation, propagation is only allowed when
+# |Ai -Aj|/Aj < 0.5, accounting for differences in drainage area 
+SIMILARITY_THRESHOLD = 0.5 
 
 # --- Load Datasets -----------------------------------------------------------
 
@@ -472,11 +476,17 @@ flowlines <- flowlines %>%
   )
 
 # --- Build flow order data for propagation (monthly) -------------------------
+# Ensure draingage area is present in dataset 
+if (!"TotDASqKM" %in% names(flowlines)) {
+  stop("Flowlines are missing the TotDASqKM (total drainage area) column, ",
+       "which the drainage-area-ratio propagation requires.", call. = FALSE)
+}
 # Set up a flow_order table used for gage propagation down the network
 flow_order <- flowlines %>%
   st_drop_geometry() %>%
+  mutate(DA = as.numeric(TotDASqKM)) %>%
   select(
-    Hydroseq, DnHydroseq, site_no, QE_MA,
+    Hydroseq, DnHydroseq, site_no, QE_MA, DA,
     starts_with("Qgage_")
   ) %>%
   arrange(as.numeric(Hydroseq))
@@ -554,10 +564,13 @@ flow_order$is_confluence <- flow_order$Hydroseq %in% flow_order$DnHydroseq[dupli
 
 # Join local WW onto flow_order so propagation can add it to Qgage_prop
 ww_local_wide <- flow_map %>%
-  select(Hydroseq, starts_with("WW_mean_"))
+  select(Hydroseq, starts_with("WW_mean_"), starts_with("WW_var_"))
 flow_order <- flow_order %>%
   left_join(ww_local_wide, by = "Hydroseq") %>%
-  mutate(across(starts_with("WW_mean_"), ~coalesce(as.numeric(.x), 0)))
+  mutate(
+    across(starts_with("WW_mean_"), ~coalesce(as.numeric(.x), 0)),
+    across(starts_with("WW_var_"),  ~coalesce(as.numeric(.x), 0))
+  )
 
 # Bake local WW into Qgage_prop at same-seg seeds so downstream inherits correct denominator
 for (mm in mon_codes) {
@@ -569,104 +582,120 @@ for (mm in mon_codes) {
     flow_order[[mcol]][i] <- flow_order[[mcol]][i] + ww_val
   }
 }
-# Propagate downstream (monthly) where flows are similar
-known <- which(rowSums(is.finite(as.matrix(flow_order[, paste0("Qgage_", mon_codes)]))) > 0)
-queue <- known
 
-# visited = this row has already been assigned propagated flows
-visited <- rep(FALSE, nrow(flow_order))
+# Statewide drainage-area-ratio exponent 
+raw_q_cols <- paste0("Qgage_", mon_codes)
+flow_order$ann_mean_flow <- rowMeans(as.matrix(flow_order[, raw_q_cols]), na.rm = TRUE)
+flow_order$ann_mean_flow[is.nan(flow_order$ann_mean_flow)] <- NA_real_
 
-while (length(queue) > 0) {
-  i <- queue[1]
-  queue <- queue[-1]
-  
-  j <- dn_index[i]
-  if (is.na(j)) next
-  
-  # If downstream segment has a direct gage, never overwrite; treat as "done"
-  if (!is.na(flow_order$site_no[j])) {
-    visited[j] <- TRUE
-    next
-  }
-  
-  # If propagated flows have already been assigned to j, don't try again
-  if (visited[j]) next
-  
-  # Similarity check (modeled mean annual flow)
-  flow_i <- flow_order$QE_MA[i]
-  flow_j <- flow_order$QE_MA[j]
-  flows_similar <- is.finite(flow_i) && is.finite(flow_j) &&
-    abs(flow_i - flow_j) / pmax(flow_j, 1e-6) < 0.5
-  
-  allow_propagate <- flows_similar || isTRUE(flow_order$force_gage[j])
-  
-  if (!allow_propagate) {
-    next
-  }
-  
-  # Copy monthly mean + variance from i to j
-  should_add_ww <- is.na(flow_order$site_no[j]) |
-    flow_order$Hydroseq[j] %in% same_seg_ww_adj_seed
-  for (mm in mon_codes) {
-    mcol <- paste0("Qgage_", mm)
-    vcol <- paste0("Qgage_var_", mm)
-    ww_local <- if (should_add_ww) coalesce(flow_order[[paste0("WW_mean_", mm)]][j], 0) else 0
-    flow_order[[paste0(mcol, "_prop")]][j] <- flow_order[[paste0(mcol, "_prop")]][i] + ww_local
-    flow_order[[paste0(vcol, "_prop")]][j] <- flow_order[[paste0(vcol, "_prop")]][i]
-  }
-  
-  # Inherit gage provenance
-  flow_order$gage_used[j] <- flow_order$gage_used[i]
-  if (is.na(flow_order$gage_hseq[j])) {
-    flow_order$gage_hseq[j] <- flow_order$gage_hseq[i]
-  }
-  
-  
-  # Now lock j as assigned and continue downstream from it
-  visited[j] <- TRUE
-  queue <- c(queue, j)
-}
+da_fit_data <- flow_order %>%
+  filter(!is.na(site_no), is.finite(ann_mean_flow), is.finite(DA),
+         ann_mean_flow > 0, DA > 0)
+da_fit <- lm(log(ann_mean_flow) ~ log(DA), data = da_fit_data)
+b_da   <- unname(coef(da_fit)[2])
 
-# Confluence handling:
-# for Hydroseqs with ≥2 upstream branches that each carry gage info,
-# sum upstream flows to create a combined gage signal and propagate downstream.
-confluence_hseqs <- flow_order %>% filter(is_confluence) %>% pull(Hydroseq)
+if (!is.finite(b_da)) stop("DA-ratio exponent fit failed; check TotDASqKM and the gage flow columns.", call. = FALSE)
+if (b_da < 0.5 || b_da > 1.0) warning(sprintf("Fitted DA-ratio exponent b = %.3f is outside the expected 0.5-1.0 range; verify inputs.", b_da))
+message(sprintf("DA-ratio exponent: b = %.3f (n = %d gaged segments, R^2 = %.3f)",
+                b_da, nrow(da_fit_data), summary(da_fit)$r.squared))
 
-for (hseq in confluence_hseqs) {
-  upstream_idxs <- which(flow_order$DnHydroseq == hseq & !is.na(flow_order$gage_used))
-  if (length(upstream_idxs) >= 2) {
+# Network structure for a single upstream-to-downstream pass 
+n_seg     <- nrow(flow_order)
+DA_vec    <- flow_order$DA
+force_vec <- flow_order$force_gage
+order_idx <- order(as.numeric(flow_order$Hydroseq), decreasing = TRUE)
+
+valid_edges <- which(!is.na(dn_index))
+pred_split  <- split(valid_edges, dn_index[valid_edges])
+pred_list   <- vector("list", n_seg)                 # pred_list[[j]] = direct upstream rows of j
+pred_list[as.integer(names(pred_split))] <- pred_split
+pred_list[sapply(pred_list, is.null)] <- list(integer(0))
+
+# State carried through the pass (12 months as matrix columns) 
+known     <- which(rowSums(is.finite(as.matrix(flow_order[, paste0("Qgage_", mon_codes)]))) > 0)
+has_val   <- seq_len(n_seg) %in% known                # carries a flow estimate (direct or propagated)
+protected <- has_val | !is.na(flow_order$site_no)     # real gages are never overwritten
+
+Qprop   <- as.matrix(flow_order[, paste0("Qgage_",     mon_codes, "_prop")])
+Vprop   <- as.matrix(flow_order[, paste0("Qgage_var_", mon_codes, "_prop")])
+WWm_mat <- as.matrix(flow_order[, paste0("WW_mean_",   mon_codes)])
+WWv_mat <- as.matrix(flow_order[, paste0("WW_var_",    mon_codes)])
+
+gage_used_vec <- flow_order$gage_used
+gage_hseq_vec <- flow_order$gage_hseq
+
+# Propagation math
+for (j in order_idx) {
+  if (protected[j]) next
+  
+  preds <- pred_list[[j]]
+  if (length(preds) == 0L) next
+  preds_val <- preds[has_val[preds]]
+  n_val     <- length(preds_val)
+  if (n_val == 0L) next
+  
+  if (n_val == 1L) {
+    # ----  single-parent hop: gated, drainage-area-ratio scaled ----
+    i  <- preds_val
+    ai <- DA_vec[i]; aj <- DA_vec[j]
+    gate_ok <- is.finite(ai) && is.finite(aj) && ai > 0 && aj > 0 &&
+      abs(ai - aj) / max(aj, 1e-6) < SIMILARITY_THRESHOLD
+    if (!gate_ok && !isTRUE(force_vec[j])) next        # blocked; forced Hydroseqs still pass
     
-    # Qgage_prop already has WW baked in from the while loop — just sum
-    summed_means <- sapply(mon_codes, function(mm)
-      sum(flow_order[[paste0("Qgage_", mm, "_prop")]][upstream_idxs], na.rm = TRUE))
+    sf <- if (gate_ok) (aj / ai)^b_da else 1           # forced hop passes through unscaled
     
-    summed_vars <- sapply(mon_codes, function(mm)
-      sum(flow_order[[paste0("Qgage_var_", mm, "_prop")]][upstream_idxs], na.rm = TRUE))
+    # local WW is added at every newly filled segment 
+    Qprop[j, ] <- Qprop[i, ] * sf + WWm_mat[j, ]
+    Vprop[j, ] <- Vprop[i, ] * sf^2 + WWv_mat[j, ]
     
-    combined_gages <- paste(flow_order$gage_used[upstream_idxs], collapse = "+")
+    gage_used_vec[j] <- gage_used_vec[i]
+    gage_hseq_vec[j] <- gage_hseq_vec[i]
     
-    current_hseq <- hseq
-    repeat {
-      idx <- which(flow_order$Hydroseq == current_hseq)
-      if (length(idx) == 0 || !is.na(flow_order$site_no[idx])) break
-      
-      for (k in seq_along(mon_codes)) {
-        mm <- mon_codes[k]
-        ww_local <- coalesce(flow_order[[paste0("WW_mean_", mm)]][idx], 0)
-        summed_means[k] <- summed_means[k] + ww_local
-        flow_order[[paste0("Qgage_",     mm, "_prop")]][idx] <- summed_means[k]
-        flow_order[[paste0("Qgage_var_", mm, "_prop")]][idx] <- summed_vars[k]
-      }
-      
-      flow_order$gage_used[idx] <- combined_gages
-      flow_order$gage_hseq[idx] <- NA_character_
-      
-      
-      current_hseq <- flow_order$DnHydroseq[idx]
-      if (is.na(current_hseq)) break
+  } else {
+    # Confluence logic 
+    fin   <- is.finite(Qprop[preds_val, , drop = FALSE])   # branches x months
+    n_fin <- colSums(fin)
+    
+    Qj <- rep(NA_real_, length(mon_codes))
+    Vj <- rep(NA_real_, length(mon_codes))
+    
+    m2 <- which(n_fin >= 2L)
+    if (length(m2) > 0L) {
+      Qj[m2] <- colSums(Qprop[preds_val, m2, drop = FALSE], na.rm = TRUE) + WWm_mat[j, m2]
+      Vj[m2] <- colSums(Vprop[preds_val, m2, drop = FALSE], na.rm = TRUE) + WWv_mat[j, m2]
     }
+    
+    for (m in which(n_fin == 1L)) {
+      i  <- preds_val[fin[, m]]
+      ai <- DA_vec[i]; aj <- DA_vec[j]
+      gate_ok <- is.finite(ai) && is.finite(aj) && ai > 0 && aj > 0 &&
+        abs(ai - aj) / max(aj, 1e-6) < SIMILARITY_THRESHOLD
+      if (!gate_ok && !isTRUE(force_vec[j])) next          # skips to next month
+      sf <- if (gate_ok) (aj / ai)^b_da else 1
+      Qj[m] <- Qprop[i, m] * sf + WWm_mat[j, m]
+      Vj[m] <- Vprop[i, m] * sf^2 + WWv_mat[j, m]
+    }
+    
+    if (!any(is.finite(Qj))) next                            # nothing filled in any month
+    Qprop[j, ] <- Qj
+    Vprop[j, ] <- Vj
+    
+    gage_used_vec[j] <- paste(gage_used_vec[preds_val], collapse = "+")
+    gage_hseq_vec[j] <- NA_character_
   }
+  
+  has_val[j] <- TRUE
 }
+
+# Write results back to flow_order
+for (k in seq_along(mon_codes)) {
+  mm <- mon_codes[k]
+  flow_order[[paste0("Qgage_",     mm, "_prop")]] <- Qprop[, k]
+  flow_order[[paste0("Qgage_var_", mm, "_prop")]] <- Vprop[, k]
+}
+flow_order$gage_used <- gage_used_vec
+flow_order$gage_hseq <- gage_hseq_vec
+
 
 # Derive low/high bands from propagated mean + variance (mean ± 1 SD)
 for (mm in mon_codes) {
@@ -851,7 +880,8 @@ ui <- navbarPage(
             tags$li(
               strong("Gage-based: "),
               "USGS stream gage data are processed into monthly means ",
-              "and propagated downstream along hydrologically similar segments. ",
+              "and propagated downstream along segments of similar drainage area, ",
+              "with flow scaled by the drainage-area ratio between segments. ",
               "This is the preferred denominator where available."
             ),
             tags$li(
@@ -1200,13 +1230,19 @@ ui <- navbarPage(
               "most recent record."
             ),
             tags$li(
-              "Monthly flows are propagated downstream along hydrologically ",
-              "similar segments (based on modeled mean annual flow), stopping ",
-              "at large changes in flow or at new gages."
+              "Monthly flows are propagated downstream one segment at a time, ",
+              "scaled by the drainage-area ratio between segments ",
+              "(Q_downstream = Q_upstream × (A_downstream / A_upstream)^b, where b is ",
+              "a statewide exponent fitted to the gage network). Propagation continues ",
+              "only while drainage area changes by less than 50% (relative to the ",
+              "downstream segment) from one segment to the next, and stops at larger ",
+              "changes or at new gages."
             ),
             tags$li(
-              "At confluences, flows from multiple upstream gaged branches ",
-              "are summed to represent the combined segment."
+              "At confluences, flows from multiple upstream branches that carry ",
+              "gage-based estimates are summed (mass balance). Segments downstream of ",
+              "a confluence are then subject to the same drainage-area gate as any ",
+              "other segment."
             )
           ),
           h4("Wastewater accumulation (summary)"),
