@@ -508,6 +508,7 @@ for (mm in mon_codes) {
   if (sdcol %in% names(flow_order)) flow_order[[sdcol]] <- ifelse(flow_order$low_flow, NA_real_, flow_order[[sdcol]])
   if (vcol  %in% names(flow_order)) flow_order[[vcol]]  <- ifelse(flow_order$low_flow, NA_real_, flow_order[[vcol]])
 }
+
 flow_order <- flow_order %>% select(-low_flow)
 
 # --- Manual overrides for segments where NHDPlus is clearly wrong ----------
@@ -574,12 +575,14 @@ flow_order <- flow_order %>%
 
 # Bake local WW into Qgage_prop at same-seg seeds so downstream inherits correct denominator
 for (mm in mon_codes) {
-  mcol     <- paste0("Qgage_", mm, "_prop")
-  ww_col   <- paste0("WW_mean_", mm)
+  mcol     <- paste0("Qgage_",     mm, "_prop")
+  vcol     <- paste0("Qgage_var_", mm, "_prop")
+  ww_col   <- paste0("WW_mean_",   mm)
+  wv_col   <- paste0("WW_var_",    mm)
   seed_idx <- which(flow_order$Hydroseq %in% same_seg_ww_adj_seed)
   for (i in seed_idx) {
-    ww_val <- coalesce(as.numeric(flow_order[[ww_col]][i]), 0)
-    flow_order[[mcol]][i] <- flow_order[[mcol]][i] + ww_val
+    flow_order[[mcol]][i] <- flow_order[[mcol]][i] + coalesce(as.numeric(flow_order[[ww_col]][i]), 0)
+    flow_order[[vcol]][i] <- flow_order[[vcol]][i] + coalesce(as.numeric(flow_order[[wv_col]][i]), 0)
   }
 }
 
