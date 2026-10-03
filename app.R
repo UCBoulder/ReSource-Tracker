@@ -1001,9 +1001,9 @@ ui <- navbarPage(
             "CEJST variable",
             choices = NULL
           ),
-          
+          # Check for numerical values passes categorical values for rurality and disadvantaged. 
           conditionalPanel(
-            condition = "input.cejst_var_box != 'rurality'",
+            condition = "!output.cejst_var_is_cat",
             sliderInput(
               "cejst_nbins",
               "Number of bins (numeric variables only)",
@@ -1366,7 +1366,17 @@ server <- function(input, output, session) {
   flowlines_4326 <- sf::st_transform(flowlines, 4326)
   fl_cejst_sf <- sf::st_join(flowlines_4326, tracts_sf, left = TRUE)
   fl_cejst <- fl_cejst_sf %>% sf::st_drop_geometry()
-  
+
+  # Boolean CEJST columns are treated like rurality.
+  # Only the hardcoded columns below are offered (disadvantaged yes/no)
+  cejst_lgl_keep <- c("Identified as disadvantaged")
+  cejst_lgl_cols <- intersect(cejst_lgl_keep, names(cejst)[sapply(cejst, is.logical)])
+  is_cat_var <- function(v) identical(v, "rurality") || isTRUE(v %in% cejst_lgl_cols)
+
+  # Drives the bin slider's conditionalPanel in the UI
+  output$cejst_var_is_cat <- reactive({ is_cat_var(input$cejst_var_box) })
+  outputOptions(output, "cejst_var_is_cat", suspendWhenHidden = FALSE)
+
   # Populate CEJST variable choices (numeric, non-percentile) + rurality
   observe({
     cejst_num_all <- names(cejst)[sapply(cejst, is.numeric)]
@@ -1378,11 +1388,11 @@ server <- function(input, output, session) {
     if (length(cejst_num_raw) == 0) cejst_num_raw <- cejst_num_all
     
     if ("rurality" %in% names(cejst)) {
-      var_values <- c("rurality", cejst_num_raw)
-      var_labels <- c("Rurality", cejst_num_raw)
+      var_values <- c("rurality", cejst_lgl_cols, cejst_num_raw)
+      var_labels <- c("Rurality", paste0(cejst_lgl_cols, " (yes/no)"), cejst_num_raw)
     } else {
-      var_values <- cejst_num_raw
-      var_labels <- cejst_num_raw
+      var_values <- c(cejst_lgl_cols, cejst_num_raw)
+      var_labels <- c(paste0(cejst_lgl_cols, " (yes/no)"), cejst_num_raw)
     }
     
     updateSelectInput(
@@ -2022,8 +2032,9 @@ server <- function(input, output, session) {
     
     dat <- dplyr::filter(dat, !is.na(GEOID))
     
-    # numeric CEJST columns from original cejst object
-    cejst_num_cols <- names(cejst)[sapply(cejst, is.numeric)]
+    # numeric + boolean CEJST columns from original cejst object
+    cejst_num_cols <- c(names(cejst)[sapply(cejst, is.numeric)], cejst_lgl_cols)
+    cejst_num_cols <- intersect(cejst_num_cols, names(dat))
     
     # ---- PREVALENCE: tract has ANY impacted segment (0/1) -------------------
     if (identical(input$cejst_mode, "Prevalence")) {
@@ -2114,6 +2125,18 @@ server <- function(input, output, session) {
       df$var_bin <- factor(df$rurality, levels = c("Urban", "Rural"))
       return(df)
     }
+
+    # --- Boolean CEJST variable path (categorical bins) ---
+    if (var %in% cejst_lgl_cols) {
+      req(var %in% names(tab))
+
+      df <- tab %>%
+        dplyr::transmute(GEOID, metric_value, var_value = .data[[var]]) %>%
+        dplyr::filter(is.finite(metric_value), !is.na(var_value))
+
+      df$var_bin <- factor(ifelse(df$var_value, "Yes", "No"), levels = c("No", "Yes"))
+      return(dplyr::select(df, GEOID, metric_value, var_bin))
+    }
     
     # --- Numeric CEJST variable path ---
     req(var %in% names(tab))
@@ -2195,8 +2218,8 @@ server <- function(input, output, session) {
     var <- input$cejst_var_box
     req(var)
     
-    # If rurality, slider is hidden
-    if (identical(var, "rurality")) {
+    # If rurality / boolean, slider is hidden
+    if (is_cat_var(var)) {
       updateSliderInput(
         session, "cejst_nbins",
         min   = 2,
@@ -2280,6 +2303,21 @@ server <- function(input, output, session) {
     var  <- input$cejst_var_box
     mlab <- month_labels[input$cejst_month]
     
+    fill_scale <- if (identical(var, "rurality")) {
+      scale_fill_manual(values = rurality_colors, drop = FALSE)
+    } else if (var %in% cejst_lgl_cols) {
+      scale_fill_manual(values = c(No = "grey70", Yes = "#E07B39"), drop = FALSE) # Can update color scheme 
+    } else {
+      scale_fill_viridis_d(option = "C", end = 0.9)
+    }
+    x_lab <- if (identical(var, "rurality")) {
+      "Rurality category"
+    } else if (var %in% cejst_lgl_cols) {
+      var
+    } else {
+      paste0("Bins of ", var)
+    }
+    
     mode <- input$cejst_mode %||% "Prevalence"
     
     if (identical(mode, "Prevalence")) {
@@ -2318,23 +2356,17 @@ server <- function(input, output, session) {
           size = 4.2,
           fontface = "bold"
         ) +
-        {
-          if (identical(var, "rurality")) {
-            scale_fill_manual(values = rurality_colors, drop = FALSE)
-          } else {
-            scale_fill_viridis_d(option = "C", end = 0.9)
-          }
-        } +
+        fill_scale +
         labs(
-          x = if (identical(var, "rurality")) "Rurality category" else paste0("Bins of ", var),
+          x = x_lab,
           y = "Share of tracts with any wastewater-impacted segment",
           title = title_txt
         ) +
         theme_app() +
         theme(
           axis.text.x = element_text(
-            angle = if (identical(var, "rurality")) 0 else 25,
-            hjust = if (identical(var, "rurality")) 0.5 else 1
+            angle = if (is_cat_var(var)) 0 else 25,
+            hjust = if (is_cat_var(var)) 0.5 else 1
           )
         )
       
@@ -2367,16 +2399,10 @@ server <- function(input, output, session) {
           size = 4.2,
           fontface = "bold"
         ) +
-        {
-          if (identical(var, "rurality")) {
-            scale_fill_manual(values = rurality_colors, drop = FALSE)
-          } else {
-            scale_fill_viridis_d(option = "C", end = 0.9)
-          }
-        } +
+        fill_scale +
         coord_cartesian(ylim = c(0, ymax * 1.12)) +
         labs(
-          x = if (identical(var, "rurality")) "Rurality category" else paste0("Bins of ", var),
+          x = x_lab,
           y = "Severity: %WW among impacted segments",
           title = paste0(
             "Severity by ",
@@ -2387,8 +2413,8 @@ server <- function(input, output, session) {
         theme_app() +
         theme(
           axis.text.x = element_text(
-            angle = if (identical(var, "rurality")) 0 else 25,
-            hjust = if (identical(var, "rurality")) 0.5 else 1
+            angle = if (is_cat_var(var)) 0 else 25,
+            hjust = if (is_cat_var(var)) 0.5 else 1
           )
         )
     }
