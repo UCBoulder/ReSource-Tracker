@@ -425,3 +425,169 @@ for (src in unique(a$source)) {
 }
 message("Done. Figures and table-twin CSVs are in: ", normalizePath(out_dir))
 
+#Spatial
+suppressPackageStartupMessages({
+  library(dplyr); library(tidyr); library(tibble); library(readr); library(sf); library(sandwich); library(spdep)
+})
+if (!exists("fl_cejst")) {                     # fresh session: load the objects saved from the app
+  f <- file.path(path.expand("~"), "equity_inputs.rds")
+  stopifnot(file.exists(f)); list2env(readRDS(f), envir = .GlobalEnv)
+}
+stopifnot(exists("fl_cejst"), exists("cejst"), exists("cejst_lgl_cols"), exists("mon_codes"), exists("tracts_sf"))
+
+# ---- CONFIG -----------------------------------------------------------------------
+SOURCES        <- c("Gage-based", "NHDPlus-based")
+MONTHS         <- mon_codes
+DA_COL         <- "TotDASqKM"
+K_BLOCKS       <- 30                           # number of spatial blocks (try 20-50; results should not hinge on it)
+RUN_EXCL_METRO <- TRUE
+METRO_COUNTIES <- c("08001", "08005", "08013", "08014", "08031", "08035", "08059")  # Adams, Arapahoe, Boulder, Broomfield, Denver, Douglas, Jefferson
+out_dir        <- "equity_stats_outputs"
+set.seed(42)
+base_assoc <- read_csv(file.path(out_dir, "equity_associations.csv"), show_col_types = FALSE,
+                       col_types = cols(.default = col_guess(), month = col_character()))
+base_moran <- read_csv(file.path(out_dir, "moran_check.csv"), show_col_types = FALSE,
+                       col_types = cols(.default = col_guess(), month = col_character()))
+
+# ---- 0. Same data prep as the main script ---------------------------------------------
+dat0 <- fl_cejst[!is.na(fl_cejst$GEOID), ]
+dat  <- if (inherits(dat0, "sf")) sf::st_drop_geometry(dat0) else dat0
+dat$.cl  <- substr(as.character(dat$GEOID), 1, 5)                       # county
+dat$.lDA <- log10(as.numeric(dat[[DA_COL]])); dat$.lDA[!is.finite(dat$.lDA)] <- NA_real_
+
+cen <- sf::st_coordinates(suppressWarnings(sf::st_centroid(sf::st_transform(sf::st_geometry(tracts_sf), 5070))))
+tract_xy <- tibble(GEOID = tracts_sf$GEOID, X = cen[, 1], Y = cen[, 2]) %>% distinct(GEOID, .keep_all = TRUE)
+
+# spatial blocks: K groups of nearby tracts
+km <- kmeans(as.matrix(tract_xy[, c("X", "Y")]), centers = K_BLOCKS, nstart = 10, iter.max = 50)
+blocks <- tibble(GEOID = tract_xy$GEOID, blk = km$cluster)
+cat(sprintf("Spatial blocks: %d blocks, %d to %d tracts each (median %d)\n", K_BLOCKS,
+            min(table(blocks$blk)), max(table(blocks$blk)), as.integer(median(table(blocks$blk)))))
+
+ind_cols <- setdiff(intersect(c(names(cejst)[sapply(cejst, is.numeric)], cejst_lgl_cols), names(dat)), c("GEOID", DA_COL))
+tract_ind <- dat %>% group_by(GEOID) %>%
+  summarise(rurality = first(rurality), across(all_of(ind_cols), ~ first(.x)), .groups = "drop") %>%
+  mutate(across(all_of(intersect(cejst_lgl_cols, ind_cols)), as.numeric), rurality_rural = as.numeric(rurality == "Rural"))
+ind_all <- c("rurality_rural", ind_cols)
+
+build_tract <- function(mm, src) {
+  pc <- if (src == "Gage-based") paste0("pct_mean_", mm) else paste0("pct_mean_", mm, "_nhd")
+  wc <- paste0("WW_cum_mean_", mm)
+  if (!all(c(pc, wc) %in% names(dat))) return(NULL)
+  tibble(GEOID = dat$GEOID, cl = dat$.cl, lDA = dat$.lDA, ww = as.numeric(dat[[wc]]), pct = as.numeric(dat[[pc]])) %>%
+    mutate(imp_ww = is.finite(ww) & ww > 0, imp_pct = is.finite(pct) & pct > 0) %>%
+    group_by(GEOID) %>%
+    summarise(cl = first(cl), n_seg = n(), any_imp = as.integer(any(imp_ww)),
+              lDA_all = median(lDA, na.rm = TRUE),
+              sev     = if (any(imp_pct)) median(pct[imp_pct]) else NA_real_,
+              lDA_imp = if (any(imp_pct)) median(lDA[imp_pct], na.rm = TRUE) else NA_real_, .groups = "drop") %>%
+    mutate(lnseg = log(n_seg), across(c(lDA_all, lDA_imp), ~ ifelse(is.finite(.x), .x, NA_real_))) %>%
+    left_join(tract_ind, by = "GEOID") %>% left_join(blocks, by = "GEOID")
+}
+
+# ---- helpers (same as main script) ------------------------------------------------------
+zs <- function(x) as.numeric(scale(x));  zr <- function(x) as.numeric(scale(rank(x)))
+robust_coef <- function(m, term, cl, odds = FALSE) {
+  G <- length(unique(cl)); V <- sandwich::vcovCL(m, cluster = cl, type = "HC1")
+  b <- unname(coef(m)[term]); se <- sqrt(V[term, term]); tc <- qt(0.975, G - 1)
+  r <- c(est = b, lo = b - tc * se, hi = b + tc * se); if (odds) r <- exp(r)
+  c(r, p = 2 * pt(-abs(b / se), G - 1))
+}
+.lw <- new.env()
+moran_of <- function(v, geoid) {
+  keep <- is.finite(v) & geoid %in% tract_xy$GEOID
+  key <- rlang::hash(geoid[keep])
+  if (!exists(key, envir = .lw, inherits = FALSE)) {
+    co <- as.matrix(tract_xy[match(geoid[keep], tract_xy$GEOID), c("X", "Y")]); co <- co + matrix(rnorm(length(co)), ncol = 2)
+    assign(key, nb2listw(knn2nb(knearneigh(co, k = 8)), style = "W", zero.policy = TRUE), envir = .lw)
+  }
+  mt <- moran.test(v[keep], get(key, envir = .lw), zero.policy = TRUE)
+  c(I = unname(mt$estimate[1]), p = mt$p.value)
+}
+
+# adjusted model only; fe = TRUE adds block fixed effects (d$cl must then be the block id)
+fit_adj <- function(d, ind, covs, mode, fe = FALSE) {
+  tryCatch({
+    covs <- covs[vapply(covs, function(v) n_distinct(d[[v]][is.finite(d[[v]])]) > 1, logical(1))]
+    dd <- bind_cols(tibble(cl = d$cl, blk = d$blk, y = d$y, x = d[[ind]]), d[covs])
+    numc <- vapply(dd, is.numeric, logical(1))
+    dd <- dd[complete.cases(dd) & Reduce(`&`, lapply(dd[numc], is.finite)), ]
+    if (fe && mode == "Prevalence") {          # blocks where everyone is 0 (or 1) carry no information
+      ok_blk <- names(which(tapply(dd$y, dd$blk, function(v) n_distinct(v) > 1)))
+      dd <- dd[as.character(dd$blk) %in% ok_blk, ]
+    }
+    G <- n_distinct(dd$cl)
+    if (nrow(dd) < 50 || G < 15 || n_distinct(dd$x) < 2) return(NULL)
+    is_bin <- all(dd$x %in% c(0, 1)); rhs <- c("xs", covs, if (fe) "factor(blk)")
+    if (mode == "Severity") {
+      dd$ys <- zr(dd$y); dd$xs <- if (is_bin) zs(dd$x) else zr(dd$x); for (v in covs) dd[[v]] <- zr(dd[[v]])
+      m <- lm(reformulate(rhs, "ys"), dd); odds <- FALSE
+    } else {
+      dd$xs <- if (is_bin) dd$x else zs(dd$x); for (v in covs) dd[[v]] <- zs(dd[[v]])
+      m <- suppressWarnings(glm(reformulate(rhs, "y"), binomial, dd)); odds <- TRUE
+    }
+    r <- robust_coef(m, "xs", dd$cl, odds)
+    tibble(indicator = ind, n_tracts = nrow(dd), n_clusters = G, effect = r["est"], lo = r["lo"], hi = r["hi"], p = r["p"])
+  }, error = function(e) NULL)
+}
+
+# ---- 1. Run the checks ---------------------------------------------------------------------
+res <- list(); mor <- list()
+for (src in SOURCES) for (mm in MONTHS) {
+  tr <- build_tract(mm, src); if (is.null(tr)) next
+  for (mode in c("Prevalence", "Severity")) {
+    d <- if (mode == "Severity") filter(tr, is.finite(sev)) else tr
+    d$y <- if (mode == "Severity") d$sev else d$any_imp
+    covs <- if (mode == "Severity") "lDA_imp" else c("lDA_all", "lnseg")
+    
+    # (a) block fixed effects, CIs clustered on blocks
+    d_fe <- d %>% filter(!is.na(blk)) %>% mutate(cl = as.character(blk))
+    rows <- bind_rows(lapply(ind_all, fit_adj, d = d_fe, covs = covs, mode = mode, fe = TRUE))
+    if (nrow(rows)) res[[length(res) + 1]] <- mutate(rows, spec = "block_FE", source = src, month = mm, mode = mode, .before = 1)
+    
+    # (b) drop the Denver-area counties
+    if (RUN_EXCL_METRO) {
+      d_ex <- d %>% filter(!substr(GEOID, 1, 5) %in% METRO_COUNTIES)
+      rows <- bind_rows(lapply(ind_all, fit_adj, d = d_ex, covs = covs, mode = mode, fe = FALSE))
+      if (nrow(rows)) res[[length(res) + 1]] <- mutate(rows, spec = "excl_metro", source = src, month = mm, mode = mode, .before = 1)
+    }
+    
+    # leftover spatial correlation once blocks are in the model
+    dm <- d_fe[complete.cases(d_fe[, c("y", covs)]) & Reduce(`&`, lapply(d_fe[, c("y", covs)], is.finite)), ]
+    if (mode == "Prevalence") { ok_blk <- names(which(tapply(dm$y, dm$blk, function(v) n_distinct(v) > 1))); dm <- dm[as.character(dm$blk) %in% ok_blk, ] }
+    rs <- tryCatch(if (mode == "Severity") residuals(lm(reformulate(c(covs, "factor(blk)"), "ysr"), transform(dm, ysr = rank(y))))
+                   else residuals(suppressWarnings(glm(reformulate(c(covs, "factor(blk)"), "y"), binomial, dm)), type = "pearson"),
+                   error = function(e) NULL)
+    if (!is.null(rs)) { m <- moran_of(rs, dm$GEOID)
+    mor[[length(mor) + 1]] <- tibble(source = src, month = mm, mode = mode, moran_I_after_blocks = m["I"], p_after_blocks = m["p"]) }
+    message(sprintf("done: %s | %s | %s", src, mm, mode))
+  }
+}
+chk <- bind_rows(res) %>%
+  group_by(spec, source, month, mode) %>% mutate(q = p.adjust(p, "BH")) %>% ungroup() %>%
+  left_join(base_assoc %>% select(source, month, mode, indicator, base_effect = effect_adj, base_q = q_adj),
+            by = c("source", "month", "mode", "indicator")) %>%
+  mutate(dir_new  = ifelse(mode == "Prevalence", log(pmax(effect, 1e-6)), effect),
+         dir_base = ifelse(mode == "Prevalence", log(pmax(base_effect, 1e-6)), base_effect),
+         same_sign = sign(dir_new) == sign(dir_base),
+         still_sig = !is.na(q) & q < 0.05 & same_sign) %>%
+  select(-dir_new, -dir_base)
+write_csv(chk, file.path(out_dir, "spatial_block_check.csv"))
+
+# ---- 2. Headline summary ---------------------------------------------------------------------
+summ <- chk %>% filter(!is.na(base_q), base_q < 0.05) %>%
+  group_by(spec, source, mode) %>%
+  summarise(n_sig_at_baseline = n(), pct_same_direction = round(100 * mean(same_sign, na.rm = TRUE), 1),
+            pct_still_significant = round(100 * mean(still_sig, na.rm = TRUE), 1), .groups = "drop")
+write_csv(summ, file.path(out_dir, "spatial_block_summary.csv"))
+cat("\n--- Of the indicators significant at baseline (adjusted, q<0.05), how many survive? ---\n"); print(summ, n = 20)
+
+mor_tab <- bind_rows(mor) %>% left_join(base_moran %>% select(source, month, mode, moran_I_outcome, moran_I_after_stream_size),
+                                        by = c("source", "month", "mode"))
+write_csv(mor_tab, file.path(out_dir, "spatial_block_moran.csv"))
+cat("\n--- Moran's I (median across months): raw outcome -> after stream size -> after stream size + blocks ---\n")
+print(mor_tab %>% group_by(source, mode) %>%
+        summarise(outcome = median(moran_I_outcome, na.rm = TRUE), after_stream_size = median(moran_I_after_stream_size, na.rm = TRUE),
+                  after_blocks = median(moran_I_after_blocks, na.rm = TRUE), .groups = "drop"))
+cat(sprintf("\nDone. Files are in ./%s\n", out_dir))
+
