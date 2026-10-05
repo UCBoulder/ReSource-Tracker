@@ -1,0 +1,6 @@
+step,n
+Gages in the gage file,607
+Unique flowline segments (COMIDs) with a gage (one gage kept per COMID),533
+Gaged segments with monthly flow statistics,398
+Removed: all observed monthly means < 0.5 cfs,2
+"Gages used (exponent fit, LOOCV, propagation)",396

@@ -2,6 +2,8 @@ suppressPackageStartupMessages({
   library(tidyverse)
   library(sf)
 })
+if (!requireNamespace("patchwork", quietly = TRUE))
+  stop('Package "patchwork" is needed for the A/B panel figures. Install it once with: install.packages("patchwork")', call. = FALSE)
 
 # ==============================================================================
 # 0. CONFIG
@@ -35,45 +37,77 @@ N_EXPONENT_STEPS   <- 7      # grid points across the exponent's 95% CI
 MIN_MONTHS_ALT_FIT <- 10     # alternative exponent fit: only gages with >= this many months
 COMP_TIGHT         <- 0.10   # tight gate for the gate-loosening composition figure
 N_BOOT             <- 1000   # bootstrap resamples for the within-gate monthly bias CIs
+DOM_PCT            <- 10     # "effluent-dominated" = %WWef >= this (percent) in the adopted run
 RUN_LOOCV          <- TRUE   # the slowest section; set FALSE to skip while iterating
 set.seed(42)
 
 hl      <- match(HIGHLIGHT_MONTH, mon_codes)
 hl_name <- month.name[hl]
 
-# --- Plot style (palette validated with the dataviz validator: accent/second
-#     pass categorical checks; the ordinal blue ramp passes the ordinal checks) --
-COL <- list(accent = "#2a78d6", second = "#eb6834", context = "#c3c2b7",
-            band = "#cde2fb", ink = "#0b0b0b", ink2 = "#52514e", muted = "#898781",
-            grid = "#e1e0d9", axis = "#c3c2b7")
-ORDINAL_BLUE <- c("#86b6ef", "#3987e5", "#184f95")
+# --- Plot style ----------------------------------------------------------------
+# Matches the manuscript figures: white background, boxed panels, light grey grid,
+# bold centred titles, A/B panel tags, one season colour set used everywhere.
+# >>> The four season hex codes below are PLACEHOLDERS: replace them with the exact
+#     colours used in your existing figures so the sets match. <<<
+COL <- list(accent = "#2a78d6", context = "#c3c2b7", ink = "#0b0b0b", ink2 = "#52514e",
+            muted = "#898781", grid = "grey90", band = "#d9d8d2", heat_lo = "#cde2fb", heat_hi = "#0d366b")
+ORDINAL_BLUE  <- c("#86b6ef", "#3987e5", "#184f95")          # light -> dark = tighter -> looser gate
+SEASON_LEVELS <- c("Spring", "Summer", "Fall", "Winter")
+SEASON_COLS   <- c(Spring = "#4DAF4A", Summer = "#FF7F00", Fall = "#A65628", Winter = "#377EB8")
+season_of <- function(mon) {                                  # "01".."12" or 1..12 -> season factor
+  m <- as.integer(mon)
+  factor(dplyr::case_when(m %in% c(12, 1, 2) ~ "Winter", m %in% 3:5 ~ "Spring",
+                          m %in% 6:8 ~ "Summer", TRUE ~ "Fall"), levels = SEASON_LEVELS)
+}
 
-theme_sens <- function() {
-  theme_minimal(base_size = 12) +
+theme_resource <- function() {
+  theme_bw(base_size = 12) +
     theme(
-      text               = element_text(colour = COL$ink),
-      plot.title         = element_text(face = "bold", size = 13, margin = margin(b = 4)),
-      plot.subtitle      = element_text(size = 10, colour = COL$ink2, margin = margin(b = 10)),
-      plot.caption       = element_text(size = 8.5, colour = COL$muted, hjust = 0, margin = margin(t = 10)),
-      plot.title.position   = "plot",
-      plot.caption.position = "plot",
-      axis.text          = element_text(colour = COL$muted, size = 9.5),
-      axis.title         = element_text(colour = COL$ink2, size = 10),
-      panel.grid.major.y = element_line(colour = COL$grid, linewidth = 0.3),
-      panel.grid.major.x = element_blank(),
       panel.grid.minor   = element_blank(),
-      axis.line.x        = element_line(colour = COL$axis, linewidth = 0.4),
-      strip.text         = element_text(face = "bold", size = 10.5, hjust = 0),
-      legend.position    = "bottom",
+      panel.grid.major   = element_line(colour = COL$grid, linewidth = 0.4),
+      panel.border       = element_rect(colour = "grey40", fill = NA, linewidth = 0.6),
+      plot.title         = element_text(face = "bold", hjust = 0.5, size = 12.5),
+      axis.title         = element_text(face = "bold", size = 11),
+      axis.text          = element_text(colour = "grey25", size = 10),
+      legend.position    = "right",
       legend.title       = element_blank(),
-      legend.text        = element_text(colour = COL$ink2, size = 9.5),
-      plot.margin        = margin(12, 14, 10, 12)
+      strip.background   = element_blank(),
+      strip.text         = element_text(face = "bold"),
+      plot.margin        = margin(10, 12, 8, 10)
     )
 }
+
+# A/B panels in a row under one bold title (+ optional grey subtitle)
+combine_panels <- function(plots, title, subtitle = NULL, widths = NULL, collect = FALSE) {
+  patchwork::wrap_plots(plots, nrow = 1, widths = widths,
+                        guides = if (collect) "collect" else "keep") +
+    patchwork::plot_annotation(
+      title = title, subtitle = subtitle, tag_levels = "A",
+      theme = theme(plot.title    = element_text(face = "bold", hjust = 0.5, size = 14),
+                    plot.subtitle = element_text(hjust = 0.5, colour = "grey30", size = 10.5),
+                    plot.tag      = element_text(face = "bold", size = 14)))
+}
+
+# Line + dots with the value printed above every dot; the adopted setting is the filled dot.
+# d needs columns: x (factor), y (numeric), adopted (logical)
+dot_panel <- function(d, xlab, ylab, ymax = NA, digits = 1, suffix = "%", axis_lab = pct_lab) {
+  ggplot(d, aes(x, y, group = 1)) +
+    geom_line(colour = COL$accent, linewidth = 0.6) +
+    geom_point(aes(fill = adopted, size = adopted), shape = 21, colour = COL$accent, stroke = 0.9) +
+    geom_text(aes(label = paste0(formatC(y, format = "f", digits = digits), suffix)),
+              vjust = -1.2, size = 3.5, fontface = "bold", colour = COL$ink) +
+    scale_fill_manual(values = c("TRUE" = COL$accent, "FALSE" = "white"), guide = "none") +
+    scale_size_manual(values = c("TRUE" = 4.4, "FALSE" = 3), guide = "none") +
+    scale_y_continuous(limits = c(0, ymax), expand = expansion(mult = c(0, 0.12)), labels = axis_lab) +
+    labs(x = xlab, y = ylab) +
+    theme_resource()
+}
+
 save_plot <- function(p, name, w = 9, h = 5) {
   ggsave(file.path(out_dir, name), p, width = w, height = h, dpi = 300, bg = "white")
 }
 fmt_num <- scales::label_number(big.mark = ",", drop0trailing = TRUE)
+pct_lab <- scales::label_number(suffix = "%", big.mark = ",", drop0trailing = TRUE)
 
 # ==============================================================================
 # 1. DATA PREP  (mirrors app.R)
@@ -368,7 +402,7 @@ cat(sprintf("  exponent: %.3f (95%% CI %.3f-%.3f), n = %d, R^2 = %.3f\n",
             B_STATE, B_CI[1], B_CI[2], full_fit$n, full_fit$r2))
 cat(sprintf("  alt fit (gages with >= %d months): b = %.3f (95%% CI %.3f-%.3f), n = %d\n",
             MIN_MONTHS_ALT_FIT, alt_fit$b, alt_ci[1], alt_ci[2], alt_fit$n))
-cat("  reference values from the earlier validated run: b = 0.719, n = 396, June median %WWef = 14.4\n")
+cat("  reference values from the earlier validated run: b = 0.719, n = 396; June median %WWef (percent, all segments with an estimate) about 0.14\n")
 cat("  (June median can shift slightly if fill_facs is used or the DMR/gage inputs changed)\n")
 
 # ==============================================================================
@@ -425,72 +459,102 @@ if (RUN_LOOCV) {
   cat("  reference from the earlier validated run: median_abs_pct_error = 23.8\n")
   cat("\nBy month:\n"); print(as.data.frame(loocv_by_month), row.names = FALSE)
   
-  # Fig 1 - observed vs reconstructed
-  sc <- loocv %>% filter(is.finite(observed), is.finite(predicted), observed > 0, predicted > 0)
+  # ---- Figure 1: LOOCV accuracy. A = every held-out gage-month vs the 1:1 line; B = error by month ----
+  sc <- loocv %>%
+    filter(is.finite(observed), is.finite(predicted), observed > 0, predicted > 0) %>%
+    mutate(season = season_of(month))
   lims <- range(c(sc$observed, sc$predicted))
-  fig1 <- ggplot(sc, aes(observed, predicted)) +
-    geom_abline(slope = 1, intercept = 0, colour = COL$ink2, linewidth = 0.4) +
-    geom_point(colour = COL$accent, alpha = 0.25, size = 1.3) +
+  
+  f1a <- ggplot(sc, aes(observed, predicted, colour = season)) +
+    geom_abline(slope = 1, intercept = 0, colour = "grey30", linetype = "dashed", linewidth = 0.5) +
+    geom_point(alpha = 0.45, size = 1.4) +
+    annotate("text", x = lims[1], y = lims[2], hjust = 0, vjust = 1.3, size = 3.8, fontface = "italic",
+             label = sprintf("Median error = %.1f%%\nn = %s gage-months",
+                             loocv_overall$median_abs_pct_error, format(loocv_overall$n_reconstructed, big.mark = ","))) +
     scale_x_log10(limits = lims, labels = fmt_num) +
     scale_y_log10(limits = lims, labels = fmt_num) +
+    scale_colour_manual(values = SEASON_COLS, drop = FALSE) +
+    guides(colour = "none") +
     coord_equal() +
-    labs(title = "Leave-one-gage-out check: reconstructed vs. observed monthly flow",
-         subtitle = sprintf("%s gage-months, all 12 months pooled. Median absolute error %.1f%%; 1:1 line shown.",
-                            format(loocv_overall$n_reconstructed, big.mark = ","), loocv_overall$median_abs_pct_error),
-         x = "Observed gage flow (cfs, log scale)", y = "Reconstructed flow (cfs, log scale)",
-         caption = "Each point is one held-out gage in one month; the gage's own record is never used to estimate it.") +
-    theme_sens() +
-    theme(panel.grid.major.x = element_line(colour = COL$grid, linewidth = 0.3))
-  save_plot(fig1, "fig1_loocv_observed_vs_reconstructed.png", w = 6.8, h = 6.4)
+    labs(title = "Observed vs. reconstructed flow",
+         x = "Observed gage flow (cfs)", y = "Reconstructed flow (cfs)") +
+    theme_resource()
   
-  # Fig 2 - error and bias by month (two measures -> two panels, never a dual axis)
-  lm_long <- bind_rows(
-    loocv_by_month %>% transmute(month, panel = "Median absolute error (%)", y = median_abs_pct_error),
-    loocv_by_month %>% transmute(month, panel = "Median bias (%; positive = over-prediction)", y = median_bias_pct)
-  ) %>%
-    mutate(month_f = factor(month, levels = mon_codes, labels = month.abb),
-           panel   = factor(panel, levels = unique(panel)))
-  fig2 <- ggplot(lm_long, aes(month_f, y, group = 1)) +
-    geom_hline(yintercept = 0, colour = COL$axis, linewidth = 0.4) +
-    geom_line(colour = COL$accent, linewidth = 0.8) +
-    geom_point(shape = 21, fill = COL$accent, colour = "white", stroke = 0.8, size = 3.2) +
-    facet_wrap(~ panel, ncol = 1, scales = "free_y") +
-    labs(title = "Leave-one-gage-out accuracy by month",
-         subtitle = "A positive bias means reconstructed flow is too high, so %WWef would be under-estimated.",
-         x = NULL, y = NULL) +
-    theme_sens()
-  save_plot(fig2, "fig2_loocv_error_and_bias_by_month.png", w = 8, h = 6.2)
+  mb <- loocv_by_month %>%
+    mutate(month_f = factor(month, levels = mon_codes, labels = month.abb), season = season_of(month))
+  f1b <- ggplot(mb, aes(month_f, median_abs_pct_error, fill = season)) +
+    geom_col(width = 0.65) +
+    geom_text(aes(label = sprintf("%.0f%%", median_abs_pct_error)), vjust = -0.5, size = 3.4, fontface = "bold") +
+    scale_fill_manual(values = SEASON_COLS, drop = FALSE) +
+    scale_y_continuous(labels = pct_lab, expand = expansion(mult = c(0, 0.12))) +
+    labs(title = "Median error by month", x = NULL, y = "Median absolute error") +
+    theme_resource()
+  
+  fig1 <- combine_panels(list(f1a, f1b),
+                         title = "Leave-one-gage-out check: can the method re-create a gage it has not seen?",
+                         subtitle = "Each held-out gage is estimated only from other gages upstream of it.",
+                         widths = c(1, 1.25), collect = TRUE)
+  save_plot(fig1, "fig1_loocv_observed_vs_reconstructed.png", w = 12, h = 5.6)
 }
 
 # ==============================================================================
 # 6. SENSITIVITY SWEEPS - shared helpers
 # ==============================================================================
 # One call = one full-network run with ALL real gages in place. Summaries are
-# computed for every month so the figures can show whether the result is
-# seasonal. (Coverage = share of ALL segments carrying a flow estimate.)
+# computed for every month. (Coverage = share of ALL segments carrying a flow estimate.)
+# All sensitivity summaries are computed on WASTEWATER-IMPACTED segments only:
+# segments with cumulative upstream effluent > 0 in that month. This set depends only
+# on the WWTP data (not on b or the gate), so the SAME segments are compared in every
+# scenario. Segments with no upstream WWTP are 0% %WWef under any setting.
+#   pct_filled           = % of impacted segments that receive a flow estimate (coverage)
+#   median_pct, p25...   = %WWef among impacted segments that have an estimate
+#   median_abs_change_pp = per-segment |change| in %WWef vs the adopted run, in percentage
+#                          points (segments with an estimate in both runs)
+#   share_change_gt1pp   = % of those segments whose %WWef moves by more than 1 point
+#   share_ge_dom         = % of impacted segments (with an estimate) at or above DOM_PCT %WWef
+#   *_change_dom_pp      = same per-segment change, restricted to segments that are
+#                          effluent-dominated (>= DOM_PCT) in the adopted run
+# NOTE: the median %WWef of impacted segments sits in a gap between two groups (large rivers
+# at a fraction of a percent, small effluent-dominated streams at 20%+), so it barely moves.
+# The dominated-segment metrics are the informative ones.
+ww_pos  <- !is.na(WWcum_mat) & WWcum_mat > 0
+REF_PCT <- compute_pct(WWcum_mat, propagate_dar(gage_rows)$Q)     # adopted run = reference
+cat(sprintf("Wastewater-impacted segments in %s: %s of %s\n", hl_name,
+            format(sum(ww_pos[, hl]), big.mark = ","), format(n_seg, big.mark = ",")))
+
 summarise_scenario <- function(Q) {
   pct <- compute_pct(WWcum_mat, Q)
   map_dfr(seq_len(n_mon), function(k) {
-    p <- pct[, k]; p <- p[is.finite(p)]
-    tibble(month       = mon_codes[k],
-           pct_filled  = 100 * mean(is.finite(Q[, k])),
-           median_flow = median(Q[, k], na.rm = TRUE),
-           n_pct       = length(p),
-           median_pct  = median(p),
+    imp <- ww_pos[, k]
+    p <- pct[imp, k]; p <- p[is.finite(p)]
+    dd <- pct[imp, k] - REF_PCT[imp, k]
+    d  <- dd[is.finite(dd)]
+    dom <- is.finite(REF_PCT[imp, k]) & REF_PCT[imp, k] >= DOM_PCT      # dominated in the ADOPTED run
+    d_dom <- dd[dom & is.finite(dd)]
+    tibble(month          = mon_codes[k],
+           n_impacted     = sum(imp),
+           pct_filled     = 100 * mean(is.finite(Q[imp, k])),
+           pct_filled_all = 100 * mean(is.finite(Q[, k])),
+           median_flow    = median(Q[imp, k], na.rm = TRUE),
+           n_pct          = length(p),
+           median_pct     = median(p),
            p25 = quantile(p, 0.25, names = FALSE),
            p75 = quantile(p, 0.75, names = FALSE),
-           p90 = quantile(p, 0.90, names = FALSE))
+           p90 = quantile(p, 0.90, names = FALSE),
+           share_ge_dom = if (length(p)) 100 * mean(p >= DOM_PCT) else NA_real_,
+           n_dominated  = sum(dom),
+           median_abs_change_dom_pp = if (length(d_dom)) median(abs(d_dom)) else NA_real_,
+           p90_abs_change_dom_pp    = if (length(d_dom)) quantile(abs(d_dom), 0.90, names = FALSE) else NA_real_,
+           median_abs_change_pp = if (length(d)) median(abs(d)) else NA_real_,
+           share_change_gt1pp   = if (length(d)) 100 * mean(abs(d) > 1) else NA_real_)
   })
 }
 sweep_scenarios <- function(values, run_fn) {
   map_dfr(values, function(v) summarise_scenario(run_fn(v)) %>% mutate(value = v, .before = 1))
 }
-month_levels <- c(setdiff(mon_codes, HIGHLIGHT_MONTH), HIGHLIGHT_MONTH)   # highlighted month drawn last (on top)
-series_cols  <- setNames(c(COL$accent, COL$context), c(hl_name, "Other months"))
-series_lwd   <- setNames(c(1.1, 0.45),               c(hl_name, "Other months"))
 
 # ==============================================================================
-# 7. THRESHOLD SENSITIVITY
+# 7. THRESHOLD SENSITIVITY  (computation; figures are drawn in section 8b)
 # ==============================================================================
 message("Threshold sweep...")
 THRESHOLD_GRID <- sort(unique(c(THRESHOLD_GRID, SIMILARITY_THRESHOLD)))
@@ -507,36 +571,10 @@ thr_hl <- thr %>% filter(month == HIGHLIGHT_MONTH)
 cat(sprintf("\n=== THRESHOLD SENSITIVITY (%s) ===\n", hl_name))
 print(as.data.frame(thr_hl %>% transmute(threshold, pct_filled = round(pct_filled, 1),
                                          median_pct = round(median_pct, 2), p25 = round(p25, 2),
-                                         p75 = round(p75, 2), p90 = round(p90, 2))), row.names = FALSE)
-
-panel_lv <- c("Segments with a flow estimate (% of network)", "Median %WWef")
-thr_long <- bind_rows(
-  thr %>% transmute(th_f, month, panel = panel_lv[1], y = pct_filled),
-  thr %>% transmute(th_f, month, panel = panel_lv[2], y = median_pct)
-) %>%
-  mutate(panel   = factor(panel, levels = panel_lv),
-         month_f = factor(month, levels = month_levels),
-         series  = if_else(month == HIGHLIGHT_MONTH, hl_name, "Other months"))
-thr_band  <- thr_hl %>% transmute(th_f, panel = factor(panel_lv[2], levels = panel_lv), ymin = p25, ymax = p75)
-thr_adopt <- thr_long %>% filter(month == HIGHLIGHT_MONTH, as.character(th_f) == adopted_th_label)
-
-fig3 <- ggplot(thr_long, aes(th_f, y)) +
-  geom_vline(xintercept = match(adopted_th_label, levels(thr_long$th_f)), colour = COL$axis, linewidth = 0.5) +
-  geom_ribbon(data = thr_band, aes(x = th_f, ymin = ymin, ymax = ymax, group = 1),
-              inherit.aes = FALSE, fill = COL$band) +
-  geom_line(aes(group = month_f, colour = series, linewidth = series)) +
-  geom_point(data = thr_adopt, shape = 21, fill = COL$accent, colour = "white", stroke = 0.9, size = 3.8) +
-  facet_wrap(~ panel, nrow = 1, scales = "free_y") +
-  scale_colour_manual(values = series_cols, name = NULL) +
-  scale_linewidth_manual(values = series_lwd, name = NULL) +
-  scale_y_continuous(limits = c(0, NA), expand = expansion(mult = c(0, 0.08))) +
-  labs(title = "Sensitivity to the drainage-area similarity threshold",
-       subtitle = sprintf("Adopted method (statewide exponent, gated confluences). Highlighted: %s; shaded band: interquartile range of %%WWef in %s.",
-                          hl_name, hl_name),
-       x = "Similarity threshold, |Ai - Aj| / Aj  (relative change in drainage area per hop)", y = NULL,
-       caption = "Each line is one calendar month. Looser gates reconstruct more of the network, mostly small segments with little or no upstream wastewater.") +
-  theme_sens()
-save_plot(fig3, "fig3_threshold_sensitivity.png", w = 11, h = 5)
+                                         p75 = round(p75, 2), p90 = round(p90, 2),
+                                         share_ge_dom = round(share_ge_dom, 1),
+                                         chg_dom_med = round(median_abs_change_dom_pp, 2),
+                                         chg_dom_p90 = round(p90_abs_change_dom_pp, 2))), row.names = FALSE)
 
 # ==============================================================================
 # 8. EXPONENT SENSITIVITY  (95% CI of the fitted b, plus the partial-year alternative)
@@ -553,39 +591,90 @@ write_csv(alt_row, file.path(out_dir, "tbl_exponent_alt_fit_partial_year_exclude
 expo_hl <- expo %>% filter(month == HIGHLIGHT_MONTH)
 cat(sprintf("\n=== EXPONENT SENSITIVITY (%s) ===\n", hl_name))
 print(as.data.frame(expo_hl %>% transmute(b = round(b, 3), median_pct = round(median_pct, 2),
-                                          p25 = round(p25, 2), p75 = round(p75, 2))), row.names = FALSE)
+                                          p25 = round(p25, 2), p75 = round(p75, 2),
+                                          share_ge_dom = round(share_ge_dom, 1),
+                                          chg_dom_med = round(median_abs_change_dom_pp, 2),
+                                          chg_dom_p90 = round(p90_abs_change_dom_pp, 2))), row.names = FALSE)
 cat(sprintf("  alt fit (>= %d months), b = %.3f: median %%WWef = %.2f\n",
             MIN_MONTHS_ALT_FIT, alt_fit$b, alt_row$median_pct))
 
-expo_plot <- expo %>%
-  mutate(month_f = factor(month, levels = month_levels),
-         series  = if_else(month == HIGHLIGHT_MONTH, hl_name, "Other months"))
-expo_band  <- expo_hl %>% transmute(b, ymin = p25, ymax = p75)
-expo_adopt <- expo_hl %>% filter(abs(b - B_STATE) < 1e-12)
-alt_label  <- sprintf("Fit on gages with %d+ months\n(b = %.3f)", MIN_MONTHS_ALT_FIT, alt_fit$b)
+# ------------------------------------------------------------------------------
+# 8b. FIGURES 2 and 3 - threshold and exponent (same y-axis so the two are comparable)
+# ------------------------------------------------------------------------------
+row_at_b <- function(b) expo_hl[which.min(abs(expo_hl$b - b)), ]
+SENS_YMAX <- 100
 
-fig4 <- ggplot(expo_plot, aes(b, median_pct)) +
-  geom_ribbon(data = expo_band, aes(x = b, ymin = ymin, ymax = ymax), inherit.aes = FALSE, fill = COL$band) +
-  geom_line(aes(group = month_f, colour = series, linewidth = series)) +
-  geom_point(data = expo_adopt, shape = 21, fill = COL$accent, colour = "white", stroke = 0.9, size = 3.8) +
-  geom_point(data = alt_row, aes(x = b, y = median_pct), shape = 21, fill = COL$second,
-             colour = "white", stroke = 0.9, size = 3.8, inherit.aes = FALSE) +
-  geom_text(data = alt_row, aes(x = b, y = median_pct, label = alt_label), inherit.aes = FALSE,
-            hjust = 0, vjust = 1.7, nudge_x = 0.002, size = 3.2, colour = COL$ink2, lineheight = 0.95) +
-  scale_colour_manual(values = series_cols, name = NULL) +
-  scale_linewidth_manual(values = series_lwd, name = NULL) +
-  scale_x_continuous(breaks = c(B_CI[1], B_STATE, B_CI[2]),
-                     labels = c(sprintf("%.3f\n(95%% CI low)", B_CI[1]),
-                                sprintf("%.3f\n(fitted, adopted)", B_STATE),
-                                sprintf("%.3f\n(95%% CI high)", B_CI[2]))) +
-  scale_y_continuous(limits = c(0, NA), expand = expansion(mult = c(0, 0.08))) +
-  labs(title = "Sensitivity of median %WWef to the fitted drainage-area exponent",
-       subtitle = sprintf("Exponent varied across its 95%% CI at the adopted %g%% gate. Highlighted: %s; shaded band: interquartile range in %s.",
-                          SIMILARITY_THRESHOLD * 100, hl_name, hl_name),
-       x = "Drainage-area exponent, b", y = "Median %WWef",
-       caption = "Orange point: exponent re-fitted after dropping partial-year gages (all other settings unchanged).") +
-  theme_sens()
-save_plot(fig4, "fig4_exponent_sensitivity.png", w = 8.5, h = 5.2)
+# Figure 2: A = how the answer changes with the gate; B = how much of the network gets an estimate
+thr_dots <- thr_hl %>% transmute(x = th_f, adopted = threshold == SIMILARITY_THRESHOLD,
+                                 dom = share_ge_dom, filled = pct_filled, chg = median_abs_change_dom_pp)
+th_xlab <- "Similarity threshold\n(max relative change in drainage area per hop)"
+dom_lab <- sprintf("Impacted segments with %%WWef \u2265 %g%%", DOM_PCT)
+pt_axis <- scales::label_number(drop0trailing = TRUE)
+f2a <- dot_panel(thr_dots %>% transmute(x, y = dom, adopted), th_xlab, dom_lab, ymax = 100, digits = 1) +
+  labs(title = "Result vs. threshold")
+f2b <- dot_panel(thr_dots %>% transmute(x, y = filled, adopted), th_xlab,
+                 "Impacted segments with a flow estimate", ymax = 100, digits = 0) +
+  labs(title = "Coverage vs. threshold")
+f2c <- dot_panel(thr_dots %>% transmute(x, y = chg, adopted), th_xlab,
+                 sprintf("Median change in %%WWef, dominated segments (points)"), digits = 2, suffix = " pt",
+                 axis_lab = pt_axis) +
+  labs(title = "Change vs. adopted threshold")
+fig2 <- combine_panels(list(f2a, f2b, f2c),
+                       title = "Sensitivity to the drainage-area similarity threshold",
+                       subtitle = sprintf("%s, wastewater-impacted segments. 'Dominated' = %%WWef \u2265 %g%% at the adopted threshold. Filled dot = adopted %g%%.",
+                                          hl_name, DOM_PCT, SIMILARITY_THRESHOLD * 100))
+save_plot(fig2, "fig2_threshold_sensitivity.png", w = 16, h = 5.6)
+
+# Figure 3: median %WWef under four exponent values, ordered by b
+ex_d <- tibble(
+  scenario = c("Lower 95% CI", sprintf("Partial-year gages\nexcluded (<%d months)", MIN_MONTHS_ALT_FIT),
+               "Fitted\n(adopted)", "Upper 95% CI"),
+  b        = c(B_CI[1], alt_fit$b, B_STATE, B_CI[2]),
+  y        = c(row_at_b(B_CI[1])$share_ge_dom, alt_row$share_ge_dom, row_at_b(B_STATE)$share_ge_dom, row_at_b(B_CI[2])$share_ge_dom),
+  chg      = c(row_at_b(B_CI[1])$median_abs_change_dom_pp, alt_row$median_abs_change_dom_pp,
+               row_at_b(B_STATE)$median_abs_change_dom_pp, row_at_b(B_CI[2])$median_abs_change_dom_pp),
+  chg90    = c(row_at_b(B_CI[1])$p90_abs_change_dom_pp, alt_row$p90_abs_change_dom_pp,
+               row_at_b(B_STATE)$p90_abs_change_dom_pp, row_at_b(B_CI[2])$p90_abs_change_dom_pp),
+  adopted  = c(FALSE, FALSE, TRUE, FALSE)
+) %>%
+  arrange(b) %>%
+  mutate(x_chr = sprintf("%s\nb = %.3f", scenario, b),
+         x     = factor(x_chr, levels = x_chr))
+write_csv(ex_d %>% select(scenario, b, share_ge_dom = y, median_abs_change_dom_pp = chg, p90_abs_change_dom_pp = chg90, adopted) %>% mutate(scenario = gsub("\n", " ", scenario)),
+          file.path(out_dir, "tbl_exponent_scenarios_summary.csv"))
+ex_xlab <- "Drainage-area exponent scenario"
+f3a <- dot_panel(ex_d %>% transmute(x, y, adopted), ex_xlab, dom_lab, ymax = 100, digits = 1) +
+  labs(title = "Result vs. exponent")
+f3b <- dot_panel(ex_d %>% transmute(x, y = chg, adopted), ex_xlab,
+                 "Median change in %WWef, dominated segments (points)", digits = 2, suffix = " pt",
+                 axis_lab = pt_axis) +
+  labs(title = "Change vs. fitted exponent")
+fig3 <- combine_panels(list(f3a, f3b),
+                       title = "Sensitivity to the drainage-area exponent",
+                       subtitle = sprintf("%s, wastewater-impacted segments. Share of impacted segments at or above %g%% %%WWef: %.1f%% to %.1f%% across all exponents. Filled dot = adopted.",
+                                          hl_name, DOM_PCT, min(ex_d$y), max(ex_d$y)))
+save_plot(fig3, "fig3_exponent_sensitivity.png", w = 13, h = 5.6)
+
+# ------------------------------------------------------------------------------
+# Supplement S1: every month x every threshold (table-like heatmap)
+# ------------------------------------------------------------------------------
+hm <- thr %>%
+  mutate(month_f = factor(month, levels = rev(mon_codes), labels = rev(month.abb)))
+hm_mid <- (min(hm$share_ge_dom, na.rm = TRUE) + max(hm$share_ge_dom, na.rm = TRUE)) / 2
+adopt_idx <- match(adopted_th_label, levels(hm$th_f))
+figS1 <- ggplot(hm, aes(th_f, month_f, fill = share_ge_dom)) +
+  geom_tile(colour = "white", linewidth = 0.6) +
+  geom_text(aes(label = sprintf("%.1f", share_ge_dom), colour = share_ge_dom > hm_mid), size = 3.4) +
+  annotate("rect", xmin = adopt_idx - 0.5, xmax = adopt_idx + 0.5, ymin = 0.5, ymax = n_mon + 0.5,
+           fill = NA, colour = COL$ink, linewidth = 0.9) +
+  scale_fill_gradient(low = COL$heat_lo, high = COL$heat_hi, name = sprintf("%% of impacted\nsegments with\n%%WWef \u2265 %g%%", DOM_PCT)) +
+  scale_colour_manual(values = c("TRUE" = "white", "FALSE" = COL$ink), guide = "none") +
+  labs(title = sprintf("Effluent-dominated segments (%%WWef \u2265 %g%%) by month and similarity threshold", DOM_PCT),
+       subtitle = "Wastewater-impacted segments only. Numbers are % of those segments. Outlined column = adopted threshold.",
+       x = th_xlab, y = NULL) +
+  theme_resource() +
+  theme(panel.grid = element_blank(), plot.subtitle = element_text(hjust = 0.5, colour = "grey30"))
+save_plot(figS1, "figS1_threshold_by_month_heatmap.png", w = 9, h = 6.4)
 
 # ==============================================================================
 # 9. IS THE EXPONENT SEASONAL?  (monthly fits + nested-model F-test)
@@ -615,22 +704,24 @@ print(as.data.frame(monthly_fits %>% mutate(across(c(b, ci_lo, ci_hi, r2), ~ rou
 cat(sprintf("  Nested F-test (exponent varies by month?): F(%d, %d) = %.3f, p = %s\n",
             seasonal_test$df1, seasonal_test$df2, seasonal_test$F_stat, format.pval(seasonal_test$p_value, digits = 3)))
 
-mf_plot <- monthly_fits %>% mutate(month_f = factor(month, levels = mon_codes, labels = month.abb))
-fig5 <- ggplot(mf_plot, aes(month_f, b)) +
-  geom_ribbon(aes(ymin = B_CI[1], ymax = B_CI[2], group = 1), fill = COL$band) +
-  geom_hline(yintercept = B_STATE, colour = COL$accent, linewidth = 0.5) +
-  geom_errorbar(aes(ymin = ci_lo, ymax = ci_hi), width = 0.18, colour = COL$ink2, linewidth = 0.45) +
-  geom_point(shape = 21, fill = COL$accent, colour = "white", stroke = 0.8, size = 3.2) +
-  annotate("text", x = 0.7, y = B_CI[2], label = sprintf("Annual fit, 95%% CI (b = %.3f)", B_STATE),
-           hjust = 0, vjust = -0.7, size = 3.2, colour = COL$ink2) +
+mf_plot <- monthly_fits %>%
+  mutate(month_f = factor(month, levels = mon_codes, labels = month.abb), season = season_of(month))
+fig4 <- ggplot(mf_plot, aes(month_f, b)) +
+  annotate("rect", xmin = -Inf, xmax = Inf, ymin = B_CI[1], ymax = B_CI[2], fill = COL$band, alpha = 0.6) +
+  geom_hline(yintercept = B_STATE, colour = "grey30", linewidth = 0.5) +
+  geom_errorbar(aes(ymin = ci_lo, ymax = ci_hi, colour = season), width = 0.2, linewidth = 0.6) +
+  geom_point(aes(colour = season), size = 3.2) +
+  geom_text(aes(y = ci_hi, label = sprintf("%.2f", b)), vjust = -0.8, size = 3.3, fontface = "bold") +
+  annotate("text", x = 0.6, y = -Inf, hjust = 0, vjust = -0.8, size = 3.6, fontface = "italic",
+           label = sprintf("Gray band = annual fit 95%% CI (line: b = %.3f)\nF-test for a month effect: F(%d, %d) = %.2f, p = %s",
+                           B_STATE, seasonal_test$df1, seasonal_test$df2, seasonal_test$F_stat,
+                           format.pval(seasonal_test$p_value, digits = 3))) +
+  scale_colour_manual(values = SEASON_COLS, drop = FALSE) +
+  scale_y_continuous(expand = expansion(mult = c(0.15, 0.1))) +
   labs(title = "Is the drainage-area exponent seasonal?",
-       subtitle = sprintf("Monthly fits (points, 95%% CI bars) against the single annual fit (line and shaded 95%% CI). Nested F-test for a month effect: F(%d, %d) = %.2f, p = %s.",
-                          seasonal_test$df1, seasonal_test$df2, seasonal_test$F_stat,
-                          format.pval(seasonal_test$p_value, digits = 3)),
-       x = NULL, y = "Fitted exponent, b",
-       caption = "Each month is fit separately on that month's gage flows vs. drainage area (log-log OLS).") +
-  theme_sens()
-save_plot(fig5, "fig5_seasonal_exponent.png", w = 9, h = 5.2)
+       x = NULL, y = "Fitted exponent, b") +
+  theme_resource()
+save_plot(fig4, "fig4_seasonal_exponent.png", w = 10, h = 5.4)
 
 # ==============================================================================
 # 10. WHAT DOES LOOSENING THE GATE ADD?  (composition of the network)
@@ -639,11 +730,11 @@ message("Gate-loosening composition...")
 Q_tight <- propagate_dar(gage_rows, threshold = COMP_TIGHT)$Q[, hl]
 Q_adopt <- propagate_dar(gage_rows, threshold = SIMILARITY_THRESHOLD)$Q[, hl]
 Q_loose <- propagate_dar(gage_rows, threshold = Inf)$Q[, hl]
-pct_loose <- compute_pct(WWcum_mat[, hl], Q_loose)       # %WWef at the loosest gate, as in the earlier analysis
+pct_loose <- compute_pct(WWcum_mat[, hl], Q_loose)       # %WWef at the loosest gate
 
-g1 <- sprintf("Reconstructed at\n%g%% gate", COMP_TIGHT * 100)
-g2 <- sprintf("Added between %g%%\nand %g%% (adopted)", COMP_TIGHT * 100, SIMILARITY_THRESHOLD * 100)
-g3 <- sprintf("Added only beyond %g%%\n(up to no gate)", SIMILARITY_THRESHOLD * 100)
+g1 <- sprintf("Reached at\n%g%% gate", COMP_TIGHT * 100)
+g2 <- sprintf("Added from %g%%\nto %g%%", COMP_TIGHT * 100, SIMILARITY_THRESHOLD * 100)
+g3 <- sprintf("Added beyond\n%g%% gate", SIMILARITY_THRESHOLD * 100)
 grp <- rep(NA_character_, n_seg)
 grp[is.finite(Q_loose)] <- g3
 grp[is.finite(Q_adopt)] <- g2
@@ -670,33 +761,32 @@ write_csv(comp_tbl, file.path(out_dir, "tbl_gate_loosening_composition.csv"))
 cat(sprintf("\n=== WHAT LOOSENING THE GATE ADDS (%s) ===\n", hl_name))
 print(as.data.frame(comp_tbl), row.names = FALSE)
 
-lab_tbl <- comp %>% group_by(group) %>%
-  summarise(n = n(), no_ww = 100 * mean(pct == 0, na.rm = TRUE), .groups = "drop") %>%
-  mutate(x_lab = sprintf("%s\nn = %s; %.0f%% with no\nupstream WWTP", as.character(group), format(n, big.mark = ","), no_ww),
+grp_stats <- comp %>% group_by(group) %>%
+  summarise(n = n(), median_DA = median(DA, na.rm = TRUE),
+            no_ww = 100 * mean(pct == 0, na.rm = TRUE), .groups = "drop") %>%
+  mutate(x_lab = sprintf("%s\n(n = %s)", as.character(group), format(n, big.mark = ",")),
          x_lab = factor(x_lab, levels = x_lab[order(as.integer(group))]))
-comp_long <- bind_rows(
-  comp %>% transmute(group, panel = "Drainage area (km², log scale)", value = DA),
-  comp %>% filter(is.finite(pct), pct > 0) %>%
-    transmute(group, panel = "%WWef, segments with upstream WWTP (log scale)", value = pct)
-) %>%
-  filter(is.finite(value), value > 0) %>%
-  left_join(lab_tbl %>% select(group, x_lab), by = "group") %>%
-  mutate(panel = factor(panel, levels = unique(panel)))
 
-fig6 <- ggplot(comp_long, aes(x_lab, value, fill = group)) +
-  geom_boxplot(width = 0.55, linewidth = 0.4, colour = COL$ink2,
-               outlier.size = 0.6, outlier.alpha = 0.2, outlier.colour = COL$muted) +
-  facet_wrap(~ panel, nrow = 1, scales = "free_y") +
-  scale_y_log10(labels = fmt_num) +
-  scale_fill_manual(values = setNames(ORDINAL_BLUE, c(g1, g2, g3))) +
-  guides(fill = "none") +
-  labs(title = "What loosening the similarity gate adds to the reconstructed network",
-       subtitle = sprintf("%s. Segments grouped by the first gate that reaches them; darker = looser gate.", hl_name),
-       x = NULL, y = NULL,
-       caption = "%WWef shown at the loosest (no-gate) run. Segments with no upstream WWTP (0%) cannot be shown on a log axis; their share is in the axis labels.") +
-  theme_sens() +
-  theme(axis.text.x = element_text(size = 8.5, lineheight = 0.95))
-save_plot(fig6, "fig6_gate_loosening_composition.png", w = 11.5, h = 5.8)
+grp_bar <- function(d, ycol, ylab, suffix = "", digits = 0) {
+  ggplot(d, aes(x_lab, .data[[ycol]], fill = group)) +
+    geom_col(width = 0.62) +
+    geom_text(aes(label = paste0(formatC(.data[[ycol]], format = "f", digits = digits, big.mark = ","), suffix)),
+              vjust = -0.5, size = 3.6, fontface = "bold") +
+    scale_fill_manual(values = setNames(ORDINAL_BLUE, c(g1, g2, g3)), guide = "none") +
+    scale_y_continuous(expand = expansion(mult = c(0, 0.12))) +
+    labs(x = NULL, y = ylab) +
+    theme_resource() +
+    theme(axis.text.x = element_text(lineheight = 0.95))
+}
+f5a <- grp_bar(grp_stats, "median_DA", "Median drainage area (km²)", digits = 0) +
+  labs(title = "Segments added are smaller")
+f5b <- grp_bar(grp_stats, "no_ww", "Segments with no upstream WWTP", suffix = "%", digits = 0) +
+  scale_y_continuous(limits = c(0, 100), labels = pct_lab, expand = expansion(mult = c(0, 0.12))) +
+  labs(title = "...and mostly have no wastewater upstream")
+fig5 <- combine_panels(list(f5a, f5b),
+                       title = "What does loosening the similarity gate add to the network?",
+                       subtitle = sprintf("%s. Segments grouped by the first gate that reaches them (darker = looser gate).", hl_name))
+save_plot(fig5, "fig5_gate_loosening_composition.png", w = 11.5, h = 5.6)
 
 # ==============================================================================
 # 11. REAL-GAGE PAIRS: DOES OBSERVED FLOW GROW LIKE (Ad/Au)^b?
@@ -705,7 +795,7 @@ save_plot(fig6, "fig6_gate_loosening_composition.png", w = 11.5, h = 5.8)
 # gage in between): the real-data analogue of one propagation hop. Uses observed
 # gage flows only; no propagation involved.
 #   log_over = log(predicted ratio) - log(observed ratio)   -> positive = DAR over-predicts
-#   abs_pct_err = |observed ratio / predicted ratio - 1| x 100   (as in the original Part E-G tables)
+#   abs_pct_err = |observed ratio / predicted ratio - 1| x 100
 message("Nested real-gage pair checks...")
 nested_pairs <- map_dfr(gage_rows, function(d) {
   u <- nearest_upstream_gages(d)
@@ -748,29 +838,31 @@ write_csv(bin_summary, file.path(out_dir, "tbl_pairs_by_area_ratio_bin.csv"))
 cat("\n=== REAL-GAGE PAIRS BY AREA-RATIO JUMP (all months pooled) ===\n")
 print(as.data.frame(bin_summary), row.names = FALSE)
 
-bin_long <- bind_rows(
-  bin_summary %>% transmute(bin, n, within_gate, panel = "Median absolute error (%)", y = median_abs_pct_err),
-  bin_summary %>% transmute(bin, n, within_gate, panel = "Median bias (%; positive = DAR over-predicts)", y = bias_pct)
-) %>%
-  mutate(x_lab = factor(sprintf("%s\n(n = %s)", as.character(bin), format(n, big.mark = ",")),
-                        levels = unique(sprintf("%s\n(n = %s)", as.character(bin_summary$bin),
-                                                format(bin_summary$n, big.mark = ",")))),
-         panel = factor(panel, levels = unique(panel)))
-fig7 <- ggplot(bin_long, aes(x_lab, y, fill = within_gate)) +
-  geom_hline(yintercept = 0, colour = COL$axis, linewidth = 0.4) +
-  geom_col(width = 0.62) +
-  facet_wrap(~ panel, nrow = 1, scales = "free_y") +
-  scale_fill_manual(values = c("TRUE" = COL$accent, "FALSE" = COL$context),
-                    labels = c("TRUE" = "Within the gate's single-hop range", "FALSE" = "Beyond the gate"),
-                    name = NULL) +
-  labs(title = "Drainage-area scaling vs. real paired gages, by size of the area-ratio jump",
-       subtitle = sprintf("Each gage paired with its nearest upstream gage; all months pooled. The %g%% gate allows ratios up to %.2f in one hop.",
-                          SIMILARITY_THRESHOLD * 100, GATE_MAX_RATIO),
-       x = "Downstream / upstream drainage-area ratio", y = NULL,
-       caption = "Observed flow ratio compared with (Ad/Au)^b using the statewide exponent. No propagation involved.") +
-  theme_sens() +
-  theme(axis.text.x = element_text(size = 8.5, lineheight = 0.95))
-save_plot(fig7, "fig7_pairs_error_by_area_ratio.png", w = 11.5, h = 5.2)
+bin_x <- bin_summary %>%
+  mutate(x_lab = sprintf("%s\n(n = %s)", as.character(bin), format(n, big.mark = ",")),
+         x_lab = factor(x_lab, levels = x_lab))
+gate_fill <- c("TRUE" = COL$accent, "FALSE" = COL$context)
+gate_lab  <- c("TRUE" = sprintf("Within the %g%% gate (ratio ≤ %.2f)", SIMILARITY_THRESHOLD * 100, GATE_MAX_RATIO),
+               "FALSE" = "Beyond the gate")
+pair_bar <- function(ycol, ylab, title) {
+  ggplot(bin_x, aes(x_lab, .data[[ycol]], fill = within_gate)) +
+    geom_hline(yintercept = 0, colour = "grey40", linewidth = 0.4) +
+    geom_col(width = 0.65) +
+    geom_text(aes(label = sprintf("%.0f%%", .data[[ycol]]), vjust = ifelse(.data[[ycol]] >= 0, -0.5, 1.4)),
+              size = 3.5, fontface = "bold") +
+    scale_fill_manual(values = gate_fill, labels = gate_lab, drop = FALSE) +
+    scale_y_continuous(labels = pct_lab, expand = expansion(mult = c(0.12, 0.12))) +
+    labs(title = title, x = "Downstream / upstream drainage-area ratio", y = ylab) +
+    theme_resource() +
+    theme(axis.text.x = element_text(size = 9, lineheight = 0.95))
+}
+f6a <- pair_bar("median_abs_pct_err", "Median absolute error", "Error")
+f6b <- pair_bar("bias_pct", "Median bias (+ = flow over-predicted)", "Bias")
+fig6 <- combine_panels(list(f6a, f6b),
+                       title = "Drainage-area scaling vs. real paired gages",
+                       subtitle = "Each gage compared with its nearest upstream gage (observed flows only; all months pooled).",
+                       collect = TRUE)
+save_plot(fig6, "fig6_pairs_error_by_area_ratio.png", w = 12.5, h = 5.6)
 
 # --- 11b. within the gate's own range: is the small bias seasonal? -----------------
 boot_median_ci <- function(x, n_boot = N_BOOT) {
@@ -806,27 +898,169 @@ gate_bin_month <- pair_long %>%
             median_abs_pct_err = round(median(abs_pct_err), 1), .groups = "drop")
 write_csv(gate_bin_month, file.path(out_dir, "tbl_pairs_within_gate_bin_by_month.csv"))
 
-gm_plot <- gate_month %>% mutate(month_f = factor(month, levels = mon_codes, labels = month.abb))
-fig8 <- ggplot(gm_plot, aes(month_f, bias_pct)) +
-  geom_hline(yintercept = 0, colour = COL$axis, linewidth = 0.4) +
-  geom_errorbar(aes(ymin = lo_pct, ymax = hi_pct), width = 0.18, colour = COL$ink2, linewidth = 0.45) +
-  geom_point(shape = 21, fill = COL$accent, colour = "white", stroke = 0.8, size = 3.2) +
-  labs(title = "Bias of drainage-area scaling within the gate's own single-hop range, by month",
-       subtitle = sprintf("Nearest-upstream gage pairs with Aj/Ai <= %.2f only. Positive = scaled flow too high (%%WWef under-estimated). Bars: bootstrap 95%% CI of the median.",
-                          GATE_MAX_RATIO),
-       x = NULL, y = "Median bias (%)",
-       caption = sprintf("Pairs per month: %d-%d. A bar that excludes zero indicates a bias distinguishable from sampling noise.",
-                         min(gate_month$n), max(gate_month$n))) +
-  theme_sens()
-save_plot(fig8, "fig8_pairs_within_gate_bias_by_month.png", w = 9, h = 5.2)
+# --- Figure 7: seasonal bias. A = LOOCV bias by month; B = real-pair bias inside the gate (with CI) ---
+gm_plot <- gate_month %>%
+  mutate(month_f = factor(month, levels = mon_codes, labels = month.abb), season = season_of(month))
+bias_vals <- c(0, gm_plot$bias_pct, gm_plot$lo_pct, gm_plot$hi_pct)
+if (RUN_LOOCV) bias_vals <- c(bias_vals, loocv_by_month$median_bias_pct)
+bias_lim <- range(bias_vals, na.rm = TRUE); bias_lim <- bias_lim + c(-1, 1) * 0.12 * diff(bias_lim)
+dir_note <- "Above 0: flow over-predicted\n(%WWef under-estimated)"
+
+f7b <- ggplot(gm_plot, aes(month_f, bias_pct, colour = season)) +
+  geom_hline(yintercept = 0, colour = "grey30", linewidth = 0.5) +
+  geom_errorbar(aes(ymin = lo_pct, ymax = hi_pct), width = 0.2, linewidth = 0.6) +
+  geom_point(size = 3.2) +
+  annotate("text", x = 0.6, y = bias_lim[2], hjust = 0, vjust = 1.2, size = 3.5, fontface = "italic",
+           colour = "grey30", label = dir_note) +
+  scale_colour_manual(values = SEASON_COLS, drop = FALSE) +
+  scale_y_continuous(limits = bias_lim, labels = pct_lab) +
+  labs(title = "Real gage pairs (inside the gate)", x = NULL, y = "Median bias (95% CI)") +
+  theme_resource()
+
+if (RUN_LOOCV) {
+  lb <- loocv_by_month %>%
+    mutate(month_f = factor(month, levels = mon_codes, labels = month.abb), season = season_of(month))
+  f7a <- ggplot(lb, aes(month_f, median_bias_pct, colour = season)) +
+    geom_hline(yintercept = 0, colour = "grey30", linewidth = 0.5) +
+    geom_segment(aes(xend = month_f, yend = 0), linewidth = 0.6) +
+    geom_point(size = 3.2) +
+    annotate("text", x = 0.6, y = bias_lim[2], hjust = 0, vjust = 1.2, size = 3.5, fontface = "italic",
+             colour = "grey30", label = dir_note) +
+    scale_colour_manual(values = SEASON_COLS, drop = FALSE) +
+    scale_y_continuous(limits = bias_lim, labels = pct_lab) +
+    labs(title = "Leave-one-gage-out reconstruction", x = NULL, y = "Median bias") +
+    theme_resource()
+  fig7 <- combine_panels(list(f7a, f7b), title = "Is the bias seasonal?",
+                         subtitle = "Same y-axis in both panels.", collect = TRUE)
+  save_plot(fig7, "fig7_seasonal_bias.png", w = 12.5, h = 5.4)
+} else {
+  fig7 <- f7b + labs(title = "Is the bias seasonal? Real gage pairs (inside the gate)")
+  save_plot(fig7, "fig7_seasonal_bias.png", w = 8, h = 5.4)
+}
 
 # ==============================================================================
 # DONE
 # ==============================================================================
 cat(sprintf("\nAll outputs written to ./%s/\n", out_dir))
-cat("  fig1_loocv_observed_vs_reconstructed.png    fig2_loocv_error_and_bias_by_month.png\n")
-cat("  fig3_threshold_sensitivity.png              fig4_exponent_sensitivity.png\n")
-cat("  fig5_seasonal_exponent.png                  fig6_gate_loosening_composition.png\n")
-cat("  fig7_pairs_error_by_area_ratio.png          fig8_pairs_within_gate_bias_by_month.png\n")
+cat("  fig1_loocv_observed_vs_reconstructed.png    fig2_threshold_sensitivity.png\n")
+cat("  fig3_exponent_sensitivity.png               fig4_seasonal_exponent.png\n")
+cat("  fig5_gate_loosening_composition.png         fig6_pairs_error_by_area_ratio.png\n")
+cat("  fig7_seasonal_bias.png                      figS1_threshold_by_month_heatmap.png\n")
 cat("  tbl_*.csv: the numbers behind every figure (table view)\n")
+
+# ---- (1) Low-flow screen: how many gages were removed? -------------------------
+Qcols <- paste0("Qgage_", mon_codes)
+
+pre <- flowlines %>%
+  filter(!is.na(site_no)) %>%                                   # gaged segments, BEFORE the screen
+  mutate(mean_annual_cfs = rowMeans(across(all_of(Qcols)), na.rm = TRUE),
+         n_months        = rowSums(!is.na(across(all_of(Qcols)))),
+         max_monthly_cfs = suppressWarnings(
+           do.call(pmax, c(unname(as.list(across(all_of(Qcols)))), na.rm = TRUE))),
+         has_data        = n_months > 0)
+pre$mean_annual_cfs[is.nan(pre$mean_annual_cfs)] <- NA_real_
+pre <- pre %>%
+  mutate(low_flow_excluded = has_data & max_monthly_cfs < 0.5,   # every observed month < 0.5 cfs
+         in_final          = site_no %in% flow_order$site_no[is_gage])
+
+attrition <- tibble(
+  step = c("Gages in the gage file",
+           "Unique flowline segments (COMIDs) with a gage (one gage kept per COMID)",
+           "Gaged segments with monthly flow statistics",
+           "Removed: all observed monthly means < 0.5 cfs",
+           "Gages used (exponent fit, LOOCV, propagation)"),
+  n = c(nrow(gages_sf),
+        dplyr::n_distinct(gages_sf$best_COMID, na.rm = TRUE),
+        sum(pre$has_data),
+        sum(pre$low_flow_excluded),
+        length(gage_rows)))
+cat("\n=== GAGE ATTRITION (low-flow screen) ===\n")
+print(as.data.frame(attrition), row.names = FALSE)
+cat(sprintf("  low-flow gages removed: %d of %d with data (%.1f%%)\n",
+            sum(pre$low_flow_excluded), sum(pre$has_data),
+            100 * sum(pre$low_flow_excluded) / sum(pre$has_data)))
+if (sum(pre$has_data) - sum(pre$low_flow_excluded) != length(gage_rows))
+  cat(sprintf("  NOTE: %d gaged segments with data are neither removed by the screen nor in the final set ",
+              sum(pre$has_data) - sum(pre$low_flow_excluded) - length(gage_rows)),
+      "(e.g., no finite annual mean) - inspect `pre` for in_final == FALSE.\n", sep = "")
+write_csv(attrition, file.path(out_dir, "tbl_gage_attrition.csv"))
+write_csv(pre %>% filter(low_flow_excluded) %>%
+            select(site_no, DA_km2 = DA, mean_annual_cfs, max_monthly_cfs, n_months),
+          file.path(out_dir, "tbl_gages_removed_low_flow.csv"))
+
+# ---- (2) Exponent figure: how b was determined ---------------------------------
+# Fit: ln(annual mean flow) = a + b * ln(drainage area), ordinary least squares,
+# one point per gage. (Fit uses full_fit from the script - same gages and model.)
+fit_dat <- tibble(site_no = flow_order$site_no[gage_rows],
+                  A       = DA_vec[gage_rows],
+                  Q       = ann_mean_flow[gage_rows]) %>%
+  filter(is.finite(A), is.finite(Q), A > 0, Q > 0)
+
+cf  <- coef(full_fit$model); V <- vcov(full_fit$model)
+tq  <- qt(0.975, df = full_fit$model$df.residual)
+xg  <- seq(log(min(fit_dat$A)), log(max(fit_dat$A)), length.out = 200)
+band <- tibble(A  = exp(xg),
+               fit = exp(cf[1] + cf[2] * xg),
+               se  = sqrt(V[1, 1] + 2 * xg * V[1, 2] + xg^2 * V[2, 2]),
+               lo  = exp(cf[1] + cf[2] * xg - tq * se),
+               hi  = exp(cf[1] + cf[2] * xg + tq * se))
+
+removed <- pre %>% filter(low_flow_excluded, is.finite(DA), DA > 0, is.finite(mean_annual_cfs), mean_annual_cfs > 0)
+
+p_scatter <- ggplot() +
+  geom_ribbon(data = band, aes(A, ymin = lo, ymax = hi), fill = COL$band, alpha = 0.7) +
+  geom_point(data = removed, aes(DA, mean_annual_cfs), shape = 4, size = 1.8, colour = COL$muted) +
+  geom_point(data = fit_dat, aes(A, Q), colour = COL$accent, alpha = 0.55, size = 1.8) +
+  geom_line(data = band, aes(A, fit), colour = COL$ink, linewidth = 0.8) +
+  annotate("text", x = min(fit_dat$A), y = max(fit_dat$Q), hjust = 0, vjust = 1, size = 3.9,
+           fontface = "italic",
+           label = sprintf("b = %.3f (95%% CI %.3f–%.3f)\nR² = %.2f, n = %d gages",
+                           B_STATE, B_CI[1], B_CI[2], full_fit$r2, full_fit$n)) +
+  scale_x_log10(labels = fmt_num) +
+  scale_y_log10(labels = fmt_num) +
+  labs(title = "Annual mean flow vs. drainage area",
+       x = "Drainage area (km²)", y = "Annual mean gage flow (cfs)") +
+  theme_resource()
+
+# Panel B: is b robust? Same regression under three gage selections, with b = 1 for reference
+b_row <- function(label, rows) {
+  q <- ann_mean_flow[rows]; a <- DA_vec[rows]
+  ok <- is.finite(q) & is.finite(a) & q > 0 & a > 0
+  m  <- lm(log(q[ok]) ~ log(a[ok])); ci <- confint(m)[2, ]
+  tibble(label = label, b = unname(coef(m)[2]), lo = ci[1], hi = ci[2], n = sum(ok))
+}
+no_screen <- {
+  q <- pre$mean_annual_cfs[pre$has_data]; a <- pre$DA[pre$has_data]
+  ok <- is.finite(q) & is.finite(a) & q > 0 & a > 0
+  m  <- lm(log(q[ok]) ~ log(a[ok])); ci <- confint(m)[2, ]
+  tibble(label = "Low-flow gages\nkept (no screen)", b = unname(coef(m)[2]), lo = ci[1], hi = ci[2], n = sum(ok))
+}
+b_tab <- bind_rows(
+  b_row("All usable gages\n(adopted)", gage_rows),
+  b_row(sprintf("Gages with\n≥%d months", MIN_MONTHS_ALT_FIT), gage_rows[n_months_obs[gage_rows] >= MIN_MONTHS_ALT_FIT]),
+  no_screen) %>%
+  mutate(x = factor(sprintf("%s\n(n = %d)", label, n), levels = sprintf("%s\n(n = %d)", label, n)),
+         adopted = row_number() == 1)
+write_csv(b_tab %>% select(label, b, lo, hi, n) %>% mutate(label = gsub("\n", " ", label)),
+          file.path(out_dir, "tbl_exponent_fit_robustness.csv"))
+
+p_robust <- ggplot(b_tab, aes(x, b)) +
+  geom_hline(yintercept = 1, colour = "grey40", linewidth = 0.5) +
+  geom_errorbar(aes(ymin = lo, ymax = hi), width = 0.12, colour = COL$accent, linewidth = 0.7) +
+  geom_point(aes(fill = adopted, size = adopted), shape = 21, colour = COL$accent, stroke = 0.9) +
+  geom_text(aes(y = hi, label = sprintf("%.3f", b)), vjust = -0.9, size = 3.6, fontface = "bold") +
+  annotate("text", x = 0.55, y = 1, hjust = 0, vjust = -0.6, size = 3.4, fontface = "italic",
+           colour = "grey30", label = "b = 1: flow proportional to area") +   # after the data layers
+  scale_fill_manual(values = c("TRUE" = COL$accent, "FALSE" = "white"), guide = "none") +
+  scale_size_manual(values = c("TRUE" = 4.4, "FALSE" = 3), guide = "none") +
+  scale_y_continuous(limits = c(0.5, 1.1), expand = expansion(mult = c(0, 0.05))) +
+  labs(title = "Estimated exponent under different gage selections",
+       x = NULL, y = "Exponent b (95% CI)") +
+  theme_resource()
+
+fig_exp <- combine_panels(list(p_scatter, p_robust),
+                          title = "How the drainage-area exponent (b) was determined",
+                          subtitle = "Ordinary least squares on log-transformed values, one point per gage. Crosses = gages removed by the < 0.5 cfs screen.",
+                          widths = c(1.15, 1))
+save_plot(fig_exp, "fig_exponent_fit.png", w = 12.5, h = 5.8)
 
