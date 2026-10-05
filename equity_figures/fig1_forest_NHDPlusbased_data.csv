@@ -1,0 +1,119 @@
+indicator,model,est,lo,hi,q,sig,source,mode,month
+"Percent Black or African
+American alone",Unadjusted,0.6532063867336411,0.4184934627934581,1.0195585393891815,0.10336123292407429,ns,NHDPlus-based,Prevalence,01
+"Percentage of tract that is
+disadvantaged by area",Unadjusted,1.2447104790925445,1.0549437133864743,1.468613118504086,0.02236509541504944,sig,NHDPlus-based,Prevalence,01
+"Share of neighbors that are
+identified as disadvantaged",Unadjusted,1.291677740834127,1.0179275914333117,1.639047217314434,0.06489628679442412,ns,NHDPlus-based,Prevalence,01
+"Adjusted percent of
+individuals below 200%
+Federal Poverty Line",Unadjusted,1.4473100241223316,1.1554683951084035,1.812863350302596,0.00577555123736848,sig,NHDPlus-based,Prevalence,01
+"Share of properties at risk
+of fire in 30 years",Unadjusted,1.0933908321864667,0.8374114418320081,1.4276178377668292,0.5839169673297013,ns,NHDPlus-based,Prevalence,01
+Energy burden,Unadjusted,1.707586000089675,1.3241999294834077,2.2019710791253235,7.654135253639532e-4,sig,NHDPlus-based,Prevalence,01
+"Median value ($) of
+owner-occupied housing units",Unadjusted,0.920343494267714,0.7307303672674782,1.1591582687446411,0.5561817134067676,ns,NHDPlus-based,Prevalence,01
+"Share of the tract's land
+area that is covered by
+impervious surface or
+cropland as a percent",Unadjusted,0.5973395146603566,0.4366841062510657,0.8170997997566797,0.00577555123736848,sig,NHDPlus-based,Prevalence,01
+"Proximity to NPL (Superfund)
+sites",Unadjusted,1.1419516537740997,0.825496390022306,1.579720511584749,0.525776916657836,ns,NHDPlus-based,Prevalence,01
+"Proximity to Risk Management
+Plan (RMP) facilities",Unadjusted,1.132008822463416,0.9114841721591344,1.4058872477176536,0.36990746776577543,ns,NHDPlus-based,Prevalence,01
+"Diagnosed diabetes among
+adults aged greater than or
+equal to 18 years",Unadjusted,1.4518679945238864,1.1842475630791394,1.7799662327715058,0.0026784194432684,sig,NHDPlus-based,Prevalence,01
+"Coronary heart disease among
+adults aged greater than or
+equal to 18 years",Unadjusted,1.435674601891976,1.192738818771004,1.7280912887881863,0.0014984238120157,sig,NHDPlus-based,Prevalence,01
+"Median household income as a
+percent of area median income",Unadjusted,0.7642933578567492,0.6301063074766173,0.9270567996744296,0.01715533428291003,sig,NHDPlus-based,Prevalence,01
+"Percent of individuals below
+200% Federal Poverty Line",Unadjusted,1.36407366799943,1.0874788844969148,1.711018943223167,0.01828855071879736,sig,NHDPlus-based,Prevalence,01
+Identified as disadvantaged,Unadjusted,1.7402576489533044,1.1446329724587294,2.6458233840976284,0.02236509541504944,sig,NHDPlus-based,Prevalence,01
+"Percent Black or African
+American alone",Adjusted for stream size,0.6821037751205931,0.4974284149269077,0.9353417417903858,0.04854403772828006,sig,NHDPlus-based,Prevalence,01
+"Percentage of tract that is
+disadvantaged by area",Adjusted for stream size,0.6548592305297062,0.5148048215471623,0.8330159195501473,0.00479718261338038,sig,NHDPlus-based,Prevalence,01
+"Share of neighbors that are
+identified as disadvantaged",Adjusted for stream size,0.6190854784253209,0.448562409375844,0.8544336787614647,0.01525736463685418,sig,NHDPlus-based,Prevalence,01
+"Adjusted percent of
+individuals below 200%
+Federal Poverty Line",Adjusted for stream size,0.6211980460274481,0.4853258241391085,0.7951091683052768,0.00409652789690716,sig,NHDPlus-based,Prevalence,01
+"Share of properties at risk
+of fire in 30 years",Adjusted for stream size,1.4312685901441553,1.0595136706284916,1.9334623364680827,0.05039113905431069,ns,NHDPlus-based,Prevalence,01
+Energy burden,Adjusted for stream size,0.538439235702887,0.3896914105097872,0.7439651034777626,0.00409652789690716,sig,NHDPlus-based,Prevalence,01
+"Median value ($) of
+owner-occupied housing units",Adjusted for stream size,1.5184605575522043,1.0471374500223518,2.20192914004989,0.06611202845221739,ns,NHDPlus-based,Prevalence,01
+"Share of the tract's land
+area that is covered by
+impervious surface or
+cropland as a percent",Adjusted for stream size,0.47394275748127657,0.29970328286083997,0.7494804035004643,0.0087120434125326,sig,NHDPlus-based,Prevalence,01
+"Proximity to NPL (Superfund)
+sites",Adjusted for stream size,1.484176986428568,0.9788094346523202,2.2504700599117418,0.12522544022020857,ns,NHDPlus-based,Prevalence,01
+"Proximity to Risk Management
+Plan (RMP) facilities",Adjusted for stream size,0.6932352054056784,0.5530059562909905,0.8690232800331278,0.0087120434125326,sig,NHDPlus-based,Prevalence,01
+"Diagnosed diabetes among
+adults aged greater than or
+equal to 18 years",Adjusted for stream size,0.6945247492479139,0.5502572668850656,0.8766165507426747,0.01038826841630299,sig,NHDPlus-based,Prevalence,01
+"Coronary heart disease among
+adults aged greater than or
+equal to 18 years",Adjusted for stream size,0.6681998940139933,0.5379658981216158,0.8299617130366419,0.00409652789690716,sig,NHDPlus-based,Prevalence,01
+"Median household income as a
+percent of area median income",Adjusted for stream size,1.4049824397921935,1.167438429207025,1.690860611351671,0.00412721942593863,sig,NHDPlus-based,Prevalence,01
+"Percent of individuals below
+200% Federal Poverty Line",Adjusted for stream size,0.6852439553723781,0.5509115168524912,0.8523315705162653,0.00530109633042834,sig,NHDPlus-based,Prevalence,01
+Identified as disadvantaged,Adjusted for stream size,0.3421139431139694,0.1859858600153688,0.629305636801188,0.00479718261338038,sig,NHDPlus-based,Prevalence,01
+rurality_rural,Unadjusted,-0.33352031786325076,-0.4731579758267681,-0.19388265989973336,6.910591644473619e-5,sig,NHDPlus-based,Severity,01
+Percent Asian,Unadjusted,0.2972655656200181,0.15969324584986697,0.4348378853901692,2.943213812222124e-4,sig,NHDPlus-based,Severity,01
+Percent White,Unadjusted,-0.2855369669387536,-0.3951770821738029,-0.17589685170370428,1.5922636387489243e-5,sig,NHDPlus-based,Severity,01
+Percent Hispanic or Latino,Unadjusted,0.22397878174456787,0.10709090525217836,0.3408666582369574,0.00126283259644252,sig,NHDPlus-based,Severity,01
+Percent age over 64,Unadjusted,-0.26079939825166926,-0.3724224894436223,-0.14917630705971624,9.351463873321276e-5,sig,NHDPlus-based,Severity,01
+"Expected agricultural loss
+rate (Natural Hazards Risk
+Index)",Unadjusted,-0.27798485302235804,-0.44903898164820466,-0.1069307243965114,0.00589766575945165,sig,NHDPlus-based,Severity,01
+"Expected population loss rate
+(Natural Hazards Risk Index)",Unadjusted,-0.3831689072787175,-0.5208172097709918,-0.2455206047864434,5.0059006126356846e-6,sig,NHDPlus-based,Severity,01
+"Share of properties at risk
+of flood in 30 years",Unadjusted,-0.3438189252579832,-0.45772889408477574,-0.22990895643119064,1.5945118308385773e-6,sig,NHDPlus-based,Severity,01
+PM2.5 in the air,Unadjusted,0.5383087755838702,0.4248124054018778,0.6518051457658627,1.7264976425574622e-11,sig,NHDPlus-based,Severity,01
+"Diesel particulate matter
+exposure",Unadjusted,0.5630090089400798,0.4426442970684782,0.6833737208116814,1.7264976425574622e-11,sig,NHDPlus-based,Severity,01
+Traffic proximity and volume,Unadjusted,0.2918447132540948,0.11730568995928256,0.46638373654890697,0.00490706305249236,sig,NHDPlus-based,Severity,01
+"Share of the tract's land
+area that is covered by
+impervious surface or
+cropland as a percent",Unadjusted,0.4675032462858236,0.34782285303508104,0.5871836395365662,2.521981243639835e-9,sig,NHDPlus-based,Severity,01
+"Proximity to hazardous waste
+sites",Unadjusted,0.4037127926930422,0.20124384013785349,0.606181745248231,8.020196429905535e-4,sig,NHDPlus-based,Severity,01
+"Proximity to Risk Management
+Plan (RMP) facilities",Unadjusted,0.37518610856061146,0.24850686093058136,0.5018653561906415,1.734426974809358e-6,sig,NHDPlus-based,Severity,01
+"Leaky underground storage
+tanks",Unadjusted,0.27459052312989557,0.1306975771622753,0.4184834690975158,0.00126783870674985,sig,NHDPlus-based,Severity,01
+rurality_rural,Adjusted for stream size,-0.3076428457519959,-0.42975735108437785,-0.18552834041961397,2.9254435723580868e-5,sig,NHDPlus-based,Severity,01
+Percent Asian,Adjusted for stream size,0.2737136813586367,0.15489349011648998,0.39253387260078343,1.1742115641942704e-4,sig,NHDPlus-based,Severity,01
+Percent White,Adjusted for stream size,-0.2933279431312615,-0.4191513621112456,-0.1675045241512774,1.0298765715143092e-4,sig,NHDPlus-based,Severity,01
+Percent Hispanic or Latino,Adjusted for stream size,0.2553260456190786,0.10606107982441676,0.4045910114137405,0.00415578231025621,sig,NHDPlus-based,Severity,01
+Percent age over 64,Adjusted for stream size,-0.23547987010130975,-0.34391983734645926,-0.12703990285616024,2.7374205249133495e-4,sig,NHDPlus-based,Severity,01
+"Expected agricultural loss
+rate (Natural Hazards Risk
+Index)",Adjusted for stream size,-0.2521465503704817,-0.4154128248491377,-0.08888027589182573,0.00942927783007243,sig,NHDPlus-based,Severity,01
+"Expected population loss rate
+(Natural Hazards Risk Index)",Adjusted for stream size,-0.3593057096422613,-0.49062788563704496,-0.2279835336474776,7.0836208659793565e-6,sig,NHDPlus-based,Severity,01
+"Share of properties at risk
+of flood in 30 years",Adjusted for stream size,-0.3171429482413301,-0.42665333413179624,-0.20763256235086397,3.138540074821858e-6,sig,NHDPlus-based,Severity,01
+PM2.5 in the air,Adjusted for stream size,0.5229202844941035,0.4077367258927491,0.638103843095458,4.687414927982271e-11,sig,NHDPlus-based,Severity,01
+"Diesel particulate matter
+exposure",Adjusted for stream size,0.5534900932199658,0.4336898069114544,0.6732903795284773,3.9248506254995934e-11,sig,NHDPlus-based,Severity,01
+Traffic proximity and volume,Adjusted for stream size,0.25983559260092914,0.10230854500981564,0.4173626401920426,0.0056094798488135,sig,NHDPlus-based,Severity,01
+"Share of the tract's land
+area that is covered by
+impervious surface or
+cropland as a percent",Adjusted for stream size,0.4752918539839077,0.3685909237370027,0.5819927842308127,5.2475925188019726e-11,sig,NHDPlus-based,Severity,01
+"Proximity to hazardous waste
+sites",Adjusted for stream size,0.3764716153668982,0.17564012155371253,0.5773031091800839,0.00159806825172093,sig,NHDPlus-based,Severity,01
+"Proximity to Risk Management
+Plan (RMP) facilities",Adjusted for stream size,0.4143705988577924,0.280131395657927,0.5486098020576579,7.066010904401525e-7,sig,NHDPlus-based,Severity,01
+"Leaky underground storage
+tanks",Adjusted for stream size,0.2454635307629277,0.11783747613563884,0.37308958539021664,0.00133349970084842,sig,NHDPlus-based,Severity,01

@@ -1,0 +1,5 @@
+source,units,n_complete_units,n_watersheds,friedman_p,kendalls_W
+Gage-based,segments,3143,48,0,0.5532978385886765
+Gage-based,tracts,349,49,0,0.6089784317971294
+NHDPlus-based,segments,4155,56,0,0.584472782206953
+NHDPlus-based,tracts,247,34,9.845381066173786e-293,0.5137175723461007

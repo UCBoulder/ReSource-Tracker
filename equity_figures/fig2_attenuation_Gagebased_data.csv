@@ -1,0 +1,101 @@
+indicator,unadj,adj,q_adj,status,source,mode,month
+rurality_rural,1.4543102162387838,-0.3340016884111855,0.6166941180920196,Not significant after adjustment,Gage-based,Prevalence,01
+Percent Black or African American alone,-0.42586214032548136,-0.382573469780859,0.04854403772828006,Still significant after adjustment,Gage-based,Prevalence,01
+Percent American Indian / Alaska Native,0.5858970841608563,0.25090305541991637,0.4379770021447392,Not significant after adjustment,Gage-based,Prevalence,01
+Percent Asian,-0.5061766070274892,0.06380129728009477,0.6166941180920196,Not significant after adjustment,Gage-based,Prevalence,01
+Percent Native Hawaiian or Pacific,0.03926732722104858,-0.016852793570758137,0.8396531689758907,Not significant after adjustment,Gage-based,Prevalence,01
+Percent two or more races,-0.4287636744106371,-0.24387696473723516,0.03827599940862464,Still significant after adjustment,Gage-based,Prevalence,01
+Percent White,0.050002075459605826,0.2466811388964868,0.09179091625901796,Not significant after adjustment,Gage-based,Prevalence,01
+Percent Hispanic or Latino,0.17034913935420928,-0.14517567988119978,0.2991609859639503,Not significant after adjustment,Gage-based,Prevalence,01
+Percent other races,-0.027565604363174238,-0.191120753700647,0.15307926156088844,Not significant after adjustment,Gage-based,Prevalence,01
+Percent age under 10,-0.24125534004081947,-0.31318333318731595,0.00433557395999512,Still significant after adjustment,Gage-based,Prevalence,01
+Percent age 10 to 64,-0.07119819121387937,0.28563770387176546,0.01037322405714085,Still significant after adjustment,Gage-based,Prevalence,01
+Percent age over 64,0.2072788953982508,-0.06582865032754114,0.5420032912390239,Not significant after adjustment,Gage-based,Prevalence,01
+Total threshold criteria exceeded,0.3100280324035208,-0.1846657661546608,0.1372552832814453,Not significant after adjustment,Gage-based,Prevalence,01
+Total categories exceeded,0.29397106966020925,-0.22326145838405675,0.09115198232201709,Not significant after adjustment,Gage-based,Prevalence,01
+Percentage of tract that is disadvantaged by area,0.21890295595982592,-0.42333498166629346,0.00479718261338038,Still significant after adjustment,Gage-based,Prevalence,01
+Share of neighbors that are identified as disadvantaged,0.25594194764944944,-0.47951192467563963,0.01525736463685418,Still significant after adjustment,Gage-based,Prevalence,01
+Total population,-0.183726092806136,0.030818985141545897,0.8396531689758907,Not significant after adjustment,Gage-based,Prevalence,01
+Adjusted percent of individuals below 200% Federal Poverty Line,0.3697066777220988,-0.4761053331931572,0.00409652789690716,Still significant after adjustment,Gage-based,Prevalence,01
+Expected agricultural loss rate (Natural Hazards Risk Index),0.8659866051920383,0.055127552924848784,0.7226671137137345,Not significant after adjustment,Gage-based,Prevalence,01
+Expected building loss rate (Natural Hazards Risk Index),0.11338730448631434,0.1183032215029564,0.6651033880783722,Not significant after adjustment,Gage-based,Prevalence,01
+Expected population loss rate (Natural Hazards Risk Index),0.57521218178228,0.057055504450137975,0.7896220311042317,Not significant after adjustment,Gage-based,Prevalence,01
+Share of properties at risk of flood in 30 years,0.7991082026557627,0.16555216372594936,0.5952052370896916,Not significant after adjustment,Gage-based,Prevalence,01
+Share of properties at risk of fire in 30 years,0.08928372275956657,0.3585611769830678,0.05039113905431069,Not significant after adjustment,Gage-based,Prevalence,01
+Energy burden,0.5350806772792085,-0.619080628672955,0.00409652789690716,Still significant after adjustment,Gage-based,Prevalence,01
+PM2.5 in the air,-0.4892413696105498,0.053956113047958956,0.839963432587424,Not significant after adjustment,Gage-based,Prevalence,01
+Diesel particulate matter exposure,-0.45387611187327426,-0.12981731896072451,0.6166941180920196,Not significant after adjustment,Gage-based,Prevalence,01
+Traffic proximity and volume,-0.03665649448014899,-0.002670482286230174,0.9823959168838152,Not significant after adjustment,Gage-based,Prevalence,01
+Housing burden (percent),0.025591995787525815,-0.22439750249532048,0.03512823514144482,Still significant after adjustment,Gage-based,Prevalence,01
+Percent pre-1960s housing (lead paint indicator),0.4134746156369443,-0.17471588413675496,0.1879048006645427,Not significant after adjustment,Gage-based,Prevalence,01
+Median value ($) of owner-occupied housing units,-0.08300831528732497,0.41769703055466695,0.06611202845221739,Not significant after adjustment,Gage-based,Prevalence,01
+Share of the tract's land area that is covered by impervious surface or cropland as a percent,-0.5152696259651912,-0.7466687293871505,0.0087120434125326,Still significant after adjustment,Gage-based,Prevalence,01
+Share of homes with no kitchen or indoor plumbing (percent),0.02604058121284391,-0.14197236290931098,0.17635831240620947,Not significant after adjustment,Gage-based,Prevalence,01
+Proximity to hazardous waste sites,-0.21212873920472522,-0.11184047708870376,0.2209023328638676,Not significant after adjustment,Gage-based,Prevalence,01
+Proximity to NPL (Superfund) sites,0.13273877563899303,0.3948604007259386,0.12522544022020857,Not significant after adjustment,Gage-based,Prevalence,01
+Proximity to Risk Management Plan (RMP) facilities,0.12399377344621762,-0.36638593563617966,0.0087120434125326,Still significant after adjustment,Gage-based,Prevalence,01
+Leaky underground storage tanks,-0.23036088030345736,-0.1513174224492725,0.2145970892719745,Not significant after adjustment,Gage-based,Prevalence,01
+Current asthma among adults aged greater than or equal to 18 years,-0.065760247163971,-0.3214936177215643,0.01038826841630299,Still significant after adjustment,Gage-based,Prevalence,01
+Diagnosed diabetes among adults aged greater than or equal to 18 years,0.3728509994074424,-0.3645274813565775,0.01038826841630299,Still significant after adjustment,Gage-based,Prevalence,01
+Coronary heart disease among adults aged greater than or equal to 18 years,0.36163484459451595,-0.40316790767369093,0.00409652789690716,Still significant after adjustment,Gage-based,Prevalence,01
+Life expectancy (years),-0.06230119275070271,0.21503497769243446,0.12522544022020857,Not significant after adjustment,Gage-based,Prevalence,01
+Median household income as a percent of area median income,-0.2688035872633427,0.3400248043390583,0.00412721942593863,Still significant after adjustment,Gage-based,Prevalence,01
+Linguistic isolation (percent),0.09980857164590791,-0.1300668443305687,0.13171282637704954,Not significant after adjustment,Gage-based,Prevalence,01
+Unemployment (percent),0.08963308574488757,-0.1508572194922626,0.18723482871048092,Not significant after adjustment,Gage-based,Prevalence,01
+Percent of individuals below 200% Federal Poverty Line,0.3104755667600839,-0.37798036489268516,0.00530109633042834,Still significant after adjustment,Gage-based,Prevalence,01
+Percent of individuals < 100% Federal Poverty Line,0.3107593432788571,-0.14136481665341188,0.23542808769538748,Not significant after adjustment,Gage-based,Prevalence,01
+Percent individuals age 25 or over with less than high school degree,0.26510565994427027,-0.2758846611384942,0.01774052717449167,Still significant after adjustment,Gage-based,Prevalence,01
+Percent of residents who are not currently enrolled in higher ed,0.07813464486217389,-0.16833754058114517,0.13017194420010297,Not significant after adjustment,Gage-based,Prevalence,01
+Unemployment (percent) in 2009 (island areas) and 2010 (states and PR),0.03729858339318222,-0.13895324288008215,0.13589571261519964,Not significant after adjustment,Gage-based,Prevalence,01
+Percentage households below 100% of federal poverty line in 2009 (island areas) and 2010 (states and PR),0.3042413429164688,-0.13751972515399968,0.17635831240620947,Not significant after adjustment,Gage-based,Prevalence,01
+Identified as disadvantaged,0.5540331763756431,-1.0726114304074221,0.00479718261338038,Still significant after adjustment,Gage-based,Prevalence,01
+rurality_rural,-0.2789693192983235,-0.2355035924857077,0.00211779602526315,Still significant after adjustment,Gage-based,Severity,01
+Percent Black or African American alone,0.2194067517708283,0.1845030491382356,0.04796922918349276,Still significant after adjustment,Gage-based,Severity,01
+Percent American Indian / Alaska Native,-0.05509316941215764,-0.0384195229907971,0.7558205117412362,Not significant after adjustment,Gage-based,Severity,01
+Percent Asian,0.2800054894928725,0.26938727137058255,8.121795163210532e-6,Still significant after adjustment,Gage-based,Severity,01
+Percent Native Hawaiian or Pacific,0.05361522359018554,0.06233027461184927,0.3415180311797808,Not significant after adjustment,Gage-based,Severity,01
+Percent two or more races,0.2621212858602475,0.229284360374798,9.342905596009658e-4,Still significant after adjustment,Gage-based,Severity,01
+Percent White,-0.3486078110222697,-0.3108809126781867,8.99631600860166e-4,Still significant after adjustment,Gage-based,Severity,01
+Percent Hispanic or Latino,0.2878971591359308,0.26394992006643797,0.00929035199089641,Still significant after adjustment,Gage-based,Severity,01
+Percent other races,0.22055581498618437,0.1731151981532969,0.09588321152680804,Not significant after adjustment,Gage-based,Severity,01
+Percent age under 10,0.22605111697543523,0.2005920050062525,0.0477132739720646,Still significant after adjustment,Gage-based,Severity,01
+Percent age 10 to 64,0.20145448741751665,0.19068330235355777,0.00884037182800049,Still significant after adjustment,Gage-based,Severity,01
+Percent age over 64,-0.3160489726276691,-0.2821659992134982,0.00121118044925267,Still significant after adjustment,Gage-based,Severity,01
+Total threshold criteria exceeded,0.10143456496579674,0.07726279700950035,0.474914121391312,Not significant after adjustment,Gage-based,Severity,01
+Total categories exceeded,0.09325286540564406,0.06999039661369032,0.5338823771501423,Not significant after adjustment,Gage-based,Severity,01
+Percentage of tract that is disadvantaged by area,0.08210138468491186,0.06059152559555706,0.6010114861898167,Not significant after adjustment,Gage-based,Severity,01
+Share of neighbors that are identified as disadvantaged,0.03664794811212763,0.00285734922099356,0.9806417250869408,Not significant after adjustment,Gage-based,Severity,01
+Total population,0.05503088052168564,0.01721417423132476,0.8365173840893859,Not significant after adjustment,Gage-based,Severity,01
+Adjusted percent of individuals below 200% Federal Poverty Line,-0.02457072531938156,-0.04611464422743698,0.7228585348926029,Not significant after adjustment,Gage-based,Severity,01
+Expected agricultural loss rate (Natural Hazards Risk Index),-0.26100235592507715,-0.24000991765796492,0.07334550297078611,Not significant after adjustment,Gage-based,Severity,01
+Expected building loss rate (Natural Hazards Risk Index),0.395706683392649,0.38305725745559455,0.0026354715473442,Still significant after adjustment,Gage-based,Severity,01
+Expected population loss rate (Natural Hazards Risk Index),-0.4204169148843134,-0.37393871108524,1.479163321688025e-4,Still significant after adjustment,Gage-based,Severity,01
+Share of properties at risk of flood in 30 years,-0.2765304158454335,-0.2353781932498795,8.98295675616685e-4,Still significant after adjustment,Gage-based,Severity,01
+Share of properties at risk of fire in 30 years,-0.08255829612225035,-0.04300668170455995,0.7668213682595517,Not significant after adjustment,Gage-based,Severity,01
+Energy burden,-0.27424709062135416,-0.2492320897760898,0.02822727572951145,Still significant after adjustment,Gage-based,Severity,01
+PM2.5 in the air,0.6364854349514809,0.6370048793696902,4.25215566831199e-10,Still significant after adjustment,Gage-based,Severity,01
+Diesel particulate matter exposure,0.5949245394348155,0.5994176029266487,6.108297172758482e-9,Still significant after adjustment,Gage-based,Severity,01
+Traffic proximity and volume,0.2666845633557026,0.22886868026901336,0.00229831808613522,Still significant after adjustment,Gage-based,Severity,01
+Housing burden (percent),0.08938158237729693,0.06329928039613794,0.6036231105242019,Not significant after adjustment,Gage-based,Severity,01
+Percent pre-1960s housing (lead paint indicator),0.00717075591344377,-0.02772180894665311,0.8128556012299474,Not significant after adjustment,Gage-based,Severity,01
+Median value ($) of owner-occupied housing units,-0.08219646247562112,-0.11388173626837446,0.474914121391312,Not significant after adjustment,Gage-based,Severity,01
+Share of the tract's land area that is covered by impervious surface or cropland as a percent,0.5282069461495638,0.5006219317245001,9.193913285212985e-10,Still significant after adjustment,Gage-based,Severity,01
+Share of homes with no kitchen or indoor plumbing (percent),-0.10575557252992034,-0.08032090938160069,0.31912492394799763,Not significant after adjustment,Gage-based,Severity,01
+Proximity to hazardous waste sites,0.45752776162687336,0.4428003565983363,5.1523818583189576e-5,Still significant after adjustment,Gage-based,Severity,01
+Proximity to NPL (Superfund) sites,0.21329907845025137,0.14948716029054235,0.474914121391312,Not significant after adjustment,Gage-based,Severity,01
+Proximity to Risk Management Plan (RMP) facilities,0.45594873358250415,0.4325176245546894,1.0367784703289376e-5,Still significant after adjustment,Gage-based,Severity,01
+Leaky underground storage tanks,0.255186405696104,0.201941883922798,0.00526339159013899,Still significant after adjustment,Gage-based,Severity,01
+Current asthma among adults aged greater than or equal to 18 years,-0.0331241948632985,-0.05244229444170572,0.7228585348926029,Not significant after adjustment,Gage-based,Severity,01
+Diagnosed diabetes among adults aged greater than or equal to 18 years,-0.06189141687683577,-0.1022034762459913,0.474914121391312,Not significant after adjustment,Gage-based,Severity,01
+Coronary heart disease among adults aged greater than or equal to 18 years,-0.19241645485256495,-0.22268507063266135,0.07827005223951494,Not significant after adjustment,Gage-based,Severity,01
+Life expectancy (years),-0.14113873718076045,-0.08557203424158444,0.474914121391312,Not significant after adjustment,Gage-based,Severity,01
+Median household income as a percent of area median income,0.00810445190615804,0.03189452303503114,0.7895831090670608,Not significant after adjustment,Gage-based,Severity,01
+Linguistic isolation (percent),0.20592622263659227,0.15649774398015534,0.09588321152680804,Not significant after adjustment,Gage-based,Severity,01
+Unemployment (percent),-0.04507150733493238,-0.06939392904140973,0.5338823771501423,Not significant after adjustment,Gage-based,Severity,01
+Percent of individuals below 200% Federal Poverty Line,0.01210483310914185,-0.01770889618349442,0.8671185282881257,Not significant after adjustment,Gage-based,Severity,01
+Percent of individuals < 100% Federal Poverty Line,-0.02990234356212594,-0.04965580517756683,0.7228585348926029,Not significant after adjustment,Gage-based,Severity,01
+Percent individuals age 25 or over with less than high school degree,0.16092928078171537,0.13630818617407642,0.07827005223951494,Not significant after adjustment,Gage-based,Severity,01
+Percent of residents who are not currently enrolled in higher ed,-0.2266260729854418,-0.20068543178440776,0.00233643668224348,Still significant after adjustment,Gage-based,Severity,01
+Unemployment (percent) in 2009 (island areas) and 2010 (states and PR),0.05145112856783981,0.02734662404314529,0.7895831090670608,Not significant after adjustment,Gage-based,Severity,01
+Percentage households below 100% of federal poverty line in 2009 (island areas) and 2010 (states and PR),0.09171457533628093,0.07005175355710225,0.5338823771501423,Not significant after adjustment,Gage-based,Severity,01
+Identified as disadvantaged,0.09105052042679826,0.06360178631195623,0.5897231896152744,Not significant after adjustment,Gage-based,Severity,01

@@ -1,0 +1,119 @@
+indicator,model,est,lo,hi,q,sig,source,mode,month
+"Percent Black or African
+American alone",Unadjusted,0.6532063867336411,0.4184934627934581,1.0195585393891815,0.10336123292407429,ns,Gage-based,Prevalence,01
+"Percentage of tract that is
+disadvantaged by area",Unadjusted,1.2447104790925445,1.0549437133864743,1.468613118504086,0.02236509541504944,sig,Gage-based,Prevalence,01
+"Share of neighbors that are
+identified as disadvantaged",Unadjusted,1.291677740834127,1.0179275914333117,1.639047217314434,0.06489628679442412,ns,Gage-based,Prevalence,01
+"Adjusted percent of
+individuals below 200%
+Federal Poverty Line",Unadjusted,1.4473100241223316,1.1554683951084035,1.812863350302596,0.00577555123736848,sig,Gage-based,Prevalence,01
+"Share of properties at risk
+of fire in 30 years",Unadjusted,1.0933908321864667,0.8374114418320081,1.4276178377668292,0.5839169673297013,ns,Gage-based,Prevalence,01
+Energy burden,Unadjusted,1.707586000089675,1.3241999294834077,2.2019710791253235,7.654135253639532e-4,sig,Gage-based,Prevalence,01
+"Median value ($) of
+owner-occupied housing units",Unadjusted,0.920343494267714,0.7307303672674782,1.1591582687446411,0.5561817134067676,ns,Gage-based,Prevalence,01
+"Share of the tract's land
+area that is covered by
+impervious surface or
+cropland as a percent",Unadjusted,0.5973395146603566,0.4366841062510657,0.8170997997566797,0.00577555123736848,sig,Gage-based,Prevalence,01
+"Proximity to NPL (Superfund)
+sites",Unadjusted,1.1419516537740997,0.825496390022306,1.579720511584749,0.525776916657836,ns,Gage-based,Prevalence,01
+"Proximity to Risk Management
+Plan (RMP) facilities",Unadjusted,1.132008822463416,0.9114841721591344,1.4058872477176536,0.36990746776577543,ns,Gage-based,Prevalence,01
+"Diagnosed diabetes among
+adults aged greater than or
+equal to 18 years",Unadjusted,1.4518679945238864,1.1842475630791394,1.7799662327715058,0.0026784194432684,sig,Gage-based,Prevalence,01
+"Coronary heart disease among
+adults aged greater than or
+equal to 18 years",Unadjusted,1.435674601891976,1.192738818771004,1.7280912887881863,0.0014984238120157,sig,Gage-based,Prevalence,01
+"Median household income as a
+percent of area median income",Unadjusted,0.7642933578567492,0.6301063074766173,0.9270567996744296,0.01715533428291003,sig,Gage-based,Prevalence,01
+"Percent of individuals below
+200% Federal Poverty Line",Unadjusted,1.36407366799943,1.0874788844969148,1.711018943223167,0.01828855071879736,sig,Gage-based,Prevalence,01
+Identified as disadvantaged,Unadjusted,1.7402576489533044,1.1446329724587294,2.6458233840976284,0.02236509541504944,sig,Gage-based,Prevalence,01
+"Percent Black or African
+American alone",Adjusted for stream size,0.6821037751205931,0.4974284149269077,0.9353417417903858,0.04854403772828006,sig,Gage-based,Prevalence,01
+"Percentage of tract that is
+disadvantaged by area",Adjusted for stream size,0.6548592305297062,0.5148048215471623,0.8330159195501473,0.00479718261338038,sig,Gage-based,Prevalence,01
+"Share of neighbors that are
+identified as disadvantaged",Adjusted for stream size,0.6190854784253209,0.448562409375844,0.8544336787614647,0.01525736463685418,sig,Gage-based,Prevalence,01
+"Adjusted percent of
+individuals below 200%
+Federal Poverty Line",Adjusted for stream size,0.6211980460274481,0.4853258241391085,0.7951091683052768,0.00409652789690716,sig,Gage-based,Prevalence,01
+"Share of properties at risk
+of fire in 30 years",Adjusted for stream size,1.4312685901441553,1.0595136706284916,1.9334623364680827,0.05039113905431069,ns,Gage-based,Prevalence,01
+Energy burden,Adjusted for stream size,0.538439235702887,0.3896914105097872,0.7439651034777626,0.00409652789690716,sig,Gage-based,Prevalence,01
+"Median value ($) of
+owner-occupied housing units",Adjusted for stream size,1.5184605575522043,1.0471374500223518,2.20192914004989,0.06611202845221739,ns,Gage-based,Prevalence,01
+"Share of the tract's land
+area that is covered by
+impervious surface or
+cropland as a percent",Adjusted for stream size,0.47394275748127657,0.29970328286083997,0.7494804035004643,0.0087120434125326,sig,Gage-based,Prevalence,01
+"Proximity to NPL (Superfund)
+sites",Adjusted for stream size,1.484176986428568,0.9788094346523202,2.2504700599117418,0.12522544022020857,ns,Gage-based,Prevalence,01
+"Proximity to Risk Management
+Plan (RMP) facilities",Adjusted for stream size,0.6932352054056784,0.5530059562909905,0.8690232800331278,0.0087120434125326,sig,Gage-based,Prevalence,01
+"Diagnosed diabetes among
+adults aged greater than or
+equal to 18 years",Adjusted for stream size,0.6945247492479139,0.5502572668850656,0.8766165507426747,0.01038826841630299,sig,Gage-based,Prevalence,01
+"Coronary heart disease among
+adults aged greater than or
+equal to 18 years",Adjusted for stream size,0.6681998940139933,0.5379658981216158,0.8299617130366419,0.00409652789690716,sig,Gage-based,Prevalence,01
+"Median household income as a
+percent of area median income",Adjusted for stream size,1.4049824397921935,1.167438429207025,1.690860611351671,0.00412721942593863,sig,Gage-based,Prevalence,01
+"Percent of individuals below
+200% Federal Poverty Line",Adjusted for stream size,0.6852439553723781,0.5509115168524912,0.8523315705162653,0.00530109633042834,sig,Gage-based,Prevalence,01
+Identified as disadvantaged,Adjusted for stream size,0.3421139431139694,0.1859858600153688,0.629305636801188,0.00479718261338038,sig,Gage-based,Prevalence,01
+rurality_rural,Unadjusted,-0.2789693192983235,-0.44641354275600253,-0.11152509584064448,0.004739318696461,sig,Gage-based,Severity,01
+Percent Asian,Unadjusted,0.2800054894928725,0.11745234267189492,0.4425586363138501,0.0038080270311561,sig,Gage-based,Severity,01
+Percent White,Unadjusted,-0.3486078110222697,-0.4750503461894733,-0.22216527585506604,8.452591531081633e-6,sig,Gage-based,Severity,01
+Percent Hispanic or Latino,Unadjusted,0.2878971591359308,0.1453002843409969,0.43049403393086466,7.186108468630538e-4,sig,Gage-based,Severity,01
+Percent age over 64,Unadjusted,-0.3160489726276691,-0.4585936071541975,-0.17350433810114077,2.4383939141126487e-4,sig,Gage-based,Severity,01
+"Expected agricultural loss
+rate (Natural Hazards Risk
+Index)",Unadjusted,-0.26100235592507715,-0.46280217097568355,-0.05920254087447071,0.02724381712700958,sig,Gage-based,Severity,01
+"Expected building loss rate
+(Natural Hazards Risk Index)",Unadjusted,0.395706683392649,0.16183980269330075,0.6295735640919972,0.00434369175978609,sig,Gage-based,Severity,01
+"Expected population loss rate
+(Natural Hazards Risk Index)",Unadjusted,-0.4204169148843134,-0.583358373175212,-0.25747545659341475,2.697222985226416e-5,sig,Gage-based,Severity,01
+"Share of properties at risk
+of flood in 30 years",Unadjusted,-0.2765304158454335,-0.4057747747582076,-0.14728605693265934,4.151998574418973e-4,sig,Gage-based,Severity,01
+Energy burden,Unadjusted,-0.27424709062135416,-0.4614407977630242,-0.08705338347968403,0.01223257675879587,sig,Gage-based,Severity,01
+PM2.5 in the air,Unadjusted,0.6364854349514809,0.5121526418964815,0.7608182280064804,2.5623110246318376e-12,sig,Gage-based,Severity,01
+"Diesel particulate matter
+exposure",Unadjusted,0.5949245394348155,0.4423845831020145,0.7474644957676165,4.113914445139923e-9,sig,Gage-based,Severity,01
+"Share of the tract's land
+area that is covered by
+impervious surface or
+cropland as a percent",Unadjusted,0.5282069461495638,0.4056709791541129,0.6507429131450146,3.7613187743613433e-10,sig,Gage-based,Severity,01
+"Proximity to hazardous waste
+sites",Unadjusted,0.45752776162687336,0.25245618026794336,0.6625993429858034,2.3701706450338471e-4,sig,Gage-based,Severity,01
+"Proximity to Risk Management
+Plan (RMP) facilities",Unadjusted,0.45594873358250415,0.3206846072613877,0.5912128599036206,1.1252315884803317e-7,sig,Gage-based,Severity,01
+rurality_rural,Adjusted for stream size,-0.2355035924857077,-0.3638249837011974,-0.10718220127021802,0.00211779602526315,sig,Gage-based,Severity,01
+Percent Asian,Adjusted for stream size,0.26938727137058255,0.17286375246351593,0.3659107902776492,8.121795163210532e-6,sig,Gage-based,Severity,01
+Percent White,Adjusted for stream size,-0.3108809126781867,-0.465615653490404,-0.15614617186596932,8.99631600860166e-4,sig,Gage-based,Severity,01
+Percent Hispanic or Latino,Adjusted for stream size,0.26394992006643797,0.09158942063319786,0.4363104194996781,0.00929035199089641,sig,Gage-based,Severity,01
+Percent age over 64,Adjusted for stream size,-0.2821659992134982,-0.4278076289387758,-0.13652436948822066,0.00121118044925267,sig,Gage-based,Severity,01
+"Expected agricultural loss
+rate (Natural Hazards Risk
+Index)",Adjusted for stream size,-0.24000991765796492,-0.4587952703942408,-0.02122456492168903,0.07334550297078611,ns,Gage-based,Severity,01
+"Expected building loss rate
+(Natural Hazards Risk Index)",Adjusted for stream size,0.38305725745559455,0.1672367574275852,0.598877757483604,0.0026354715473442,sig,Gage-based,Severity,01
+"Expected population loss rate
+(Natural Hazards Risk Index)",Adjusted for stream size,-0.37393871108524,-0.5357346754260621,-0.21214274674441777,1.479163321688025e-4,sig,Gage-based,Severity,01
+"Share of properties at risk
+of flood in 30 years",Adjusted for stream size,-0.2353781932498795,-0.3514030798358383,-0.11935330666392072,8.98295675616685e-4,sig,Gage-based,Severity,01
+Energy burden,Adjusted for stream size,-0.2492320897760898,-0.43793930080096505,-0.06052487875121454,0.02822727572951145,sig,Gage-based,Severity,01
+PM2.5 in the air,Adjusted for stream size,0.6370048793696902,0.49138247340490127,0.7826272853344791,4.25215566831199e-10,sig,Gage-based,Severity,01
+"Diesel particulate matter
+exposure",Adjusted for stream size,0.5994176029266487,0.4436457031518546,0.7551895027014428,6.108297172758482e-9,sig,Gage-based,Severity,01
+"Share of the tract's land
+area that is covered by
+impervious surface or
+cropland as a percent",Adjusted for stream size,0.5006219317245001,0.3808331369836461,0.620410726465354,9.193913285212985e-10,sig,Gage-based,Severity,01
+"Proximity to hazardous waste
+sites",Adjusted for stream size,0.4428003565983363,0.2639445891591813,0.6216561240374913,5.1523818583189576e-5,sig,Gage-based,Severity,01
+"Proximity to Risk Management
+Plan (RMP) facilities",Adjusted for stream size,0.4325176245546894,0.2739845900099264,0.5910506590994524,1.0367784703289376e-5,sig,Gage-based,Severity,01

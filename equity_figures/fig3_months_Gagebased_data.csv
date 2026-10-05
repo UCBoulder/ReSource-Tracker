@@ -1,0 +1,361 @@
+source,mode,month,indicator,effect_adj,lo_adj,hi_adj,q_adj,status
+Gage-based,Prevalence,01,Percent Black or African American alone,0.6821037751205931,0.4974284149269077,0.9353417417903858,0.04854403772828006,Lower exposure
+Gage-based,Prevalence,01,Percentage of tract that is disadvantaged by area,0.6548592305297062,0.5148048215471623,0.8330159195501473,0.00479718261338038,Lower exposure
+Gage-based,Prevalence,01,Share of neighbors that are identified as disadvantaged,0.6190854784253209,0.448562409375844,0.8544336787614647,0.01525736463685418,Lower exposure
+Gage-based,Prevalence,01,Adjusted percent of individuals below 200% Federal Poverty Line,0.6211980460274481,0.4853258241391085,0.7951091683052768,0.00409652789690716,Lower exposure
+Gage-based,Prevalence,01,Share of properties at risk of fire in 30 years,1.4312685901441553,1.0595136706284916,1.9334623364680827,0.05039113905431069,Not significant
+Gage-based,Prevalence,01,Energy burden,0.538439235702887,0.3896914105097872,0.7439651034777626,0.00409652789690716,Lower exposure
+Gage-based,Prevalence,01,Median value ($) of owner-occupied housing units,1.5184605575522043,1.0471374500223518,2.20192914004989,0.06611202845221739,Not significant
+Gage-based,Prevalence,01,Share of the tract's land area that is covered by impervious surface or cropland as a percent,0.47394275748127657,0.29970328286083997,0.7494804035004643,0.0087120434125326,Lower exposure
+Gage-based,Prevalence,01,Proximity to NPL (Superfund) sites,1.484176986428568,0.9788094346523202,2.2504700599117418,0.12522544022020857,Not significant
+Gage-based,Prevalence,01,Proximity to Risk Management Plan (RMP) facilities,0.6932352054056784,0.5530059562909905,0.8690232800331278,0.0087120434125326,Lower exposure
+Gage-based,Prevalence,01,Diagnosed diabetes among adults aged greater than or equal to 18 years,0.6945247492479139,0.5502572668850656,0.8766165507426747,0.01038826841630299,Lower exposure
+Gage-based,Prevalence,01,Coronary heart disease among adults aged greater than or equal to 18 years,0.6681998940139933,0.5379658981216158,0.8299617130366419,0.00409652789690716,Lower exposure
+Gage-based,Prevalence,01,Median household income as a percent of area median income,1.4049824397921935,1.167438429207025,1.690860611351671,0.00412721942593863,Higher exposure
+Gage-based,Prevalence,01,Percent of individuals below 200% Federal Poverty Line,0.6852439553723781,0.5509115168524912,0.8523315705162653,0.00530109633042834,Lower exposure
+Gage-based,Prevalence,01,Identified as disadvantaged,0.3421139431139694,0.1859858600153688,0.629305636801188,0.00479718261338038,Lower exposure
+Gage-based,Prevalence,02,Percent Black or African American alone,0.6821037751205931,0.4974284149269077,0.9353417417903858,0.04854403772828006,Lower exposure
+Gage-based,Prevalence,02,Percentage of tract that is disadvantaged by area,0.6548592305297062,0.5148048215471623,0.8330159195501473,0.00479718261338038,Lower exposure
+Gage-based,Prevalence,02,Share of neighbors that are identified as disadvantaged,0.6190854784253209,0.448562409375844,0.8544336787614647,0.01525736463685418,Lower exposure
+Gage-based,Prevalence,02,Adjusted percent of individuals below 200% Federal Poverty Line,0.6211980460274481,0.4853258241391085,0.7951091683052768,0.00409652789690716,Lower exposure
+Gage-based,Prevalence,02,Share of properties at risk of fire in 30 years,1.4312685901441553,1.0595136706284916,1.9334623364680827,0.05039113905431069,Not significant
+Gage-based,Prevalence,02,Energy burden,0.538439235702887,0.3896914105097872,0.7439651034777626,0.00409652789690716,Lower exposure
+Gage-based,Prevalence,02,Median value ($) of owner-occupied housing units,1.5184605575522043,1.0471374500223518,2.20192914004989,0.06611202845221739,Not significant
+Gage-based,Prevalence,02,Share of the tract's land area that is covered by impervious surface or cropland as a percent,0.47394275748127657,0.29970328286083997,0.7494804035004643,0.0087120434125326,Lower exposure
+Gage-based,Prevalence,02,Proximity to NPL (Superfund) sites,1.484176986428568,0.9788094346523202,2.2504700599117418,0.12522544022020857,Not significant
+Gage-based,Prevalence,02,Proximity to Risk Management Plan (RMP) facilities,0.6932352054056784,0.5530059562909905,0.8690232800331278,0.0087120434125326,Lower exposure
+Gage-based,Prevalence,02,Diagnosed diabetes among adults aged greater than or equal to 18 years,0.6945247492479139,0.5502572668850656,0.8766165507426747,0.01038826841630299,Lower exposure
+Gage-based,Prevalence,02,Coronary heart disease among adults aged greater than or equal to 18 years,0.6681998940139933,0.5379658981216158,0.8299617130366419,0.00409652789690716,Lower exposure
+Gage-based,Prevalence,02,Median household income as a percent of area median income,1.4049824397921935,1.167438429207025,1.690860611351671,0.00412721942593863,Higher exposure
+Gage-based,Prevalence,02,Percent of individuals below 200% Federal Poverty Line,0.6852439553723781,0.5509115168524912,0.8523315705162653,0.00530109633042834,Lower exposure
+Gage-based,Prevalence,02,Identified as disadvantaged,0.3421139431139694,0.1859858600153688,0.629305636801188,0.00479718261338038,Lower exposure
+Gage-based,Prevalence,03,Percent Black or African American alone,0.6784264933709886,0.4933590258055004,0.9329159553860232,0.04860229391569858,Lower exposure
+Gage-based,Prevalence,03,Percentage of tract that is disadvantaged by area,0.6574811222057663,0.5163601223851344,0.8371704307067512,0.00649020794048104,Lower exposure
+Gage-based,Prevalence,03,Share of neighbors that are identified as disadvantaged,0.6271152855443355,0.4535375030804083,0.8671247221944277,0.01948474348601591,Lower exposure
+Gage-based,Prevalence,03,Adjusted percent of individuals below 200% Federal Poverty Line,0.6232425627406233,0.48656644722238046,0.798310886886886,0.00545879189211935,Lower exposure
+Gage-based,Prevalence,03,Share of properties at risk of fire in 30 years,1.4142816757423653,1.049013426705717,1.9067369467538315,0.05897732080846491,Not significant
+Gage-based,Prevalence,03,Energy burden,0.5593704828255961,0.4066713816294837,0.7694058426309869,0.00545879189211935,Lower exposure
+Gage-based,Prevalence,03,Median value ($) of owner-occupied housing units,1.483765505580654,1.0396140393513331,2.117670589485956,0.07091860928848422,Not significant
+Gage-based,Prevalence,03,Share of the tract's land area that is covered by impervious surface or cropland as a percent,0.4953165698103119,0.31564167881268007,0.7772690389036092,0.01310095049508065,Lower exposure
+Gage-based,Prevalence,03,Proximity to NPL (Superfund) sites,1.4720719637992377,0.971521398495839,2.2305178969385566,0.12605745204137994,Not significant
+Gage-based,Prevalence,03,Proximity to Risk Management Plan (RMP) facilities,0.7061812776740289,0.5643979764505048,0.883582184460679,0.01310095049508065,Lower exposure
+Gage-based,Prevalence,03,Diagnosed diabetes among adults aged greater than or equal to 18 years,0.6997475111276413,0.5549924748044879,0.8822580513399223,0.01329289392540141,Lower exposure
+Gage-based,Prevalence,03,Coronary heart disease among adults aged greater than or equal to 18 years,0.6816495812336059,0.550798245431156,0.8435868404632131,0.00545879189211935,Lower exposure
+Gage-based,Prevalence,03,Median household income as a percent of area median income,1.3873684069652166,1.1557065240031748,1.665467016641948,0.00545879189211935,Higher exposure
+Gage-based,Prevalence,03,Percent of individuals below 200% Federal Poverty Line,0.688213564602173,0.551985699991382,0.8580619217306247,0.00739459612907536,Lower exposure
+Gage-based,Prevalence,03,Identified as disadvantaged,0.3455984518021538,0.18741431695671731,0.6372954416050802,0.00649020794048104,Lower exposure
+Gage-based,Prevalence,04,Percent Black or African American alone,0.6821037751205931,0.4974284149269077,0.9353417417903858,0.04854403772828006,Lower exposure
+Gage-based,Prevalence,04,Percentage of tract that is disadvantaged by area,0.6548592305297062,0.5148048215471623,0.8330159195501473,0.00479718261338038,Lower exposure
+Gage-based,Prevalence,04,Share of neighbors that are identified as disadvantaged,0.6190854784253209,0.448562409375844,0.8544336787614647,0.01525736463685418,Lower exposure
+Gage-based,Prevalence,04,Adjusted percent of individuals below 200% Federal Poverty Line,0.6211980460274481,0.4853258241391085,0.7951091683052768,0.00409652789690716,Lower exposure
+Gage-based,Prevalence,04,Share of properties at risk of fire in 30 years,1.4312685901441553,1.0595136706284916,1.9334623364680827,0.05039113905431069,Not significant
+Gage-based,Prevalence,04,Energy burden,0.538439235702887,0.3896914105097872,0.7439651034777626,0.00409652789690716,Lower exposure
+Gage-based,Prevalence,04,Median value ($) of owner-occupied housing units,1.5184605575522043,1.0471374500223518,2.20192914004989,0.06611202845221739,Not significant
+Gage-based,Prevalence,04,Share of the tract's land area that is covered by impervious surface or cropland as a percent,0.47394275748127657,0.29970328286083997,0.7494804035004643,0.0087120434125326,Lower exposure
+Gage-based,Prevalence,04,Proximity to NPL (Superfund) sites,1.484176986428568,0.9788094346523202,2.2504700599117418,0.12522544022020857,Not significant
+Gage-based,Prevalence,04,Proximity to Risk Management Plan (RMP) facilities,0.6932352054056784,0.5530059562909905,0.8690232800331278,0.0087120434125326,Lower exposure
+Gage-based,Prevalence,04,Diagnosed diabetes among adults aged greater than or equal to 18 years,0.6945247492479139,0.5502572668850656,0.8766165507426747,0.01038826841630299,Lower exposure
+Gage-based,Prevalence,04,Coronary heart disease among adults aged greater than or equal to 18 years,0.6681998940139933,0.5379658981216158,0.8299617130366419,0.00409652789690716,Lower exposure
+Gage-based,Prevalence,04,Median household income as a percent of area median income,1.4049824397921935,1.167438429207025,1.690860611351671,0.00412721942593863,Higher exposure
+Gage-based,Prevalence,04,Percent of individuals below 200% Federal Poverty Line,0.6852439553723781,0.5509115168524912,0.8523315705162653,0.00530109633042834,Lower exposure
+Gage-based,Prevalence,04,Identified as disadvantaged,0.3421139431139694,0.1859858600153688,0.629305636801188,0.00479718261338038,Lower exposure
+Gage-based,Prevalence,05,Percent Black or African American alone,0.6784264933709886,0.4933590258055004,0.9329159553860232,0.04860229391569858,Lower exposure
+Gage-based,Prevalence,05,Percentage of tract that is disadvantaged by area,0.6574811222057663,0.5163601223851344,0.8371704307067512,0.00649020794048104,Lower exposure
+Gage-based,Prevalence,05,Share of neighbors that are identified as disadvantaged,0.6271152855443355,0.4535375030804083,0.8671247221944277,0.01948474348601591,Lower exposure
+Gage-based,Prevalence,05,Adjusted percent of individuals below 200% Federal Poverty Line,0.6232425627406233,0.48656644722238046,0.798310886886886,0.00545879189211935,Lower exposure
+Gage-based,Prevalence,05,Share of properties at risk of fire in 30 years,1.4142816757423653,1.049013426705717,1.9067369467538315,0.05897732080846491,Not significant
+Gage-based,Prevalence,05,Energy burden,0.5593704828255961,0.4066713816294837,0.7694058426309869,0.00545879189211935,Lower exposure
+Gage-based,Prevalence,05,Median value ($) of owner-occupied housing units,1.483765505580654,1.0396140393513331,2.117670589485956,0.07091860928848422,Not significant
+Gage-based,Prevalence,05,Share of the tract's land area that is covered by impervious surface or cropland as a percent,0.4953165698103119,0.31564167881268007,0.7772690389036092,0.01310095049508065,Lower exposure
+Gage-based,Prevalence,05,Proximity to NPL (Superfund) sites,1.4720719637992377,0.971521398495839,2.2305178969385566,0.12605745204137994,Not significant
+Gage-based,Prevalence,05,Proximity to Risk Management Plan (RMP) facilities,0.7061812776740289,0.5643979764505048,0.883582184460679,0.01310095049508065,Lower exposure
+Gage-based,Prevalence,05,Diagnosed diabetes among adults aged greater than or equal to 18 years,0.6997475111276413,0.5549924748044879,0.8822580513399223,0.01329289392540141,Lower exposure
+Gage-based,Prevalence,05,Coronary heart disease among adults aged greater than or equal to 18 years,0.6816495812336059,0.550798245431156,0.8435868404632131,0.00545879189211935,Lower exposure
+Gage-based,Prevalence,05,Median household income as a percent of area median income,1.3873684069652166,1.1557065240031748,1.665467016641948,0.00545879189211935,Higher exposure
+Gage-based,Prevalence,05,Percent of individuals below 200% Federal Poverty Line,0.688213564602173,0.551985699991382,0.8580619217306247,0.00739459612907536,Lower exposure
+Gage-based,Prevalence,05,Identified as disadvantaged,0.3455984518021538,0.18741431695671731,0.6372954416050802,0.00649020794048104,Lower exposure
+Gage-based,Prevalence,06,Percent Black or African American alone,0.6793732191689563,0.4950533233735752,0.9323197100844414,0.04623075169817627,Lower exposure
+Gage-based,Prevalence,06,Percentage of tract that is disadvantaged by area,0.6603045060892017,0.5188104176838063,0.8403879835493782,0.00710436646438281,Lower exposure
+Gage-based,Prevalence,06,Share of neighbors that are identified as disadvantaged,0.6260098598778171,0.4524244871545906,0.8661961405513809,0.01922932671501761,Lower exposure
+Gage-based,Prevalence,06,Adjusted percent of individuals below 200% Federal Poverty Line,0.6245798792005888,0.48724066308193753,0.8006310947750688,0.00518439613077626,Lower exposure
+Gage-based,Prevalence,06,Share of properties at risk of fire in 30 years,1.4389985432759635,1.0724528445349186,1.930823176144714,0.04409212284456775,Higher exposure
+Gage-based,Prevalence,06,Energy burden,0.552575699485951,0.40140222854312974,0.7606831301624923,0.00518439613077626,Lower exposure
+Gage-based,Prevalence,06,Median value ($) of owner-occupied housing units,1.4715666536481666,1.039945362767991,2.082329027714874,0.06971123794762774,Not significant
+Gage-based,Prevalence,06,Share of the tract's land area that is covered by impervious surface or cropland as a percent,0.4987994653808569,0.3177740881752991,0.7829490066130831,0.01385268805131722,Lower exposure
+Gage-based,Prevalence,06,Proximity to NPL (Superfund) sites,1.4746822557239978,0.9726702560670994,2.2357913607231743,0.12449216481694518,Not significant
+Gage-based,Prevalence,06,Proximity to Risk Management Plan (RMP) facilities,0.7072905036862877,0.5652026939394695,0.885098146149986,0.01385268805131722,Lower exposure
+Gage-based,Prevalence,06,Diagnosed diabetes among adults aged greater than or equal to 18 years,0.7086104432832946,0.5630877135812596,0.8917416385035092,0.01609743831522418,Lower exposure
+Gage-based,Prevalence,06,Coronary heart disease among adults aged greater than or equal to 18 years,0.6904853542685144,0.5603980030696274,0.8507703843478522,0.00611294988313562,Lower exposure
+Gage-based,Prevalence,06,Median household income as a percent of area median income,1.3876561389845263,1.1560793126429978,1.6656206360610426,0.00611294988313562,Higher exposure
+Gage-based,Prevalence,06,Percent of individuals below 200% Federal Poverty Line,0.6903345383581452,0.5534547558718338,0.8610672684516837,0.00783610578986902,Lower exposure
+Gage-based,Prevalence,06,Identified as disadvantaged,0.3493681074489399,0.1896744089079266,0.6435136674747962,0.00710436646438281,Lower exposure
+Gage-based,Prevalence,07,Percent Black or African American alone,0.6830422702188318,0.4990856084293395,0.9348030378474624,0.04628841773161035,Lower exposure
+Gage-based,Prevalence,07,Percentage of tract that is disadvantaged by area,0.6576176833376989,0.5171923450076289,0.8361705690598785,0.00525016860638152,Lower exposure
+Gage-based,Prevalence,07,Share of neighbors that are identified as disadvantaged,0.6180236504418213,0.4474470681897551,0.85362774651918,0.01535633387265802,Lower exposure
+Gage-based,Prevalence,07,Adjusted percent of individuals below 200% Federal Poverty Line,0.6225300570893937,0.485980475280333,0.797446999812437,0.00354621787937012,Lower exposure
+Gage-based,Prevalence,07,Share of properties at risk of fire in 30 years,1.4560920472289292,1.0830615402025945,1.9576025657847056,0.03863353276976358,Higher exposure
+Gage-based,Prevalence,07,Energy burden,0.5320145633471712,0.3845256090508579,0.7360745005049744,0.00339903368200665,Lower exposure
+Gage-based,Prevalence,07,Median value ($) of owner-occupied housing units,1.5056305802839776,1.0475429797105986,2.164038600986608,0.06482667865094391,Not significant
+Gage-based,Prevalence,07,Share of the tract's land area that is covered by impervious surface or cropland as a percent,0.4772755721244639,0.30176895883164484,0.7548555445486299,0.0091239539381527,Lower exposure
+Gage-based,Prevalence,07,Proximity to NPL (Superfund) sites,1.4868691657766435,0.979991103803008,2.2559183522769306,0.12672651180349234,Not significant
+Gage-based,Prevalence,07,Proximity to Risk Management Plan (RMP) facilities,0.6943102442218987,0.5539035376174598,0.8703080635755036,0.0091239539381527,Lower exposure
+Gage-based,Prevalence,07,Diagnosed diabetes among adults aged greater than or equal to 18 years,0.7032307512436591,0.5582947131326542,0.8857928937206629,0.01312508595903066,Lower exposure
+Gage-based,Prevalence,07,Coronary heart disease among adults aged greater than or equal to 18 years,0.6768538767333316,0.5474491879809353,0.8368469266318361,0.00425297069875978,Lower exposure
+Gage-based,Prevalence,07,Median household income as a percent of area median income,1.4051762321731556,1.1677503609657842,1.6908753013198172,0.00425297069875978,Higher exposure
+Gage-based,Prevalence,07,Percent of individuals below 200% Federal Poverty Line,0.6873592235926266,0.5523593689912629,0.8553538308233741,0.00591772129279226,Lower exposure
+Gage-based,Prevalence,07,Identified as disadvantaged,0.34577406439001473,0.18817763412909705,0.6353555466786638,0.00525016860638152,Lower exposure
+Gage-based,Prevalence,08,Percent Black or African American alone,0.6830422702188318,0.4990856084293395,0.9348030378474624,0.04628841773161035,Lower exposure
+Gage-based,Prevalence,08,Percentage of tract that is disadvantaged by area,0.6576176833376989,0.5171923450076289,0.8361705690598785,0.00525016860638152,Lower exposure
+Gage-based,Prevalence,08,Share of neighbors that are identified as disadvantaged,0.6180236504418213,0.4474470681897551,0.85362774651918,0.01535633387265802,Lower exposure
+Gage-based,Prevalence,08,Adjusted percent of individuals below 200% Federal Poverty Line,0.6225300570893937,0.485980475280333,0.797446999812437,0.00354621787937012,Lower exposure
+Gage-based,Prevalence,08,Share of properties at risk of fire in 30 years,1.4560920472289292,1.0830615402025945,1.9576025657847056,0.03863353276976358,Higher exposure
+Gage-based,Prevalence,08,Energy burden,0.5320145633471712,0.3845256090508579,0.7360745005049744,0.00339903368200665,Lower exposure
+Gage-based,Prevalence,08,Median value ($) of owner-occupied housing units,1.5056305802839776,1.0475429797105986,2.164038600986608,0.06482667865094391,Not significant
+Gage-based,Prevalence,08,Share of the tract's land area that is covered by impervious surface or cropland as a percent,0.4772755721244639,0.30176895883164484,0.7548555445486299,0.0091239539381527,Lower exposure
+Gage-based,Prevalence,08,Proximity to NPL (Superfund) sites,1.4868691657766435,0.979991103803008,2.2559183522769306,0.12672651180349234,Not significant
+Gage-based,Prevalence,08,Proximity to Risk Management Plan (RMP) facilities,0.6943102442218987,0.5539035376174598,0.8703080635755036,0.0091239539381527,Lower exposure
+Gage-based,Prevalence,08,Diagnosed diabetes among adults aged greater than or equal to 18 years,0.7032307512436591,0.5582947131326542,0.8857928937206629,0.01312508595903066,Lower exposure
+Gage-based,Prevalence,08,Coronary heart disease among adults aged greater than or equal to 18 years,0.6768538767333316,0.5474491879809353,0.8368469266318361,0.00425297069875978,Lower exposure
+Gage-based,Prevalence,08,Median household income as a percent of area median income,1.4051762321731556,1.1677503609657842,1.6908753013198172,0.00425297069875978,Higher exposure
+Gage-based,Prevalence,08,Percent of individuals below 200% Federal Poverty Line,0.6873592235926266,0.5523593689912629,0.8553538308233741,0.00591772129279226,Lower exposure
+Gage-based,Prevalence,08,Identified as disadvantaged,0.34577406439001473,0.18817763412909705,0.6353555466786638,0.00525016860638152,Lower exposure
+Gage-based,Prevalence,09,Percent Black or African American alone,0.6793732191689563,0.4950533233735752,0.9323197100844414,0.04623075169817627,Lower exposure
+Gage-based,Prevalence,09,Percentage of tract that is disadvantaged by area,0.6603045060892017,0.5188104176838063,0.8403879835493782,0.00710436646438281,Lower exposure
+Gage-based,Prevalence,09,Share of neighbors that are identified as disadvantaged,0.6260098598778171,0.4524244871545906,0.8661961405513809,0.01922932671501761,Lower exposure
+Gage-based,Prevalence,09,Adjusted percent of individuals below 200% Federal Poverty Line,0.6245798792005888,0.48724066308193753,0.8006310947750688,0.00518439613077626,Lower exposure
+Gage-based,Prevalence,09,Share of properties at risk of fire in 30 years,1.4389985432759635,1.0724528445349186,1.930823176144714,0.04409212284456775,Higher exposure
+Gage-based,Prevalence,09,Energy burden,0.552575699485951,0.40140222854312974,0.7606831301624923,0.00518439613077626,Lower exposure
+Gage-based,Prevalence,09,Median value ($) of owner-occupied housing units,1.4715666536481666,1.039945362767991,2.082329027714874,0.06971123794762774,Not significant
+Gage-based,Prevalence,09,Share of the tract's land area that is covered by impervious surface or cropland as a percent,0.4987994653808569,0.3177740881752991,0.7829490066130831,0.01385268805131722,Lower exposure
+Gage-based,Prevalence,09,Proximity to NPL (Superfund) sites,1.4746822557239978,0.9726702560670994,2.2357913607231743,0.12449216481694518,Not significant
+Gage-based,Prevalence,09,Proximity to Risk Management Plan (RMP) facilities,0.7072905036862877,0.5652026939394695,0.885098146149986,0.01385268805131722,Lower exposure
+Gage-based,Prevalence,09,Diagnosed diabetes among adults aged greater than or equal to 18 years,0.7086104432832946,0.5630877135812596,0.8917416385035092,0.01609743831522418,Lower exposure
+Gage-based,Prevalence,09,Coronary heart disease among adults aged greater than or equal to 18 years,0.6904853542685144,0.5603980030696274,0.8507703843478522,0.00611294988313562,Lower exposure
+Gage-based,Prevalence,09,Median household income as a percent of area median income,1.3876561389845263,1.1560793126429978,1.6656206360610426,0.00611294988313562,Higher exposure
+Gage-based,Prevalence,09,Percent of individuals below 200% Federal Poverty Line,0.6903345383581452,0.5534547558718338,0.8610672684516837,0.00783610578986902,Lower exposure
+Gage-based,Prevalence,09,Identified as disadvantaged,0.3493681074489399,0.1896744089079266,0.6435136674747962,0.00710436646438281,Lower exposure
+Gage-based,Prevalence,10,Percent Black or African American alone,0.6821037751205931,0.4974284149269077,0.9353417417903858,0.04854403772828006,Lower exposure
+Gage-based,Prevalence,10,Percentage of tract that is disadvantaged by area,0.6548592305297062,0.5148048215471623,0.8330159195501473,0.00479718261338038,Lower exposure
+Gage-based,Prevalence,10,Share of neighbors that are identified as disadvantaged,0.6190854784253209,0.448562409375844,0.8544336787614647,0.01525736463685418,Lower exposure
+Gage-based,Prevalence,10,Adjusted percent of individuals below 200% Federal Poverty Line,0.6211980460274481,0.4853258241391085,0.7951091683052768,0.00409652789690716,Lower exposure
+Gage-based,Prevalence,10,Share of properties at risk of fire in 30 years,1.4312685901441553,1.0595136706284916,1.9334623364680827,0.05039113905431069,Not significant
+Gage-based,Prevalence,10,Energy burden,0.538439235702887,0.3896914105097872,0.7439651034777626,0.00409652789690716,Lower exposure
+Gage-based,Prevalence,10,Median value ($) of owner-occupied housing units,1.5184605575522043,1.0471374500223518,2.20192914004989,0.06611202845221739,Not significant
+Gage-based,Prevalence,10,Share of the tract's land area that is covered by impervious surface or cropland as a percent,0.47394275748127657,0.29970328286083997,0.7494804035004643,0.0087120434125326,Lower exposure
+Gage-based,Prevalence,10,Proximity to NPL (Superfund) sites,1.484176986428568,0.9788094346523202,2.2504700599117418,0.12522544022020857,Not significant
+Gage-based,Prevalence,10,Proximity to Risk Management Plan (RMP) facilities,0.6932352054056784,0.5530059562909905,0.8690232800331278,0.0087120434125326,Lower exposure
+Gage-based,Prevalence,10,Diagnosed diabetes among adults aged greater than or equal to 18 years,0.6945247492479139,0.5502572668850656,0.8766165507426747,0.01038826841630299,Lower exposure
+Gage-based,Prevalence,10,Coronary heart disease among adults aged greater than or equal to 18 years,0.6681998940139933,0.5379658981216158,0.8299617130366419,0.00409652789690716,Lower exposure
+Gage-based,Prevalence,10,Median household income as a percent of area median income,1.4049824397921935,1.167438429207025,1.690860611351671,0.00412721942593863,Higher exposure
+Gage-based,Prevalence,10,Percent of individuals below 200% Federal Poverty Line,0.6852439553723781,0.5509115168524912,0.8523315705162653,0.00530109633042834,Lower exposure
+Gage-based,Prevalence,10,Identified as disadvantaged,0.3421139431139694,0.1859858600153688,0.629305636801188,0.00479718261338038,Lower exposure
+Gage-based,Prevalence,11,Percent Black or African American alone,0.6784264933709886,0.4933590258055004,0.9329159553860232,0.04860229391569858,Lower exposure
+Gage-based,Prevalence,11,Percentage of tract that is disadvantaged by area,0.6574811222057663,0.5163601223851344,0.8371704307067512,0.00649020794048104,Lower exposure
+Gage-based,Prevalence,11,Share of neighbors that are identified as disadvantaged,0.6271152855443355,0.4535375030804083,0.8671247221944277,0.01948474348601591,Lower exposure
+Gage-based,Prevalence,11,Adjusted percent of individuals below 200% Federal Poverty Line,0.6232425627406233,0.48656644722238046,0.798310886886886,0.00545879189211935,Lower exposure
+Gage-based,Prevalence,11,Share of properties at risk of fire in 30 years,1.4142816757423653,1.049013426705717,1.9067369467538315,0.05897732080846491,Not significant
+Gage-based,Prevalence,11,Energy burden,0.5593704828255961,0.4066713816294837,0.7694058426309869,0.00545879189211935,Lower exposure
+Gage-based,Prevalence,11,Median value ($) of owner-occupied housing units,1.483765505580654,1.0396140393513331,2.117670589485956,0.07091860928848422,Not significant
+Gage-based,Prevalence,11,Share of the tract's land area that is covered by impervious surface or cropland as a percent,0.4953165698103119,0.31564167881268007,0.7772690389036092,0.01310095049508065,Lower exposure
+Gage-based,Prevalence,11,Proximity to NPL (Superfund) sites,1.4720719637992377,0.971521398495839,2.2305178969385566,0.12605745204137994,Not significant
+Gage-based,Prevalence,11,Proximity to Risk Management Plan (RMP) facilities,0.7061812776740289,0.5643979764505048,0.883582184460679,0.01310095049508065,Lower exposure
+Gage-based,Prevalence,11,Diagnosed diabetes among adults aged greater than or equal to 18 years,0.6997475111276413,0.5549924748044879,0.8822580513399223,0.01329289392540141,Lower exposure
+Gage-based,Prevalence,11,Coronary heart disease among adults aged greater than or equal to 18 years,0.6816495812336059,0.550798245431156,0.8435868404632131,0.00545879189211935,Lower exposure
+Gage-based,Prevalence,11,Median household income as a percent of area median income,1.3873684069652166,1.1557065240031748,1.665467016641948,0.00545879189211935,Higher exposure
+Gage-based,Prevalence,11,Percent of individuals below 200% Federal Poverty Line,0.688213564602173,0.551985699991382,0.8580619217306247,0.00739459612907536,Lower exposure
+Gage-based,Prevalence,11,Identified as disadvantaged,0.3455984518021538,0.18741431695671731,0.6372954416050802,0.00649020794048104,Lower exposure
+Gage-based,Prevalence,12,Percent Black or African American alone,0.6784264933709886,0.4933590258055004,0.9329159553860232,0.04860229391569858,Lower exposure
+Gage-based,Prevalence,12,Percentage of tract that is disadvantaged by area,0.6574811222057663,0.5163601223851344,0.8371704307067512,0.00649020794048104,Lower exposure
+Gage-based,Prevalence,12,Share of neighbors that are identified as disadvantaged,0.6271152855443355,0.4535375030804083,0.8671247221944277,0.01948474348601591,Lower exposure
+Gage-based,Prevalence,12,Adjusted percent of individuals below 200% Federal Poverty Line,0.6232425627406233,0.48656644722238046,0.798310886886886,0.00545879189211935,Lower exposure
+Gage-based,Prevalence,12,Share of properties at risk of fire in 30 years,1.4142816757423653,1.049013426705717,1.9067369467538315,0.05897732080846491,Not significant
+Gage-based,Prevalence,12,Energy burden,0.5593704828255961,0.4066713816294837,0.7694058426309869,0.00545879189211935,Lower exposure
+Gage-based,Prevalence,12,Median value ($) of owner-occupied housing units,1.483765505580654,1.0396140393513331,2.117670589485956,0.07091860928848422,Not significant
+Gage-based,Prevalence,12,Share of the tract's land area that is covered by impervious surface or cropland as a percent,0.4953165698103119,0.31564167881268007,0.7772690389036092,0.01310095049508065,Lower exposure
+Gage-based,Prevalence,12,Proximity to NPL (Superfund) sites,1.4720719637992377,0.971521398495839,2.2305178969385566,0.12605745204137994,Not significant
+Gage-based,Prevalence,12,Proximity to Risk Management Plan (RMP) facilities,0.7061812776740289,0.5643979764505048,0.883582184460679,0.01310095049508065,Lower exposure
+Gage-based,Prevalence,12,Diagnosed diabetes among adults aged greater than or equal to 18 years,0.6997475111276413,0.5549924748044879,0.8822580513399223,0.01329289392540141,Lower exposure
+Gage-based,Prevalence,12,Coronary heart disease among adults aged greater than or equal to 18 years,0.6816495812336059,0.550798245431156,0.8435868404632131,0.00545879189211935,Lower exposure
+Gage-based,Prevalence,12,Median household income as a percent of area median income,1.3873684069652166,1.1557065240031748,1.665467016641948,0.00545879189211935,Higher exposure
+Gage-based,Prevalence,12,Percent of individuals below 200% Federal Poverty Line,0.688213564602173,0.551985699991382,0.8580619217306247,0.00739459612907536,Lower exposure
+Gage-based,Prevalence,12,Identified as disadvantaged,0.3455984518021538,0.18741431695671731,0.6372954416050802,0.00649020794048104,Lower exposure
+Gage-based,Severity,01,rurality_rural,-0.2355035924857077,-0.3638249837011974,-0.10718220127021802,0.00211779602526315,Lower exposure
+Gage-based,Severity,01,Percent Asian,0.26938727137058255,0.17286375246351593,0.3659107902776492,8.121795163210532e-6,Higher exposure
+Gage-based,Severity,01,Percent White,-0.3108809126781867,-0.465615653490404,-0.15614617186596932,8.99631600860166e-4,Lower exposure
+Gage-based,Severity,01,Percent Hispanic or Latino,0.26394992006643797,0.09158942063319786,0.4363104194996781,0.00929035199089641,Higher exposure
+Gage-based,Severity,01,Percent age over 64,-0.2821659992134982,-0.4278076289387758,-0.13652436948822066,0.00121118044925267,Lower exposure
+Gage-based,Severity,01,Expected agricultural loss rate (Natural Hazards Risk Index),-0.24000991765796492,-0.4587952703942408,-0.02122456492168903,0.07334550297078611,Not significant
+Gage-based,Severity,01,Expected building loss rate (Natural Hazards Risk Index),0.38305725745559455,0.1672367574275852,0.598877757483604,0.0026354715473442,Higher exposure
+Gage-based,Severity,01,Expected population loss rate (Natural Hazards Risk Index),-0.37393871108524,-0.5357346754260621,-0.21214274674441777,1.479163321688025e-4,Lower exposure
+Gage-based,Severity,01,Share of properties at risk of flood in 30 years,-0.2353781932498795,-0.3514030798358383,-0.11935330666392072,8.98295675616685e-4,Lower exposure
+Gage-based,Severity,01,Energy burden,-0.2492320897760898,-0.43793930080096505,-0.06052487875121454,0.02822727572951145,Lower exposure
+Gage-based,Severity,01,PM2.5 in the air,0.6370048793696902,0.49138247340490127,0.7826272853344791,4.25215566831199e-10,Higher exposure
+Gage-based,Severity,01,Diesel particulate matter exposure,0.5994176029266487,0.4436457031518546,0.7551895027014428,6.108297172758482e-9,Higher exposure
+Gage-based,Severity,01,Share of the tract's land area that is covered by impervious surface or cropland as a percent,0.5006219317245001,0.3808331369836461,0.620410726465354,9.193913285212985e-10,Higher exposure
+Gage-based,Severity,01,Proximity to hazardous waste sites,0.4428003565983363,0.2639445891591813,0.6216561240374913,5.1523818583189576e-5,Higher exposure
+Gage-based,Severity,01,Proximity to Risk Management Plan (RMP) facilities,0.4325176245546894,0.2739845900099264,0.5910506590994524,1.0367784703289376e-5,Higher exposure
+Gage-based,Severity,02,rurality_rural,-0.233303579510922,-0.3615005341300921,-0.1051066248917519,0.00229695457539956,Lower exposure
+Gage-based,Severity,02,Percent Asian,0.259154477374129,0.16419438353428994,0.35411457121396805,1.0306330463618509e-5,Higher exposure
+Gage-based,Severity,02,Percent White,-0.2840470122633827,-0.4467453588568386,-0.1213486656699268,0.00344485721016109,Lower exposure
+Gage-based,Severity,02,Percent Hispanic or Latino,0.24190264388409427,0.06318517974086041,0.42062010802732813,0.02456146333015479,Higher exposure
+Gage-based,Severity,02,Percent age over 64,-0.2633992318334818,-0.40610621581331385,-0.12069224785364974,0.0021911344640146,Lower exposure
+Gage-based,Severity,02,Expected agricultural loss rate (Natural Hazards Risk Index),-0.2330138973415871,-0.445531565449371,-0.02049622923380317,0.07564038532374057,Not significant
+Gage-based,Severity,02,Expected building loss rate (Natural Hazards Risk Index),0.3843967324458164,0.17544070388258107,0.5933527610090518,0.0021911344640146,Higher exposure
+Gage-based,Severity,02,Expected population loss rate (Natural Hazards Risk Index),-0.3514379221123632,-0.5185669066795355,-0.1843089375451908,5.948228287209779e-4,Lower exposure
+Gage-based,Severity,02,Share of properties at risk of flood in 30 years,-0.23062946030564996,-0.34634204269653174,-0.11491687791476816,0.0011250122554661,Lower exposure
+Gage-based,Severity,02,Energy burden,-0.2432200858759641,-0.431357264423883,-0.05508290732804519,0.0326158858374779,Lower exposure
+Gage-based,Severity,02,PM2.5 in the air,0.6179727001745408,0.4749702336582253,0.7609751666908562,4.765092442838517e-10,Higher exposure
+Gage-based,Severity,02,Diesel particulate matter exposure,0.5867439322372309,0.4380989174289889,0.7353889470454729,2.974821556836872e-9,Higher exposure
+Gage-based,Severity,02,Share of the tract's land area that is covered by impervious surface or cropland as a percent,0.5004969976586768,0.383431025191278,0.6175629701260756,4.765092442838517e-10,Higher exposure
+Gage-based,Severity,02,Proximity to hazardous waste sites,0.43428177429090375,0.256860756837224,0.6117027917445835,6.252906222675871e-5,Higher exposure
+Gage-based,Severity,02,Proximity to Risk Management Plan (RMP) facilities,0.437153765187805,0.2916672887741335,0.5826402416014765,1.5821361937218516e-6,Higher exposure
+Gage-based,Severity,03,rurality_rural,-0.24648225534655432,-0.3725233700345345,-0.12044114065857411,0.00126947628442433,Lower exposure
+Gage-based,Severity,03,Percent Asian,0.265387591347104,0.16450538628616151,0.36626979640804647,1.7469981412577008e-5,Higher exposure
+Gage-based,Severity,03,Percent White,-0.3046730625163199,-0.4643664575962603,-0.14497966743637955,0.00162207839708334,Lower exposure
+Gage-based,Severity,03,Percent Hispanic or Latino,0.2681817413877566,0.0955054555275326,0.44085802724798057,0.00821403807580627,Higher exposure
+Gage-based,Severity,03,Percent age over 64,-0.2900502185133638,-0.4363140792561364,-0.14378635777059126,0.00113155682498609,Lower exposure
+Gage-based,Severity,03,Expected agricultural loss rate (Natural Hazards Risk Index),-0.2298130495614666,-0.4360222194376937,-0.02360387968523955,0.06403081382872859,Not significant
+Gage-based,Severity,03,Expected building loss rate (Natural Hazards Risk Index),0.4088935679891266,0.20387167554299385,0.6139154604352595,0.00113155682498609,Higher exposure
+Gage-based,Severity,03,Expected population loss rate (Natural Hazards Risk Index),-0.31970030879791933,-0.49046051055063095,-0.14894010704520771,0.00177266021813115,Lower exposure
+Gage-based,Severity,03,Share of properties at risk of flood in 30 years,-0.2317456160807305,-0.3592019736699024,-0.10428925849155853,0.00229883975290263,Lower exposure
+Gage-based,Severity,03,Energy burden,-0.24100985162752256,-0.4481232331942722,-0.0338964700607729,0.05533666587647912,Not significant
+Gage-based,Severity,03,PM2.5 in the air,0.6385190366767052,0.4810484927341373,0.795989580619273,4.081359254095007e-9,Higher exposure
+Gage-based,Severity,03,Diesel particulate matter exposure,0.6046233909279174,0.4190914123207143,0.7901553695351204,4.389716882739123e-7,Higher exposure
+Gage-based,Severity,03,Share of the tract's land area that is covered by impervious surface or cropland as a percent,0.527966122210137,0.3924509843420423,0.6634812600782316,7.024384821350196e-9,Higher exposure
+Gage-based,Severity,03,Proximity to hazardous waste sites,0.45744964226191,0.2911542376433788,0.6237450468804412,8.097934176467111e-6,Higher exposure
+Gage-based,Severity,03,Proximity to Risk Management Plan (RMP) facilities,0.465742865595108,0.30947631904121553,0.6220094121490005,1.8844893043557092e-6,Higher exposure
+Gage-based,Severity,04,rurality_rural,-0.24605091302986948,-0.38239718155478897,-0.10970464450494996,0.00231317784508515,Lower exposure
+Gage-based,Severity,04,Percent Asian,0.27811262504991774,0.1647917989988988,0.39143345110093664,5.98008434868471e-5,Higher exposure
+Gage-based,Severity,04,Percent White,-0.2849429974123612,-0.4474756671233249,-0.12241032770139744,0.00303963088635094,Lower exposure
+Gage-based,Severity,04,Percent Hispanic or Latino,0.23708924056980127,0.05658883217351759,0.41758964896608497,0.02839049226606059,Higher exposure
+Gage-based,Severity,04,Percent age over 64,-0.2865239878726864,-0.42818968967787063,-0.1448582860675022,7.802196251985584e-4,Lower exposure
+Gage-based,Severity,04,Expected agricultural loss rate (Natural Hazards Risk Index),-0.22928088939519525,-0.422930632755426,-0.03563114603496445,0.05283656433903498,Not significant
+Gage-based,Severity,04,Expected building loss rate (Natural Hazards Risk Index),0.38806006396407133,0.19449335030656423,0.5816267776215784,8.19387405029551e-4,Higher exposure
+Gage-based,Severity,04,Expected population loss rate (Natural Hazards Risk Index),-0.3707370822726414,-0.5430111146212171,-0.19846304992406577,3.541336277432392e-4,Lower exposure
+Gage-based,Severity,04,Share of properties at risk of flood in 30 years,-0.2730484907013645,-0.3898277852114268,-0.15626919619130217,1.3688745447684362e-4,Lower exposure
+Gage-based,Severity,04,Energy burden,-0.25564968746229433,-0.4458564671930021,-0.06544290773158659,0.02581928362979655,Lower exposure
+Gage-based,Severity,04,PM2.5 in the air,0.6130926364391845,0.4773415893513469,0.7488436835270222,1.5757273665507887e-10,Higher exposure
+Gage-based,Severity,04,Diesel particulate matter exposure,0.5839060031944765,0.4126946978431089,0.755117308545844,1.407637379071898e-7,Higher exposure
+Gage-based,Severity,04,Share of the tract's land area that is covered by impervious surface or cropland as a percent,0.5206580261678504,0.3938942293120975,0.6474218230236033,1.5710972336097686e-9,Higher exposure
+Gage-based,Severity,04,Proximity to hazardous waste sites,0.4540284563541463,0.27483378178631757,0.633223130921975,3.731055380686379e-5,Higher exposure
+Gage-based,Severity,04,Proximity to Risk Management Plan (RMP) facilities,0.4278419052760589,0.2719249166524036,0.5837588938997142,1.0197026631968362e-5,Higher exposure
+Gage-based,Severity,05,rurality_rural,-0.24062907430437977,-0.3876189600368179,-0.09363918857194156,0.00607003053128626,Lower exposure
+Gage-based,Severity,05,Percent Asian,0.30699454015189626,0.17307781059546104,0.4409112697083315,1.3831464881878944e-4,Higher exposure
+Gage-based,Severity,05,Percent White,-0.2954355748396178,-0.45619305895049966,-0.13467809072873593,0.00197387861569402,Lower exposure
+Gage-based,Severity,05,Percent Hispanic or Latino,0.22284428674266343,0.04712530775225151,0.3985632657330753,0.03386860569476824,Higher exposure
+Gage-based,Severity,05,Percent age over 64,-0.26046625940094864,-0.3899010692651787,-0.13103144953671853,7.894534409057043e-4,Lower exposure
+Gage-based,Severity,05,Expected agricultural loss rate (Natural Hazards Risk Index),-0.23081055053733401,-0.41293578880080617,-0.04868531227386188,0.03386860569476824,Lower exposure
+Gage-based,Severity,05,Expected building loss rate (Natural Hazards Risk Index),0.3573407516340131,0.1635886328543796,0.5510928704136465,0.00197387861569402,Higher exposure
+Gage-based,Severity,05,Expected population loss rate (Natural Hazards Risk Index),-0.42359281712352426,-0.5894119859976507,-0.25777364824939786,2.7655216932056064e-5,Lower exposure
+Gage-based,Severity,05,Share of properties at risk of flood in 30 years,-0.3169829016289749,-0.4340176914019734,-0.19994811185597644,1.4187299329637687e-5,Lower exposure
+Gage-based,Severity,05,Energy burden,-0.2610038356103974,-0.4329007308815717,-0.08910694033922312,0.01034207972210094,Lower exposure
+Gage-based,Severity,05,PM2.5 in the air,0.5961808278900974,0.4840677577774197,0.7082938980027751,4.060958763027897e-13,Higher exposure
+Gage-based,Severity,05,Diesel particulate matter exposure,0.5830729827589632,0.45565316175327986,0.7104928037646466,3.468120360243426e-11,Higher exposure
+Gage-based,Severity,05,Share of the tract's land area that is covered by impervious surface or cropland as a percent,0.5041252043443888,0.4100410035293944,0.5982094051593833,4.060958763027897e-13,Higher exposure
+Gage-based,Severity,05,Proximity to hazardous waste sites,0.4545664974448665,0.26643544189481516,0.6426975529949178,6.313397789876143e-5,Higher exposure
+Gage-based,Severity,05,Proximity to Risk Management Plan (RMP) facilities,0.39908414117557584,0.2604260096817921,0.5377422726693596,3.921771896310455e-6,Higher exposure
+Gage-based,Severity,06,rurality_rural,-0.2521403040219981,-0.39877875784276984,-0.10550185020122638,0.00332489907323695,Lower exposure
+Gage-based,Severity,06,Percent Asian,0.33039712902739565,0.1955212796722054,0.4652729783825859,4.7195731030826535e-5,Higher exposure
+Gage-based,Severity,06,Percent White,-0.3141354389105305,-0.4786919056531877,-0.14957897216787325,0.00138057387126795,Lower exposure
+Gage-based,Severity,06,Percent Hispanic or Latino,0.23419188223993204,0.0522792764812334,0.41610448799863065,0.03057256550326213,Higher exposure
+Gage-based,Severity,06,Percent age over 64,-0.2556493619850766,-0.3875326753814725,-0.1237660485886807,0.00120312462357906,Lower exposure
+Gage-based,Severity,06,Expected agricultural loss rate (Natural Hazards Risk Index),-0.2415334314179602,-0.4185413590456766,-0.06452550379024385,0.02106838478464793,Lower exposure
+Gage-based,Severity,06,Expected building loss rate (Natural Hazards Risk Index),0.3671859436236647,0.16496954329130897,0.5694023439560204,0.00215912327870969,Higher exposure
+Gage-based,Severity,06,Expected population loss rate (Natural Hazards Risk Index),-0.46021266625534907,-0.6229246967290183,-0.2975006357816799,4.305052967090363e-6,Lower exposure
+Gage-based,Severity,06,Share of properties at risk of flood in 30 years,-0.34886566833679594,-0.46999806043668846,-0.22773327623690345,3.9803704728237434e-6,Lower exposure
+Gage-based,Severity,06,Energy burden,-0.28237958848065686,-0.4628588198959595,-0.10190035706535414,0.0076915287831927,Lower exposure
+Gage-based,Severity,06,PM2.5 in the air,0.6303390913605833,0.5198060561615266,0.74087212655964,3.751979917389791e-14,Higher exposure
+Gage-based,Severity,06,Diesel particulate matter exposure,0.6266323734207973,0.5142907284044984,0.7389740184370961,5.0204655973376933e-14,Higher exposure
+Gage-based,Severity,06,Share of the tract's land area that is covered by impervious surface or cropland as a percent,0.5290934681672055,0.4370277963565226,0.6211591399778883,3.751979917389791e-14,Higher exposure
+Gage-based,Severity,06,Proximity to hazardous waste sites,0.49799429356253433,0.3125403418630236,0.6834482452620451,9.660384154052958e-6,Higher exposure
+Gage-based,Severity,06,Proximity to Risk Management Plan (RMP) facilities,0.4268949360650235,0.2878417884899949,0.5659480836400521,9.892311764328942e-7,Higher exposure
+Gage-based,Severity,07,rurality_rural,-0.22684323695806785,-0.36968506405809975,-0.08400140985803589,0.0080670308751674,Lower exposure
+Gage-based,Severity,07,Percent Asian,0.3109652919273097,0.17040649237615663,0.4515240914784628,2.2388211442415785e-4,Higher exposure
+Gage-based,Severity,07,Percent White,-0.27774817772037,-0.4450445655703775,-0.11045178987036253,0.00601991709402297,Lower exposure
+Gage-based,Severity,07,Percent Hispanic or Latino,0.18569100993897103,0.0064239660082041,0.3649580538697379,0.09197029776609852,Not significant
+Gage-based,Severity,07,Percent age over 64,-0.2690787189237127,-0.40020464444072257,-0.13795279340670288,6.104393651184396e-4,Lower exposure
+Gage-based,Severity,07,Expected agricultural loss rate (Natural Hazards Risk Index),-0.2470064798037169,-0.4323058613189524,-0.06170709828848139,0.02487165170004267,Lower exposure
+Gage-based,Severity,07,Expected building loss rate (Natural Hazards Risk Index),0.3494851103611736,0.13176546738147701,0.5672047533408702,0.00794202054563943,Higher exposure
+Gage-based,Severity,07,Expected population loss rate (Natural Hazards Risk Index),-0.4147579382952889,-0.5948813870008176,-0.2346344895897602,1.290794224901061e-4,Lower exposure
+Gage-based,Severity,07,Share of properties at risk of flood in 30 years,-0.3427878296650261,-0.4467627448062107,-0.2388129145238414,2.921495658743869e-7,Lower exposure
+Gage-based,Severity,07,Energy burden,-0.2804169409512666,-0.4606758275508772,-0.10015805435165606,0.00934133081677911,Lower exposure
+Gage-based,Severity,07,PM2.5 in the air,0.6090144910147864,0.4941577927780328,0.7238711892515401,1.517145076292559e-12,Higher exposure
+Gage-based,Severity,07,Diesel particulate matter exposure,0.5839352896955015,0.46445405547159135,0.7034165239194116,4.084351533533113e-12,Higher exposure
+Gage-based,Severity,07,Share of the tract's land area that is covered by impervious surface or cropland as a percent,0.5042872434700311,0.40499269786799824,0.603581789072064,1.839496213673713e-12,Higher exposure
+Gage-based,Severity,07,Proximity to hazardous waste sites,0.45911779451557017,0.26727869637737733,0.650956892653763,8.449073051897983e-5,Higher exposure
+Gage-based,Severity,07,Proximity to Risk Management Plan (RMP) facilities,0.391103835161207,0.2283923590253962,0.5538153112970178,8.449073051897983e-5,Higher exposure
+Gage-based,Severity,08,rurality_rural,-0.22856336351153836,-0.36832037453317024,-0.08880635248990645,0.00666036084726574,Lower exposure
+Gage-based,Severity,08,Percent Asian,0.2982377441647242,0.16375893102328143,0.432716557306167,2.4296426170526507e-4,Higher exposure
+Gage-based,Severity,08,Percent White,-0.26599139898494584,-0.4323973316277928,-0.09958546634209886,0.00759811361877067,Lower exposure
+Gage-based,Severity,08,Percent Hispanic or Latino,0.1836861213976302,0.00712303115078372,0.3602492116444767,0.09011958667032872,Not significant
+Gage-based,Severity,08,Percent age over 64,-0.28183206134403344,-0.42593053799938463,-0.13773358468868224,0.00113397260618033,Lower exposure
+Gage-based,Severity,08,Expected agricultural loss rate (Natural Hazards Risk Index),-0.2536828790147002,-0.4429064840180934,-0.06445927401130702,0.02389617946596984,Lower exposure
+Gage-based,Severity,08,Expected building loss rate (Natural Hazards Risk Index),0.35258371091639434,0.1388521051427814,0.5663153166900072,0.00666036084726574,Higher exposure
+Gage-based,Severity,08,Expected population loss rate (Natural Hazards Risk Index),-0.39394229272807246,-0.5744642600557746,-0.21342032540037045,2.73678248467237e-4,Lower exposure
+Gage-based,Severity,08,Share of properties at risk of flood in 30 years,-0.3083481407849628,-0.4142663254262634,-0.20242995614366224,4.276592746522189e-6,Lower exposure
+Gage-based,Severity,08,Energy burden,-0.29000720405597086,-0.474361381678858,-0.10565302643308372,0.00845390699476981,Lower exposure
+Gage-based,Severity,08,PM2.5 in the air,0.6172514689885451,0.4956723529849949,0.7388305849920953,3.488138235374939e-12,Higher exposure
+Gage-based,Severity,08,Diesel particulate matter exposure,0.5885877387787556,0.4644389403951708,0.7127365371623404,1.1100278152962772e-11,Higher exposure
+Gage-based,Severity,08,Share of the tract's land area that is covered by impervious surface or cropland as a percent,0.5145279919886219,0.4110602785995656,0.6179957053776781,3.671476682588335e-12,Higher exposure
+Gage-based,Severity,08,Proximity to hazardous waste sites,0.4419629601368045,0.2545210426127219,0.629404877660887,1.0763937793363835e-4,Higher exposure
+Gage-based,Severity,08,Proximity to Risk Management Plan (RMP) facilities,0.40340931320485846,0.2443442296828084,0.5624743967269086,3.668880652210839e-5,Higher exposure
+Gage-based,Severity,09,rurality_rural,-0.2460182722483392,-0.39148159638944846,-0.10055494810722992,0.00408085075272372,Lower exposure
+Gage-based,Severity,09,Percent Asian,0.31963213871864404,0.18598451204860172,0.4532797653886864,7.036800872770335e-5,Higher exposure
+Gage-based,Severity,09,Percent White,-0.3182649531117936,-0.48223840553442576,-0.15429150068916145,0.00112777282354863,Lower exposure
+Gage-based,Severity,09,Percent Hispanic or Latino,0.23328976435323864,0.06189796400405606,0.4046815647024212,0.02022387915276242,Higher exposure
+Gage-based,Severity,09,Percent age over 64,-0.2844294730888007,-0.4185322472737872,-0.15032669890381414,3.6946494032209874e-4,Lower exposure
+Gage-based,Severity,09,Expected agricultural loss rate (Natural Hazards Risk Index),-0.26112002046561966,-0.44391451944904486,-0.07832552148219446,0.01494442442649605,Lower exposure
+Gage-based,Severity,09,Expected building loss rate (Natural Hazards Risk Index),0.3749054185388797,0.16971418905478525,0.5800966480229741,0.0021037361247482,Higher exposure
+Gage-based,Severity,09,Expected population loss rate (Natural Hazards Risk Index),-0.4352705058058206,-0.6006823223075939,-0.26985868930404733,1.5059174781834816e-5,Lower exposure
+Gage-based,Severity,09,Share of properties at risk of flood in 30 years,-0.3119265406336643,-0.4280532240538773,-0.19579985721345144,1.3907621381819504e-5,Lower exposure
+Gage-based,Severity,09,Energy burden,-0.27517718203034947,-0.4548848658708727,-0.09546949818982624,0.00871630532808697,Lower exposure
+Gage-based,Severity,09,PM2.5 in the air,0.6279998741525071,0.5091510137268311,0.7468487345781831,3.4255281918681064e-13,Higher exposure
+Gage-based,Severity,09,Diesel particulate matter exposure,0.6176003492451844,0.5101441148742119,0.7250565836161569,4.9609099008088e-14,Higher exposure
+Gage-based,Severity,09,Share of the tract's land area that is covered by impervious surface or cropland as a percent,0.5242698564970801,0.42972647120795393,0.6188132417862063,8.168419688982045e-14,Higher exposure
+Gage-based,Severity,09,Proximity to hazardous waste sites,0.46553655037749103,0.29418919934724996,0.6368839014077321,1.0297993331970357e-5,Higher exposure
+Gage-based,Severity,09,Proximity to Risk Management Plan (RMP) facilities,0.405352899398535,0.2658763043885224,0.5448294944085477,3.2084887746269382e-6,Higher exposure
+Gage-based,Severity,10,rurality_rural,-0.24946931289380345,-0.3896325206563448,-0.10930610513126213,0.0026917218312073,Lower exposure
+Gage-based,Severity,10,Percent Asian,0.305768784715898,0.18121448585283997,0.4303230835789561,4.5510105933052664e-5,Higher exposure
+Gage-based,Severity,10,Percent White,-0.3019371919717774,-0.4635065519772415,-0.14036783196631322,0.00162212595709264,Lower exposure
+Gage-based,Severity,10,Percent Hispanic or Latino,0.2225231934388645,0.04714045786338353,0.3979059290143455,0.03361690151013645,Higher exposure
+Gage-based,Severity,10,Percent age over 64,-0.2654063314740483,-0.4023564656510762,-0.12845619729702035,0.00120674303641267,Lower exposure
+Gage-based,Severity,10,Expected agricultural loss rate (Natural Hazards Risk Index),-0.2561319944819096,-0.4510361598917084,-0.06122782907211077,0.02744003186518405,Lower exposure
+Gage-based,Severity,10,Expected building loss rate (Natural Hazards Risk Index),0.37369834908904087,0.1754218948561384,0.5719748033219434,0.00160785823768018,Higher exposure
+Gage-based,Severity,10,Expected population loss rate (Natural Hazards Risk Index),-0.4502200284405533,-0.6197122959183906,-0.280727760962716,1.3545391947203114e-5,Lower exposure
+Gage-based,Severity,10,Share of properties at risk of flood in 30 years,-0.31290998127744996,-0.4207968880908265,-0.20502307446407345,3.772094138486483e-6,Lower exposure
+Gage-based,Severity,10,Energy burden,-0.264938108859153,-0.44433867594662146,-0.08553754177168449,0.01220267875276836,Lower exposure
+Gage-based,Severity,10,PM2.5 in the air,0.6134041583725806,0.4940977641359875,0.7327105526091735,8.215645769716736e-13,Higher exposure
+Gage-based,Severity,10,Diesel particulate matter exposure,0.6063054368549521,0.4944505231990228,0.7181603505108815,1.7461473370227637e-13,Higher exposure
+Gage-based,Severity,10,Share of the tract's land area that is covered by impervious surface or cropland as a percent,0.5145380767370542,0.4243345129980334,0.604741640476075,6.51453075964714e-14,Higher exposure
+Gage-based,Severity,10,Proximity to hazardous waste sites,0.4607082142071085,0.27389574499526514,0.6475206834189519,4.473558139515568e-5,Higher exposure
+Gage-based,Severity,10,Proximity to Risk Management Plan (RMP) facilities,0.4111082440835536,0.27176870061464864,0.5504477875524585,2.337920045219931e-6,Higher exposure
+Gage-based,Severity,11,rurality_rural,-0.24623329182936943,-0.37961264196142586,-0.112853941697313,0.00179011599563785,Lower exposure
+Gage-based,Severity,11,Percent Asian,0.30737047157166325,0.19723917257120888,0.4175017705721176,6.642839956151272e-6,Higher exposure
+Gage-based,Severity,11,Percent White,-0.2955557804584986,-0.4479574834283522,-0.14315407748864503,0.00108773063019452,Lower exposure
+Gage-based,Severity,11,Percent Hispanic or Latino,0.22749043778809624,0.06084464874173601,0.3941362268344565,0.02100381417724223,Higher exposure
+Gage-based,Severity,11,Percent age over 64,-0.2749249224924946,-0.40032398953355264,-0.1495258554514366,2.557747993286088e-4,Lower exposure
+Gage-based,Severity,11,Expected agricultural loss rate (Natural Hazards Risk Index),-0.2798285311864175,-0.495575025349797,-0.06408203702303797,0.02909601021534866,Lower exposure
+Gage-based,Severity,11,Expected building loss rate (Natural Hazards Risk Index),0.4057475362286305,0.2030162340019355,0.6084788384553256,8.470231448013879e-4,Higher exposure
+Gage-based,Severity,11,Expected population loss rate (Natural Hazards Risk Index),-0.4042355034302631,-0.5747334414648477,-0.2337375653956785,9.189376175160656e-5,Lower exposure
+Gage-based,Severity,11,Share of properties at risk of flood in 30 years,-0.2725219363714458,-0.38641155244895914,-0.15863232029393243,9.189376175160656e-5,Lower exposure
+Gage-based,Severity,11,Energy burden,-0.26710810859917766,-0.4504801829329953,-0.08373603426536003,0.01321204705679367,Lower exposure
+Gage-based,Severity,11,PM2.5 in the air,0.643087199772357,0.5182289575012027,0.7679454420435112,1.039135388403875e-12,Higher exposure
+Gage-based,Severity,11,Diesel particulate matter exposure,0.6293476266195064,0.510687284960712,0.7480079682783007,5.553981825738662e-13,Higher exposure
+Gage-based,Severity,11,Share of the tract's land area that is covered by impervious surface or cropland as a percent,0.5297930233321781,0.4225661041101722,0.6370199425541841,3.097645290034623e-12,Higher exposure
+Gage-based,Severity,11,Proximity to hazardous waste sites,0.47261151840764226,0.2950633636144342,0.6501596732008503,1.4023656949865284e-5,Higher exposure
+Gage-based,Severity,11,Proximity to Risk Management Plan (RMP) facilities,0.4360803569279457,0.2932365295754774,0.578924184280414,1.1194405001041704e-6,Higher exposure
+Gage-based,Severity,12,rurality_rural,-0.24906755735121663,-0.3770416818661301,-0.1210934328363032,9.160826658282158e-4,Lower exposure
+Gage-based,Severity,12,Percent Asian,0.28811824516432255,0.18870357765436177,0.38753291267428336,2.6153551084728267e-6,Higher exposure
+Gage-based,Severity,12,Percent White,-0.32809679416068693,-0.4820590477236176,-0.1741345405977563,4.322675499549386e-4,Lower exposure
+Gage-based,Severity,12,Percent Hispanic or Latino,0.2776416006180978,0.10817671295069878,0.4471064882854968,0.00519317532870391,Higher exposure
+Gage-based,Severity,12,Percent age over 64,-0.2840733295833324,-0.42373114479853,-0.1444155143681348,6.83574726232173e-4,Lower exposure
+Gage-based,Severity,12,Expected agricultural loss rate (Natural Hazards Risk Index),-0.26257915552554295,-0.4696852255732143,-0.05547308547787155,0.03103869757691774,Lower exposure
+Gage-based,Severity,12,Expected building loss rate (Natural Hazards Risk Index),0.4062665740524021,0.19934660956488137,0.6131865385399228,8.854012824532654e-4,Higher exposure
+Gage-based,Severity,12,Expected population loss rate (Natural Hazards Risk Index),-0.38119188489886385,-0.5412450262975701,-0.2211387435001576,9.147462039736968e-5,Lower exposure
+Gage-based,Severity,12,Share of properties at risk of flood in 30 years,-0.25033714910163307,-0.3692058992579633,-0.13146839894530282,5.157394644310793e-4,Lower exposure
+Gage-based,Severity,12,Energy burden,-0.25369073049173335,-0.4404870257548455,-0.06689443522862118,0.02179661365130318,Lower exposure
+Gage-based,Severity,12,PM2.5 in the air,0.6541329249719444,0.5287709076100945,0.7794949423337943,1.3266790449841248e-12,Higher exposure
+Gage-based,Severity,12,Diesel particulate matter exposure,0.6326560972375549,0.4950110334799101,0.7703011609951997,3.2848556018914876e-11,Higher exposure
+Gage-based,Severity,12,Share of the tract's land area that is covered by impervious surface or cropland as a percent,0.5274901023610927,0.4198146647102404,0.635165540011945,6.344490304267381e-12,Higher exposure
+Gage-based,Severity,12,Proximity to hazardous waste sites,0.4761901593024419,0.31382304976227915,0.6385572688426048,2.210485669420141e-6,Higher exposure
+Gage-based,Severity,12,Proximity to Risk Management Plan (RMP) facilities,0.453647390596738,0.31832826845238893,0.588966512741087,1.285307735437339e-7,Higher exposure

@@ -1372,7 +1372,7 @@ server <- function(input, output, session) {
   cejst_lgl_keep <- c("Identified as disadvantaged")
   cejst_lgl_cols <- intersect(cejst_lgl_keep, names(cejst)[sapply(cejst, is.logical)])
   is_cat_var <- function(v) identical(v, "rurality") || isTRUE(v %in% cejst_lgl_cols)
-
+  
   # Drives the bin slider's conditionalPanel in the UI
   output$cejst_var_is_cat <- reactive({ is_cat_var(input$cejst_var_box) })
   outputOptions(output, "cejst_var_is_cat", suspendWhenHidden = FALSE)

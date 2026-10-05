@@ -18,6 +18,7 @@ paths <- list(
   monthly_flows = file.path(data_dir, "CO_Seasonal_Flow_Summary_Feb2026.csv"),
   gages_sf      = file.path(data_dir, "processed_gages_sf_combinedV4.gpkg")
 )
+
 for (p in paths) if (!file.exists(p)) stop("Missing required data file: ", p, call. = FALSE)
 
 mon_codes <- sprintf("%02d", 1:12)
@@ -28,7 +29,6 @@ SIMILARITY_THRESHOLD <- 0.50
 forced_hseq <- c("550025960", "550020503", "390005386", "390025451", "390005505")
 same_seg_ww_adj_seed <- c("550022475", "550015536", "550062530", "390045364", "550025946",
                           "550019184", "760015713", "390005515", "550018746")
-fill_facs <- character(0)   # DMR gap-fill; set to whatever app.R uses, e.g. c("GOLDEN CITY OF")
 
 # --- Analysis settings ---------------------------------------------------------
 HIGHLIGHT_MONTH    <- "06"
