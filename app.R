@@ -802,7 +802,61 @@ for (mm in mon_codes) {
 
 # Drop Z/M dimensions from geometry (if present)
 flowlines <- st_zm(flowlines, drop = TRUE, what = "ZM")
-  
+
+eq_zs <- function(x) as.numeric(scale(x))
+eq_zr <- function(x) as.numeric(scale(rank(x)))
+
+# cluster-robust (county) estimate, 95% CI, p for the coefficient `term`
+eq_robust <- function(m, term, cl, odds = FALSE) {
+  G <- length(unique(cl)); V <- sandwich::vcovCL(m, cluster = cl, type = "HC1")
+  b <- unname(stats::coef(m)[term]); se <- sqrt(V[term, term]); tc <- stats::qt(0.975, G - 1)
+  r <- c(est = b, lo = b - tc * se, hi = b + tc * se); if (odds) r <- exp(r)
+  c(r, p = 2 * stats::pt(-abs(b / se), G - 1))
+}
+
+# One indicator -> unadjusted + stream-size-adjusted effect.
+#   Severity  : rank correlation (rho); adjusted = also controls for log10 drainage area
+#   Prevalence: odds ratio (Yes vs No, or per +1 SD); adjusted = also controls for log10 drainage area + log(# segments)
+# `tab` is the output of cejst_summary() (needs metric_value, lDA, lnseg, county, rurality).
+eq_fit <- function(tab, var, mode) {
+  tryCatch({
+    x <- if (identical(var, "rurality")) as.numeric(tab$rurality == "Rural") else as.numeric(tab[[var]])
+    covs <- if (identical(mode, "Severity")) "lDA" else c("lDA", "lnseg")
+    dd <- data.frame(cl = tab$county, y = as.numeric(tab$metric_value), x = x)
+    for (v in covs) dd[[v]] <- as.numeric(tab[[v]])
+    dd <- dd[stats::complete.cases(dd) & Reduce(`&`, lapply(dd[-1], is.finite)), , drop = FALSE]
+    covs <- covs[vapply(covs, function(v) length(unique(dd[[v]])) > 1, logical(1))]
+    G <- length(unique(dd$cl))
+    if (nrow(dd) < 50 || G < 15 || length(unique(dd$x)) < 2) return(NULL)
+    is_bin <- all(dd$x %in% c(0, 1))
+    if (identical(mode, "Severity")) {
+      dd$ys <- eq_zr(dd$y); dd$xs <- if (is_bin) eq_zs(dd$x) else eq_zr(dd$x)
+      for (v in covs) dd[[v]] <- eq_zr(dd[[v]])
+      m0 <- stats::lm(ys ~ xs, dd); m1 <- stats::lm(stats::reformulate(c("xs", covs), "ys"), dd); odds <- FALSE
+    } else {
+      dd$xs <- if (is_bin) dd$x else eq_zs(dd$x)
+      for (v in covs) dd[[v]] <- eq_zs(dd[[v]])
+      m0 <- suppressWarnings(stats::glm(y ~ xs, stats::binomial, dd))
+      m1 <- suppressWarnings(stats::glm(stats::reformulate(c("xs", covs), "y"), stats::binomial, dd)); odds <- TRUE
+    }
+    a <- eq_robust(m0, "xs", dd$cl, odds); b <- eq_robust(m1, "xs", dd$cl, odds)
+    data.frame(indicator = var, type = if (is_bin) "yes/no" else "continuous", n_tracts = nrow(dd), n_counties = G,
+               effect_unadj = a[["est"]], lo_unadj = a[["lo"]], hi_unadj = a[["hi"]], p_unadj = a[["p"]],
+               effect_adj   = b[["est"]], lo_adj   = b[["lo"]], hi_adj   = b[["hi"]], p_adj   = b[["p"]],
+               stringsAsFactors = FALSE)
+  }, error = function(e) NULL)
+}
+
+# one-line text used in plot subtitles
+eq_stat_line <- function(r, mode) {
+  if (is.null(r) || nrow(r) != 1) return(NULL)
+  f <- function(x) formatC(x, format = "f", digits = 2)
+  nm <- if (identical(mode, "Prevalence")) "OR" else "rho"
+  sprintf("Adjusted for stream size: %s = %s (95%% CI %s to %s), BH q = %s  |  unadjusted %s = %s",
+          nm, f(r$effect_adj), f(r$lo_adj), f(r$hi_adj), formatC(r$q_adj, format = "e", digits = 1),
+          nm, f(r$effect_unadj))
+}  
+
 # --- UI ----------------------------------------------------------------------
 ui <- navbarPage(
   "ReSource Tracker",
@@ -914,7 +968,7 @@ ui <- navbarPage(
             "The Equity tab links the stream network to Climate and Economic Justice Screening Tool (CEJST) census tracts. ",
             "For each tract, it summarizes tract-level wastewater prevalence (whether any intersecting segment is impacted) ",
             "and severity (how large % wastewater is among impacted segments), ",
-            "and compares those exposures across bins of tract-level CEJST indicators."
+            "and estimates how strongly each tract-level CEJST indicators is associated with wastewater influence, adjusting for stream size."
           ),
           h4("5. Reading the popups (Map tab)"),
           p("Click on a stream segment to see a popup with:"),
@@ -938,7 +992,7 @@ ui <- navbarPage(
       fluidRow(
         column(
           width = 3,
-          h4("CEJST & Exposure Settings"),
+          h4("CEJST & Wastewater Influence Settings"),
           helpText(
             "Two modes:",
             tags$br(),
@@ -985,45 +1039,46 @@ ui <- navbarPage(
           downloadButton("download_cejst_data", "Download equity CSV"),
           
           tags$hr(),
-          h4("Grouping variable (x-axis bins)"),
+          h4("Indicator"),
           helpText(
-            "Choose a CEJST numeric indicator (binned) or Rurality (categorical).",
+            "Choose a CEJST numeric indicator or Rurality.",
             tags$br(), tags$br(),
-            strong("To compare Urban/Suburban/Rural:"),
+            strong("To compare Urban/Rural:"),
             tags$br(),
             HTML("&bull; Set <b>Rurality category</b> to <b>All</b>"),
             tags$br(),
-            HTML("&bull; Set <b>Grouping variable</b> to <b>Rurality</b>")
+            HTML("&bull; Set <b>Indicator</b> to <b>Rurality</b>")
           ),
           
           selectInput(
             "cejst_var_box",
             "CEJST variable",
             choices = NULL
-          ),
-          # Check for numerical values passes categorical values for rurality and disadvantaged. 
-          conditionalPanel(
-            condition = "!output.cejst_var_is_cat",
-            sliderInput(
-              "cejst_nbins",
-              "Number of bins (numeric variables only)",
-              min   = 2,
-              max   = 6,
-              value = 4,
-              step  = 1,
-              round = TRUE,
-              ticks = FALSE
-            )
           )
-        ),
+          ),
         
         column(
           width = 9,
-          h3("Exposure Plot: By CEJST Indicator or Rurality"),
-          plotOutput("cejst_plot", height = "520px"),
+          h3("Wastewater influence and CEJST indicators"),
+          tags$p(
+            style = "color:#555;",
+            "Co-location patterns, adjusted for stream size and clustered by county. ",
+            "Not causal, and not individual exposure. Prevalence results are descriptive."
+          ),
+          
+          h4("Overview: all indicators"),
+          helpText(
+            "Each row is one CEJST indicator, adjusted for stream size (drainage area). ",
+            "Filled = BH q < 0.05, open = not significant. Orange = the indicator selected on the left. ",
+            "Click a row to select it."
+          ),
+          checkboxInput("cejst_forest_all", "Show all indicators (default: the 20 largest effects)", FALSE),
+          plotOutput("cejst_forest", height = "auto", click = "cejst_forest_click"),
+          
           tags$hr(),
-          h4("Statistical comparison between groups"),
-          verbatimTextOutput("cejst_stats")
+          h4("Selected indicator"),
+          uiOutput("cejst_card"),
+          plotOutput("cejst_plot", height = "520px")
         )
       )
     )
@@ -1166,7 +1221,7 @@ ui <- navbarPage(
               "Census-tract–level CEJST data, including demographic, economic, ",
               "health, climate, and pollution burden indicators. These fields ",
               "are joined to each tract and then intersected with the stream ",
-              "network to summarize wastewater exposure by community."
+              "network to summarize wastewater influence by community."
             )
           ),
           
@@ -1188,7 +1243,7 @@ ui <- navbarPage(
               "downstream accumulation."
             ),
             tags$li(
-              strong("Tract-level exposure summary: "),
+              strong("Tract-level wastewater influence summary: "),
               "For each tract, the median, 90th percentile, and maximum % ",
               "wastewater across all intersecting stream segments for each ",
               "month and denominator source."
@@ -1373,9 +1428,6 @@ server <- function(input, output, session) {
   cejst_lgl_cols <- intersect(cejst_lgl_keep, names(cejst)[sapply(cejst, is.logical)])
   is_cat_var <- function(v) identical(v, "rurality") || isTRUE(v %in% cejst_lgl_cols)
   
-  # Drives the bin slider's conditionalPanel in the UI
-  output$cejst_var_is_cat <- reactive({ is_cat_var(input$cejst_var_box) })
-  outputOptions(output, "cejst_var_is_cat", suspendWhenHidden = FALSE)
 
   # Populate CEJST variable choices (numeric, non-percentile) + rurality
   observe({
@@ -1384,7 +1436,7 @@ server <- function(input, output, session) {
     cejst_num_raw <- cejst_num_all[!grepl("percentile", cejst_num_all, ignore.case = TRUE) &
                                      !grepl("pct_", cejst_num_all, ignore.case = TRUE) &
                                      !grepl("_pct$", cejst_num_all, ignore.case = TRUE)]
-    cejst_num_raw <- setdiff(cejst_num_raw, "wastewater_pct")
+    cejst_num_raw <- cejst_num_raw[!grepl("wastewater", cejst_num_raw, ignore.case = TRUE)]
     if (length(cejst_num_raw) == 0) cejst_num_raw <- cejst_num_all
     
     if ("rurality" %in% names(cejst)) {
@@ -2032,6 +2084,10 @@ server <- function(input, output, session) {
     
     dat <- dplyr::filter(dat, !is.na(GEOID))
     
+    # log10 drainage area per segment (non-finite -> NA)
+    dat$lDA <- suppressWarnings(log10(as.numeric(dat$TotDASqKM)))
+    dat$lDA[!is.finite(dat$lDA)] <- NA_real_
+    
     # numeric + boolean CEJST columns from original cejst object
     cejst_num_cols <- c(names(cejst)[sapply(cejst, is.numeric)], cejst_lgl_cols)
     cejst_num_cols <- intersect(cejst_num_cols, names(dat))
@@ -2052,6 +2108,8 @@ server <- function(input, output, session) {
         dplyr::summarise(
           any_impacted = as.integer(any(impacted, na.rm = TRUE)),
           metric_value = any_impacted, # 0/1 per tract
+          lDA   = suppressWarnings(stats::median(lDA, na.rm = TRUE)),  # all segments in the tract
+          lnseg = log(dplyr::n()),
           dplyr::across(
             dplyr::all_of(cejst_num_cols),
             ~ dplyr::first(.x),
@@ -2059,6 +2117,10 @@ server <- function(input, output, session) {
           ),
           rurality = dplyr::first(rurality),
           .groups = "drop"
+        ) %>%
+        dplyr::mutate(
+          lDA    = ifelse(is.finite(lDA), lDA, NA_real_),
+          county = substr(as.character(GEOID), 1, 5)
         )
       
       return(out)
@@ -2097,501 +2159,353 @@ server <- function(input, output, session) {
       dplyr::group_by(GEOID) %>%
       dplyr::summarise(
         metric_value = stats::median(pct, na.rm = TRUE),
+        lDA          = suppressWarnings(stats::median(lDA, na.rm = TRUE)),  # impacted segments only
         .groups = "drop"
       )
     
     out <- tract_base %>%
-      dplyr::inner_join(sev_vals, by = "GEOID")
+      dplyr::inner_join(sev_vals, by = "GEOID") %>%
+      dplyr::mutate(
+        lDA    = ifelse(is.finite(lDA), lDA, NA_real_),
+        county = substr(as.character(GEOID), 1, 5)
+      )
     
     out
   })
-  
-  # Create bins (shared for prevalence/severity)
-  cejst_binned <- reactive({
+  # Tract table for yes/no and Rurality indicators, with a Yes/No or Urban/Rural group column
+  cejst_cat_df <- reactive({
     tab <- cejst_summary()
-    req(tab)
-    
     var <- input$cejst_var_box
-    req(var)
-    
-    # --- Rurality path (categorical bins) ---
+    req(tab, var, is_cat_var(var))
     if (identical(var, "rurality")) {
-      req("rurality" %in% names(tab))
-      
-      df <- tab %>%
-        dplyr::select(GEOID, metric_value, rurality) %>%
-        dplyr::filter(is.finite(metric_value), !is.na(rurality))
-      
-      df$var_bin <- factor(df$rurality, levels = c("Urban", "Rural"))
-      return(df)
-    }
-
-    # --- Boolean CEJST variable path (categorical bins) ---
-    if (var %in% cejst_lgl_cols) {
+      tab %>%
+        dplyr::filter(is.finite(metric_value), !is.na(rurality)) %>%
+        dplyr::transmute(GEOID, metric_value, grp = factor(rurality, levels = c("Urban", "Rural")))
+    } else {
       req(var %in% names(tab))
-
-      df <- tab %>%
-        dplyr::transmute(GEOID, metric_value, var_value = .data[[var]]) %>%
-        dplyr::filter(is.finite(metric_value), !is.na(var_value))
-
-      df$var_bin <- factor(ifelse(df$var_value, "Yes", "No"), levels = c("No", "Yes"))
-      return(dplyr::select(df, GEOID, metric_value, var_bin))
+      tab %>%
+        dplyr::transmute(GEOID, metric_value, v = .data[[var]]) %>%
+        dplyr::filter(is.finite(metric_value), !is.na(v)) %>%
+        dplyr::mutate(grp = factor(ifelse(v, "Yes", "No"), levels = c("No", "Yes"))) %>%
+        dplyr::select(GEOID, metric_value, grp)
     }
-    
-    # --- Numeric CEJST variable path ---
-    req(var %in% names(tab))
-    
-    df <- tab %>%
-      dplyr::transmute(
-        GEOID,
-        metric_value,
-        var_value = suppressWarnings(as.numeric(.data[[var]]))
-      ) %>%
-      dplyr::filter(is.finite(metric_value), is.finite(var_value))
-    
-    req(nrow(df) > 0)
-    
-    # Clamp bins 
-    cur_nb <- input$cejst_nbins %||% 4L
-    nb     <- max(2L, min(6L, as.integer(cur_nb)))
-    
-    n_uniq <- dplyr::n_distinct(df$var_value)
-    if (n_uniq <= 1) {
-      df$var_bin <- factor("All tracts")
-      return(df)
-    }
-    
-    nb_eff <- min(nb, n_uniq)
-    
-    # bin by rank -> stable bins even with ties
-    df <- df %>%
-      dplyr::mutate(
-        .r      = dplyr::dense_rank(var_value),
-        .bin_id = dplyr::ntile(.r, nb_eff)
-      )
-    
-    # label bins by actual value ranges
-    lab_tbl <- df %>%
-      dplyr::group_by(.bin_id) %>%
-      dplyr::summarise(
-        lo = min(var_value, na.rm = TRUE),
-        hi = max(var_value, na.rm = TRUE),
-        .groups = "drop"
-      ) %>%
-      dplyr::arrange(.bin_id) %>%
-      dplyr::mutate(
-        label = if (var %in% proportion_cols) {
-          paste0("[", round(lo * 100, 0), ", ", round(hi * 100, 0), "%]")
-        } else {
-          paste0("[", round(lo, 1), ", ", round(hi, 1), "]")
-        },
-        label = dplyr::if_else(.bin_id == 1, paste0(label, " (lowest)"), label),
-        label = dplyr::if_else(.bin_id == dplyr::n(), paste0(label, " (highest)"), label)
-      )
-    
-    # Make sure levels are unique 
-    lab_levels <- unique(lab_tbl$label)
-    
-    df <- df %>%
-      dplyr::left_join(
-        lab_tbl %>% dplyr::select(.bin_id, label),
-        by = ".bin_id"
-      ) %>%
-      dplyr::mutate(
-        var_bin = factor(label, levels = lab_levels)
-      ) %>%
-      dplyr::select(GEOID, metric_value, var_bin)
-    
-    df
   })
   
-  # ---- Dynamic max bins for slider  -----------------------------------------
-  observeEvent({
-    list(
-      input$cejst_var_box,
-      input$cejst_mode,
-      input$cejst_month,
-      input$rurality,
-      input$cejst_src
+  # Indicators offered in the dropdown (same rules as the observe() that fills it)
+  cejst_ind_cols <- function() {
+    all_num <- names(cejst)[sapply(cejst, is.numeric)]
+    raw <- all_num[!grepl("percentile", all_num, ignore.case = TRUE) &
+                     !grepl("pct_", all_num, ignore.case = TRUE) &
+                     !grepl("_pct$", all_num, ignore.case = TRUE)]
+    raw <- raw[!grepl("wastewater", raw, ignore.case = TRUE)]
+    if (length(raw) == 0) raw <- all_num
+    c(if ("rurality" %in% names(cejst)) "rurality", cejst_lgl_cols, raw)
+  }
+  
+  # Effect sizes for ALL indicators for the current mode / month / source / rurality filter
+  eq_all <- reactive({
+    tab  <- cejst_summary()
+    req(tab, nrow(tab) > 0)
+    mode <- input$cejst_mode %||% "Prevalence"
+    inds <- cejst_ind_cols()
+    inds <- inds[inds == "rurality" | inds %in% names(tab)]
+    res  <- dplyr::bind_rows(lapply(inds, function(v) eq_fit(tab, v, mode)))
+    req(nrow(res) > 0)
+    res$q_unadj <- stats::p.adjust(res$p_unadj, method = "BH")   # BH across indicators
+    res$q_adj   <- stats::p.adjust(res$p_adj,   method = "BH")
+    res
+  })
+  
+  # Rows shown in the overview plot (also used to translate a click into an indicator)
+  eq_forest_df <- reactive({
+    res  <- eq_all()
+    mode <- input$cejst_mode %||% "Prevalence"
+    sc   <- if (identical(mode, "Prevalence")) function(x) log(pmax(x, 1e-6)) else function(x) x
+    res  <- res[order(-abs(sc(res$effect_adj))), , drop = FALSE]
+    if (!isTRUE(input$cejst_forest_all)) res <- utils::head(res, 20)
+    res <- res[order(sc(res$effect_adj)), , drop = FALSE]
+    res$ypos <- seq_len(nrow(res))
+    res$lab  <- vapply(
+      ifelse(res$indicator == "rurality", "Rurality (rural vs urban)", res$indicator),
+      function(s) paste(strwrap(s, 38), collapse = "\n"), character(1)
     )
-  }, {
-    var <- input$cejst_var_box
-    req(var)
+    res$sel <- res$indicator == input$cejst_var_box
+    res$sig <- !is.na(res$q_adj) & res$q_adj < 0.05
+    res
+  })
+  
+  output$cejst_forest <- renderPlot({
+    df   <- eq_forest_df()
+    mode <- input$cejst_mode %||% "Prevalence"
+    mlab <- month_labels[input$cejst_month]
     
-    # If rurality / boolean, slider is hidden
-    if (is_cat_var(var)) {
-      updateSliderInput(
-        session, "cejst_nbins",
-        min   = 2,
-        max   = 2,
-        value = 2
-      )
-      return()
+    p <- ggplot(df, aes(x = effect_adj, y = ypos)) +
+      geom_vline(xintercept = if (identical(mode, "Prevalence")) 1 else 0, colour = "#6b7280", linewidth = 0.4) +
+      geom_linerange(aes(xmin = lo_adj, xmax = hi_adj, colour = sel), orientation = "y", linewidth = 0.7) +
+      geom_point(aes(colour = sel, shape = sig), size = 3, stroke = 1) +
+      scale_shape_manual(values = c(`TRUE` = 16, `FALSE` = 1), drop = FALSE, name = NULL,
+                         labels = c(`TRUE` = "q < 0.05", `FALSE` = "q ≥ 0.05")) +
+      scale_colour_manual(values = c(`TRUE` = "#e07b39", `FALSE` = "#2a78d6"), guide = "none") +
+      scale_y_continuous(breaks = df$ypos, labels = df$lab, expand = expansion(add = 0.7)) +
+      labs(
+        x = if (identical(mode, "Prevalence")) "Adjusted odds ratio of any wastewater impact (log scale)"
+        else "Adjusted rank correlation (rho) with %WW among impacted tracts",
+        y = NULL,
+        title = paste0(mode, " (", mlab, "): effect of each indicator after accounting for stream size")
+      ) +
+      theme_app() +
+      theme(legend.position = "bottom",
+            axis.text.y = element_text(size = 11, face = "plain"),
+            axis.text.x = element_text(size = 12, face = "plain"))
+    if (identical(mode, "Prevalence")) p <- p + scale_x_log10()
+    p
+  }, height = function() if (isTRUE(input$cejst_forest_all)) 1150 else 640)
+  
+  # click a row -> select that indicator
+  observeEvent(input$cejst_forest_click, {
+    df <- eq_forest_df()
+    i  <- round(input$cejst_forest_click$y)
+    if (length(i) != 1 || is.na(i) || i < 1 || i > nrow(df)) return()
+    updateSelectInput(session, "cejst_var_box", selected = df$indicator[i])
+  })
+  
+  # headline card for the selected indicator
+  output$cejst_card <- renderUI({
+    var  <- input$cejst_var_box; req(var)
+    mode <- input$cejst_mode %||% "Prevalence"
+    res  <- eq_all()
+    r    <- res[res$indicator == var, , drop = FALSE]
+    box  <- "border:1px solid #b8bdc4; border-radius:6px; padding:12px 14px; margin-bottom:12px; background:#fff;"
+    
+    if (nrow(r) != 1) {
+      return(tags$div(style = box, "Effect size not available for this selection ",
+                      "(needs at least 50 tracts, 15 counties, and variation in the indicator)."))
     }
     
-    tab <- cejst_summary()
-    req(tab)
-    req("metric_value" %in% names(tab))
-    req(var %in% names(tab))
+    f   <- function(x) formatC(x, format = "f", digits = 2)
+    fq  <- function(x) formatC(x, format = "e", digits = 1)
+    dir <- function(x) if (identical(mode, "Prevalence")) log(x) else x
+    dir_a <- dir(r$effect_adj); dir_u <- dir(r$effect_unadj)
+    sig_a <- !is.na(r$q_adj) && r$q_adj < 0.05
+    sig_u <- !is.na(r$q_unadj) && r$q_unadj < 0.05
     
-    # Same numeric-filtering logic as cejst_binned()
-    df <- tab %>%
-      dplyr::transmute(
-        GEOID,
-        metric_value,
-        var_value = suppressWarnings(as.numeric(.data[[var]]))
-      ) %>%
-      dplyr::filter(
-        is.finite(metric_value),
-        is.finite(var_value)
-      )
+    badge <- if (sig_a && sign(dir_a) == sign(dir_u)) {
+      list("Holds after adjusting for stream size", "#2a78d6")
+    } else if (sig_a) {
+      list("Direction reverses after adjusting for stream size", "#e07b39")
+    } else if (sig_u) {
+      list("Largely explained by stream size", "#6b7280")
+    } else {
+      list("No clear association", "#6b7280")
+    }
     
-    if (!nrow(df)) return()
+    is_bin <- identical(r$type, "yes/no")
+    ci_a <- sprintf("95%% CI %s to %s", f(r$lo_adj), f(r$hi_adj))
     
-    # Helper: compute the largest k (<= 6) that yields k DISTINCT labels
-    max_feasible_bins <- function(v) {
-      n_uniq <- dplyr::n_distinct(v)
-      if (n_uniq <= 1) return(1L)
-      
-      max_try <- min(6L, n_uniq)
-      
-      for (k in seq(from = max_try, to = 2L, by = -1L)) {
-        df_k <- tibble::tibble(var_value = v) %>%
-          dplyr::mutate(
-            .r      = dplyr::dense_rank(var_value),
-            .bin_id = dplyr::ntile(.r, k)
-          )
-        
-        lab_tbl <- df_k %>%
-          dplyr::group_by(.bin_id) %>%
-          dplyr::summarise(
-            lo = min(var_value, na.rm = TRUE),
-            hi = max(var_value, na.rm = TRUE),
-            .groups = "drop"
-          ) %>%
-          dplyr::arrange(.bin_id)
-        
-        # Key based on numeric range only
-        key <- paste0(round(lab_tbl$lo, 6), "_", round(lab_tbl$hi, 6))
-        
-        if (dplyr::n_distinct(key) == k) {
-          return(k)
-        }
+    sentence <- if (identical(mode, "Prevalence")) {
+      if (identical(var, "rurality")) {
+        sprintf("Rural tracts have %s times the odds of containing any wastewater-impacted segment compared with urban tracts (adjusted OR, %s).", f(r$effect_adj), ci_a)
+      } else if (is_bin) {
+        sprintf("Tracts where '%s' is Yes have %s times the odds of containing any wastewater-impacted segment compared with tracts where it is No (adjusted OR, %s).", var, f(r$effect_adj), ci_a)
+      } else {
+        sprintf("A 1 SD higher '%s' goes with %s times the odds that a tract contains any wastewater-impacted segment (adjusted OR, %s).", var, f(r$effect_adj), ci_a)
       }
-      
-      1L
+    } else {
+      hi_lo <- if (r$effect_adj > 0) "higher" else "lower"
+      if (identical(var, "rurality")) {
+        sprintf("Among impacted tracts, rural tracts tend to have %s %%WW than urban tracts (adjusted rank correlation rho = %s, %s).", hi_lo, f(r$effect_adj), ci_a)
+      } else if (is_bin) {
+        sprintf("Among impacted tracts, tracts where '%s' is Yes tend to have %s %%WW than tracts where it is No (adjusted rank correlation rho = %s, %s).", var, hi_lo, f(r$effect_adj), ci_a)
+      } else {
+        sprintf("Among impacted tracts, higher '%s' tends to go with %s %%WW (adjusted rank correlation rho = %s, %s).", var, hi_lo, f(r$effect_adj), ci_a)
+      }
     }
     
-    mx_eff <- max_feasible_bins(df$var_value)
-    mx     <- max(2L, min(6L, as.integer(mx_eff)))
-    
-    updateSliderInput(
-      session,
-      "cejst_nbins",
-      min   = 2,
-      max   = mx,
-      value = mx  # default to the largest feasible number of bins
+    nm <- if (identical(mode, "Prevalence")) "OR" else "rho"
+    tags$div(
+      style = box,
+      tags$span(
+        style = paste0("display:inline-block; background:", badge[[2]], "; color:#fff; font-weight:bold; ",
+                       "padding:3px 10px; border-radius:12px; margin-bottom:8px;"),
+        badge[[1]]
+      ),
+      tags$p(style = "margin:6px 0;", sentence),
+      tags$p(
+        style = "margin:4px 0; color:#555; font-size:90%;",
+        sprintf("Adjusted BH q = %s.  Unadjusted %s = %s (95%% CI %s to %s), BH q = %s.  n = %d tracts in %d counties.",
+                fq(r$q_adj), nm, f(r$effect_unadj), f(r$lo_unadj), f(r$hi_unadj), fq(r$q_unadj),
+                r$n_tracts, r$n_counties)
+      ),
+      if (identical(mode, "Prevalence"))
+        tags$p(style = "margin:4px 0; color:#555; font-size:90%;",
+               tags$em("Prevalence is descriptive: it depends heavily on tract size and how many streams cross the tract."))
     )
-  }, ignoreInit = FALSE)
+  })
   
   # ---- Plotting: Prevalence / Severity ---------------------------------
   output$cejst_plot <- renderPlot({
-    df <- cejst_binned()
-    req(df)
-    df$var_bin <- droplevels(df$var_bin)
-    
-    var  <- input$cejst_var_box
+    var  <- input$cejst_var_box; req(var)
+    mode <- input$cejst_mode %||% "Prevalence"
     mlab <- month_labels[input$cejst_month]
     
-    fill_scale <- if (identical(var, "rurality")) {
-      scale_fill_manual(values = rurality_colors, drop = FALSE)
-    } else if (var %in% cejst_lgl_cols) {
-      scale_fill_manual(values = c(No = "grey70", Yes = "#E07B39"), drop = FALSE) # Can update color scheme 
-    } else {
-      scale_fill_viridis_d(option = "C", end = 0.9)
-    }
-    x_lab <- if (identical(var, "rurality")) {
-      "Rurality category"
-    } else if (var %in% cejst_lgl_cols) {
-      var
-    } else {
-      paste0("Bins of ", var)
-    }
+    r <- tryCatch({ res <- eq_all(); res[res$indicator == var, , drop = FALSE] }, error = function(e) NULL)
+    stat_line <- eq_stat_line(r, mode)
     
-    mode <- input$cejst_mode %||% "Prevalence"
-    
-    if (identical(mode, "Prevalence")) {
+    # ---------------- yes/no and Rurality: one dot per group (prevalence) / all tracts + box (severity) ----------------
+    if (is_cat_var(var)) {
+      df <- cejst_cat_df()
+      req(df, nrow(df) > 0)
       
-      prev_sum <- df %>%
-        dplyr::group_by(var_bin) %>%
-        dplyr::summarise(
-          n    = dplyr::n(),
-          k    = sum(metric_value == 1, na.rm = TRUE),
-          prop = ifelse(n > 0, k / n, NA_real_),
-          .groups = "drop"
-        )
-      
-      z <- stats::qnorm(0.975)
-      
-      prev_sum <- prev_sum %>%
-        dplyr::mutate(
-          denom  = 1 + z^2 / n,
-          center = (prop + z^2 / (2 * n)) / denom,
-          half   = (z * sqrt((prop * (1 - prop) / n) + (z^2 / (4 * n^2)))) / denom,
-          lo     = pmax(0, center - half),
-          hi     = pmin(1, center + half)
-        )
-      
-      title_txt <- paste0(
-        "Prevalence by ",
-        ifelse(identical(var, "rurality"), "Rurality", var),
-        " (", mlab, "; prevalence uses WW>0 and is denominator-independent)"
-      )
-      
-      ggplot(prev_sum, aes(x = var_bin, y = prop, fill = var_bin)) +
-        geom_col(width = 0.75, color = "white", linewidth = 0.2) +
-        geom_text(
-          aes(label = paste0(round(100 * prop, 1), "% (", k, "/", n, ")")),
-          vjust = -0.4,
-          size = 4.2,
-          fontface = "bold"
-        ) +
-        fill_scale +
-        labs(
-          x = x_lab,
-          y = "Share of tracts with any wastewater-impacted segment",
-          title = title_txt
-        ) +
-        theme_app() +
-        theme(
-          axis.text.x = element_text(
-            angle = if (is_cat_var(var)) 0 else 25,
-            hjust = if (is_cat_var(var)) 0.5 else 1
-          )
-        )
-      
-    } else {
-      
-      src       <- input$cejst_src %||% "Gage-based"
-      denom_lab <- ifelse(src == "Gage-based", "gage-based", "NHDPlus-based")
-      
-      ymax <- max(df$metric_value, na.rm = TRUE)
-      
-      sev_sum <- df %>%
-        dplyr::group_by(var_bin) %>%
-        dplyr::summarise(
-          n   = dplyr::n(),
-          med = stats::median(metric_value, na.rm = TRUE),
-          mx  = max(metric_value, na.rm = TRUE),
-          .groups = "drop"
-        ) %>%
-        dplyr::mutate(
-          y_lab = pmin(mx + 0.06 * ymax, ymax * 1.08),
-          label = paste0("Median: ", round(med, 1), "%\n(n=", n, ")")
-        )
-      
-      ggplot(df, aes(x = var_bin, y = metric_value, fill = var_bin)) +
-        geom_boxplot(outlier.alpha = 0.5) +
-        geom_text(
-          data = sev_sum,
-          aes(x = var_bin, y = y_lab, label = label),
-          inherit.aes = FALSE,
-          size = 4.2,
-          fontface = "bold"
-        ) +
-        fill_scale +
-        coord_cartesian(ylim = c(0, ymax * 1.12)) +
-        labs(
-          x = x_lab,
-          y = "Severity: %WW among impacted segments",
-          title = paste0(
-            "Severity by ",
-            ifelse(identical(var, "rurality"), "Rurality", var),
-            " (", mlab, ", ", denom_lab, " denominator)"
-          )
-        ) +
-        theme_app() +
-        theme(
-          axis.text.x = element_text(
-            angle = if (is_cat_var(var)) 0 else 25,
-            hjust = if (is_cat_var(var)) 0.5 else 1
-          )
-        )
-    }
-  })
-  
-  output$cejst_stats <- renderPrint({
-    df <- cejst_binned()
-    req(df)
-    df$var_bin <- droplevels(df$var_bin)
-    
-    if (length(levels(df$var_bin)) < 2) {
-      cat("Only one bin contains data; cannot compare bins statistically.\n")
-      return(invisible(NULL))
-    }
-    
-    cat("Tracts per bin:\n")
-    print(table(df$var_bin))
-    cat("\n")
-    
-    if (identical(input$cejst_mode, "Prevalence")) {
-      
-      # ---------- PREVALENCE STATS ----------
-      tab <- table(df$var_bin, df$metric_value)
-      cat("Contingency table (bin x any_impacted 0/1):\n")
-      print(tab)
-      cat("\n")
-      
-      chi <- try(suppressWarnings(chisq.test(tab)), silent = TRUE)
-      if (!inherits(chi, "try-error")) {
-        cat("Chi-squared test (overall differences in prevalence across bins):\n")
-        cat(sprintf(
-          "  X-squared = %.3f, df = %d, p-value = %.3e\n\n",
-          unname(chi$statistic),
-          unname(chi$parameter),
-          chi$p.value
-        ))
+      grp_cols <- if (identical(var, "rurality")) {
+        rurality_colors
       } else {
-        cat("Could not compute chi-squared test.\n\n")
+        c(No = "#8a8f98", Yes = "#E07B39")
       }
+      x_lab <- if (identical(var, "rurality")) "Rurality category" else var
+      ttl   <- ifelse(identical(var, "rurality"), "Rurality", var)
       
-      prev_sum <- df %>%
-        dplyr::group_by(var_bin) %>%
-        dplyr::summarise(
-          n    = dplyr::n(),
-          k    = sum(metric_value == 1, na.rm = TRUE),
-          prop = k / n,
-          .groups = "drop"
-        )
-      
-      cat("Prevalence by bin (k/n):\n")
-      print(prev_sum)
-      cat("\n")
-      
-      bins <- as.character(prev_sum$var_bin)
-      if (length(bins) >= 2) {
-        pairs <- combn(bins, 2, simplify = FALSE)
-        pw <- lapply(pairs, function(p) {
-          a <- prev_sum[prev_sum$var_bin == p[1], ]
-          b <- prev_sum[prev_sum$var_bin == p[2], ]
-          tt <- prop.test(
-            x = c(a$k, b$k),
-            n = c(a$n, b$n),
-            correct = FALSE
-          )
-          data.frame(
-            bin1      = p[1],
-            bin2      = p[2],
-            p_value   = tt$p.value,
-            diff_prop = (a$k / a$n) - (b$k / b$n),
-            stringsAsFactors = FALSE
-          )
-        })
-        pw <- dplyr::bind_rows(pw)
-        pw$p_adj_BH <- p.adjust(pw$p_value, method = "BH")
-        
-        cat("Pairwise proportion tests (BH-adjusted):\n")
-        pw_print <- pw %>%
+      if (identical(mode, "Prevalence")) {
+        z <- stats::qnorm(0.975)
+        prev_sum <- df %>%
+          dplyr::group_by(grp) %>%
+          dplyr::summarise(n = dplyr::n(), k = sum(metric_value == 1, na.rm = TRUE), .groups = "drop") %>%
           dplyr::mutate(
-            p_value  = formatC(p_value,  format = "e", digits = 2),
-            p_adj_BH = formatC(p_adj_BH, format = "e", digits = 2),
-            diff_prop = round(diff_prop, 3)
+            prop   = k / n,
+            denom  = 1 + z^2 / n,
+            center = (prop + z^2 / (2 * n)) / denom,
+            half   = (z * sqrt((prop * (1 - prop) / n) + (z^2 / (4 * n^2)))) / denom,
+            lo     = pmax(0, center - half),
+            hi     = pmin(1, center + half)
           )
-        print(pw_print, row.names = FALSE)
+        
+        ggplot(prev_sum, aes(x = grp, y = prop, colour = grp)) +
+          geom_linerange(aes(ymin = lo, ymax = hi), linewidth = 1.4) +
+          geom_point(size = 5) +
+          geom_text(
+            aes(y = hi, label = paste0(round(100 * prop, 1), "%  (", k, " of ", n, " tracts)")),
+            vjust = -0.9, size = 4.4, fontface = "bold", colour = "#1f2328"
+          ) +
+          scale_colour_manual(values = grp_cols, drop = FALSE) +
+          scale_y_continuous(labels = scales::percent, limits = c(0, NA), expand = expansion(mult = c(0.02, 0.18))) +
+          labs(
+            x = x_lab,
+            y = "Share of tracts with any wastewater-impacted segment",
+            title = paste0("Prevalence by ", ttl, " (", mlab, ")"),
+            subtitle = stat_line,
+            caption = "Dots: share of tracts impacted. Bars: 95% confidence interval (Wilson)."
+          ) +
+          theme_app()
+        
+      } else {
+        src       <- input$cejst_src %||% "Gage-based"
+        denom_lab <- ifelse(src == "Gage-based", "gage-based", "NHDPlus-based")
+        df <- dplyr::filter(df, metric_value > 0)
+        req(nrow(df) > 0)
+        
+        sev_sum <- df %>%
+          dplyr::group_by(grp) %>%
+          dplyr::summarise(n = dplyr::n(), med = stats::median(metric_value, na.rm = TRUE),
+                           top = max(metric_value, na.rm = TRUE), .groups = "drop") %>%
+          dplyr::mutate(label = paste0("Median ", signif(med, 2), "%\n(n = ", n, ")"))
+        
+        ggplot(df, aes(x = grp, y = metric_value)) +
+          geom_jitter(aes(colour = grp), width = 0.18, height = 0, alpha = 0.3, size = 1.4) +
+          geom_boxplot(aes(fill = grp), width = 0.38, outlier.shape = NA, alpha = 0.55,
+                       colour = "#1f2328", linewidth = 0.6) +
+          geom_text(data = sev_sum, aes(x = grp, y = top, label = label),
+                    inherit.aes = FALSE, vjust = -0.4, size = 4.2, fontface = "bold", colour = "#1f2328") +
+          scale_colour_manual(values = grp_cols, drop = FALSE) +
+          scale_fill_manual(values = grp_cols, drop = FALSE) +
+          scale_y_log10(labels = scales::label_number(suffix = "%", drop0trailing = TRUE),
+                        expand = expansion(mult = c(0.05, 0.2))) +
+          labs(
+            x = x_lab,
+            y = "Severity: median %WW among impacted segments (log scale)",
+            title = paste0("Severity by ", ttl, " (", mlab, ", ", denom_lab, " denominator)"),
+            subtitle = stat_line,
+            caption = "Each point is a tract. Box: median and middle 50% of tracts."
+          ) +
+          theme_app()
       }
-      
-      cat("\nNotes:\n")
-      cat("  Prevalence is tract-level: 1 if ANY intersecting segment has WW flow > 0, else 0.\n")
-      cat("  Plot shows % of tracts impacted per bin.\n")
-      cat("  Denominator selection does not affect prevalence (it only affects severity).\n")
       
     } else {
+      # ---------------- numeric indicator: all tracts + smooth trend ----------------
+      tab <- cejst_summary()
+      req(tab, var %in% names(tab))
+      df <- tab %>%
+        dplyr::transmute(GEOID, metric_value, x = suppressWarnings(as.numeric(.data[[var]]))) %>%
+        dplyr::filter(is.finite(metric_value), is.finite(x))
+      req(nrow(df) > 0)
       
-      # ---------- SEVERITY STATS ----------
-      kw <- try(stats::kruskal.test(metric_value ~ var_bin, data = df), silent = TRUE)
-      if (inherits(kw, "try-error")) {
-        cat("Could not compute Kruskal–Wallis test.\n")
-        return(invisible(NULL))
-      }
+      xlim   <- stats::quantile(df$x, c(0.01, 0.99), na.rm = TRUE, names = FALSE)   # display only (all tracts are used in the trend)
+      n_uniq <- dplyr::n_distinct(df$x)
+      cap    <- "Axis trimmed to the 1st-99th percentile of the indicator for display."
       
-      cat("Kruskal–Wallis test for differences between bins:\n")
-      cat(sprintf(
-        "  chi-squared = %.3f, df = %d, p-value = %.3e\n\n",
-        kw$statistic,
-        kw$parameter,
-        kw$p.value
-      ))
-      
-      if (kw$p.value < 0.05) {
-        cat("Pairwise comparisons (Wilcoxon, BH-adjusted p-values):\n\n")
-        pw <- try(
-          stats::pairwise.wilcox.test(df$metric_value, df$var_bin, p.adjust.method = "BH"),
-          silent = TRUE
-        )
-        if (!inherits(pw, "try-error")) {
-          pmat     <- pw$p.value
-          fmt_pmat <- pmat
-          if (!is.null(pmat)) {
-            fmt_pmat[] <- ifelse(
-              is.na(pmat),
-              NA,
-              formatC(pmat, format = "e", digits = 2)
-            )
-          }
-          print(fmt_pmat, quote = FALSE)
-        } else {
-          cat("  Could not compute pairwise Wilcoxon tests.\n")
-        }
-      } else {
-        cat("Result: p ≥ 0.05 → no strong evidence bins differ.\n")
-      }
-      
-      cat("\nNotes:\n")
-      cat("  Severity uses %WW for the chosen denominator and is conditional on %WW > 0 (impacted segments only).\n")
-      
-      # ---------- flow-by-rurality summary  ----------------------------------
-      if (identical(input$cejst_var_box, "rurality")) {
-        m   <- input$cejst_month
-        src <- input$cejst_src %||% "Gage-based"
-        
-        ww_col <- paste0("WW_cum_mean_", m)
-        q_col  <- if (identical(src, "Gage-based")) {
-          paste0("QE_", m, "_final")
-        } else {
-          paste0("QE_", m, "_nhd")
-        }
-        
-        # Use the global fl_cejst table (flowlines + tracts + rurality)
-        dat_flow <- fl_cejst %>%
-          dplyr::filter(!is.na(GEOID), !is.na(rurality)) %>%
-          dplyr::mutate(
-            ww       = .data[[ww_col]],
-            flow_cfs = .data[[q_col]],
-            impacted = is.finite(ww) & ww > 0
+      if (identical(mode, "Prevalence")) {
+        # share impacted: smooth curve + decile points (with Wilson CIs) + rug
+        z <- stats::qnorm(0.975)
+        dec <- df %>%
+          dplyr::mutate(b = dplyr::ntile(x, 10)) %>%
+          dplyr::group_by(b) %>%
+          dplyr::summarise(
+            x = mean(x), n = dplyr::n(), k = sum(metric_value == 1),
+            prop = k / n, .groups = "drop"
           ) %>%
-          dplyr::filter(impacted, is.finite(flow_cfs))
-        
-        if (nrow(dat_flow) >= 1) {
-          flow_summary <- dat_flow %>%
-            dplyr::group_by(rurality) %>%
-            dplyr::summarise(
-              n_segments   = dplyr::n(),
-              med_flow_cfs = stats::median(flow_cfs, na.rm = TRUE),
-              iqr_low_cfs  = stats::quantile(flow_cfs, 0.25, na.rm = TRUE),
-              iqr_high_cfs = stats::quantile(flow_cfs, 0.75, na.rm = TRUE),
-              .groups = "drop"
-            ) %>%
-            dplyr::arrange(dplyr::desc(med_flow_cfs))
-          
-          cat("\nDenominator streamflow by rurality (impacted segments only):\n")
-          print(flow_summary, row.names = FALSE)
-          cat(
-            "\nFlows are in cfs for", month_labels[m],
-            "and use the", src, "denominator.\n"
+          dplyr::mutate(
+            denom  = 1 + z^2 / n,
+            center = (prop + z^2 / (2 * n)) / denom,
+            half   = (z * sqrt((prop * (1 - prop) / n) + (z^2 / (4 * n^2)))) / denom,
+            lo     = pmax(0, center - half),
+            hi     = pmin(1, center + half)
           )
-        } else {
-          cat("\nNo impacted segments with finite flow for this month / filter.\n")
-        }
+        use_gam <- n_uniq >= 8
+        
+        ggplot() +
+          geom_rug(data = df, aes(x = x), sides = "b", alpha = 0.12, colour = "#6b7280") +
+          geom_smooth(
+            data = df, aes(x = x, y = metric_value),
+            method = if (use_gam) "gam" else "glm",
+            formula = if (use_gam) y ~ s(x, k = 4) else y ~ x, 
+            method.args = list(family = stats::binomial),
+            colour = "#2a78d6", fill = "#2a78d6", alpha = 0.2, linewidth = 1.2
+          ) +
+          geom_pointrange(data = dec, aes(x = x, y = prop, ymin = lo, ymax = hi),
+                          colour = "#1f2328", size = 0.5, linewidth = 0.6) +
+          scale_y_continuous(labels = scales::percent) +
+          coord_cartesian(xlim = xlim, ylim = c(0, 1)) +
+          labs(
+            x = var,
+            y = "Share of tracts with any wastewater-impacted segment",
+            title = paste0("Prevalence vs ", var, " (", mlab, ")"),
+            subtitle = stat_line,
+            caption = paste0("Points: share impacted in deciles of the indicator (95% CI). Line: smooth trend. ", cap)
+          ) +
+          theme_app()
+        
+      } else {
+        src       <- input$cejst_src %||% "Gage-based"
+        denom_lab <- ifelse(src == "Gage-based", "gage-based", "NHDPlus-based")
+        df <- dplyr::filter(df, metric_value > 0)
+        use_loess <- n_uniq >= 15
+        
+        ggplot(df, aes(x = x, y = metric_value)) +
+          geom_point(alpha = 0.25, size = 1.4, colour = "#6b7280") +
+          geom_smooth(
+            method = if (use_loess) "loess" else "lm",
+            formula = y ~ x,
+            method.args = if (use_loess) list(span = 0.9) else list(),
+            colour = "#2a78d6", fill = "#2a78d6", alpha = 0.2, linewidth = 1.2
+          ) +
+          scale_y_log10(labels = scales::label_number(suffix = "%", drop0trailing = TRUE)) +
+          coord_cartesian(xlim = xlim) +
+          labs(
+            x = var,
+            y = "Severity: median %WW among impacted segments (log scale)",
+            title = paste0("Severity vs ", var, " (", mlab, ", ", denom_lab, " denominator)"),
+            subtitle = stat_line,
+            caption = paste0("Each point is a tract. Line: smooth trend. ", cap)
+          ) +
+          theme_app()
       }
     }
   })
@@ -2602,30 +2516,28 @@ server <- function(input, output, session) {
       paste0("ReSourceTracker_equity_", Sys.Date(), ".csv")
     },
     content = function(file) {
-      df <- cejst_binned()
-      req(df)
+      tab <- cejst_summary()
+      req(tab)
+      var <- input$cejst_var_box %||% NA_character_
       
       mode_now    <- input$cejst_mode %||% "Prevalence"
       denom_now   <- if (identical(mode_now, "Severity")) (input$cejst_src %||% "Gage-based") else NA_character_
       month_code  <- input$cejst_month
       month_label <- month_labels[month_code]
-      rural_filt  <- input$rurality %||% "All"
-      var_name    <- input$cejst_var_box %||% NA_character_
       
-      df_out <- df %>%
+      df_out <- tab %>%
         dplyr::mutate(
           analysis_mode      = mode_now,
           denominator_source = denom_now,
           month_code         = month_code,
           month_label        = unname(month_label),
-          cejst_variable     = var_name,
-          rurality_filter    = rural_filt
+          cejst_variable     = var,
+          indicator_value    = if (!is.na(var) && var %in% names(tab)) .data[[var]] else NA,
+          rurality_filter    = input$rurality %||% "All"
         ) %>%
         dplyr::select(
-          analysis_mode, denominator_source,
-          month_code, month_label,
-          cejst_variable, rurality_filter,
-          GEOID, var_bin, metric_value,
+          analysis_mode, denominator_source, month_code, month_label,
+          cejst_variable, rurality_filter, GEOID, indicator_value, metric_value,
           dplyr::everything()
         )
       
