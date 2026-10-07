@@ -1667,7 +1667,7 @@ server <- function(input, output, session) {
       circle_opacity = 1, 
       circle_stroke_color = "#ffffff", 
       circle_stroke_width = 1,
-      popup = "popup_html", 
+      popup = "popup_str", 
       tooltip = "station_nm"
     ) %>%
 
@@ -2427,9 +2427,8 @@ server <- function(input, output, session) {
           ) +
           theme_app()
       }
-      
     } else {
-      # ---------------- numeric indicator: all tracts + smooth trend ----------------
+      # ---------------- numeric indicator: summary at each distinct value (no smoothing) ----------------
       tab <- cejst_summary()
       req(tab, var %in% names(tab))
       df <- tab %>%
@@ -2437,75 +2436,96 @@ server <- function(input, output, session) {
         dplyr::filter(is.finite(metric_value), is.finite(x))
       req(nrow(df) > 0)
       
-      xlim   <- stats::quantile(df$x, c(0.01, 0.99), na.rm = TRUE, names = FALSE)   # display only (all tracts are used in the trend)
-      n_uniq <- dplyr::n_distinct(df$x)
-      cap    <- "Axis trimmed to the 1st-99th percentile of the indicator for display."
+      # One group per distinct value; with more than 15 distinct values, use tenths
+      n_uniq    <- dplyr::n_distinct(df$x)
+      use_vals  <- n_uniq <= 15
+      df$g      <- if (use_vals) df$x else stats::ave(df$x, dplyr::ntile(df$x, 10), FUN = mean)
+      grp_note  <- if (use_vals) "One summary per distinct value of the indicator." else "Summaries for tenths of the indicator (equal numbers of tracts in each)."
+      size_note <- if (use_vals) " Dot size = number of tracts." else ""
+      wrap_cap  <- function(s) paste(strwrap(s, 100), collapse = "\n")
+      
+      # dot layers: size shows tract count only when the groups are distinct values
+      pt_layers <- function(colour, data, ycol) {
+        if (use_vals) {
+          list(
+            geom_point(data = data, aes(x = g, y = .data[[ycol]], size = n), colour = colour),
+            scale_size_area(max_size = 7, name = "Tracts at this value",
+                            breaks = function(lims) unique(round(pretty(lims, n = 4))),
+                            labels = scales::label_comma(accuracy = 1))
+          )
+        } else {
+          list(geom_point(data = data, aes(x = g, y = .data[[ycol]]),
+                          colour = colour, size = 3.5))
+        }
+      }
       
       if (identical(mode, "Prevalence")) {
-        # share impacted: smooth curve + decile points (with Wilson CIs) + rug
         z <- stats::qnorm(0.975)
-        dec <- df %>%
-          dplyr::mutate(b = dplyr::ntile(x, 10)) %>%
-          dplyr::group_by(b) %>%
-          dplyr::summarise(
-            x = mean(x), n = dplyr::n(), k = sum(metric_value == 1),
-            prop = k / n, .groups = "drop"
-          ) %>%
+        sm <- df %>%
+          dplyr::group_by(g) %>%
+          dplyr::summarise(n = dplyr::n(), k = sum(metric_value == 1), .groups = "drop") %>%
           dplyr::mutate(
+            prop   = k / n,
             denom  = 1 + z^2 / n,
             center = (prop + z^2 / (2 * n)) / denom,
             half   = (z * sqrt((prop * (1 - prop) / n) + (z^2 / (4 * n^2)))) / denom,
             lo     = pmax(0, center - half),
             hi     = pmin(1, center + half)
           )
-        use_gam <- n_uniq >= 8
         
-        ggplot() +
-          geom_rug(data = df, aes(x = x), sides = "b", alpha = 0.12, colour = "#6b7280") +
-          geom_smooth(
-            data = df, aes(x = x, y = metric_value),
-            method = if (use_gam) "gam" else "glm",
-            formula = if (use_gam) y ~ s(x, k = 4) else y ~ x, 
-            method.args = list(family = stats::binomial),
-            colour = "#2a78d6", fill = "#2a78d6", alpha = 0.2, linewidth = 1.2
-          ) +
-          geom_pointrange(data = dec, aes(x = x, y = prop, ymin = lo, ymax = hi),
-                          colour = "#1f2328", size = 0.5, linewidth = 0.6) +
+        ggplot(sm, aes(x = g, y = prop)) +
+          geom_linerange(aes(ymin = lo, ymax = hi), colour = "#2a78d6", linewidth = 1) +
+          pt_layers("#2a78d6", sm, "prop") +
           scale_y_continuous(labels = scales::percent) +
-          coord_cartesian(xlim = xlim, ylim = c(0, 1)) +
+          coord_cartesian(ylim = c(0, 1)) +
           labs(
             x = var,
             y = "Share of tracts with any wastewater-impacted segment",
             title = paste0("Prevalence vs ", var, " (", mlab, ")"),
             subtitle = stat_line,
-            caption = paste0("Points: share impacted in deciles of the indicator (95% CI). Line: smooth trend. ", cap)
+            caption = wrap_cap(paste0("Dot: share of tracts impacted; bar: 95% CI (Wilson).", size_note, " ",
+                                      grp_note, " Raw values; the effect size in the subtitle is adjusted for stream size."))
           ) +
-          theme_app()
+          theme_app() +
+          theme(legend.position = "bottom")
         
       } else {
         src       <- input$cejst_src %||% "Gage-based"
         denom_lab <- ifelse(src == "Gage-based", "gage-based", "NHDPlus-based")
         df <- dplyr::filter(df, metric_value > 0)
-        use_loess <- n_uniq >= 15
+        req(nrow(df) > 0)
         
-        ggplot(df, aes(x = x, y = metric_value)) +
-          geom_point(alpha = 0.25, size = 1.4, colour = "#6b7280") +
-          geom_smooth(
-            method = if (use_loess) "loess" else "lm",
-            formula = y ~ x,
-            method.args = if (use_loess) list(span = 0.9) else list(),
-            colour = "#2a78d6", fill = "#2a78d6", alpha = 0.2, linewidth = 1.2
-          ) +
+        sm <- df %>%
+          dplyr::group_by(g) %>%
+          dplyr::summarise(
+            n   = dplyr::n(),
+            med = stats::median(metric_value),
+            q1  = stats::quantile(metric_value, 0.25, names = FALSE),
+            q3  = stats::quantile(metric_value, 0.75, names = FALSE),
+            .groups = "drop"
+          )
+        
+        # faint points: at the real value (tenths mode) or spread slightly sideways (distinct-value mode)
+        df$xp <- if (use_vals) df$g else df$x
+        ug <- sort(unique(sm$g))
+        jw <- if (!use_vals) 0 else if (length(ug) > 1) 0.25 * min(diff(ug)) else 0.1
+        
+        ggplot() +
+          geom_jitter(data = df, aes(x = xp, y = metric_value), width = jw, height = 0,
+                      alpha = 0.2, size = 1.2, colour = "#6b7280") +
+          geom_linerange(data = sm, aes(x = g, ymin = q1, ymax = q3), colour = "#2a78d6", linewidth = 1.2) +
+          pt_layers("#2a78d6", sm, "med") +
           scale_y_log10(labels = scales::label_number(suffix = "%", drop0trailing = TRUE)) +
-          coord_cartesian(xlim = xlim) +
           labs(
             x = var,
             y = "Severity: median %WW among impacted segments (log scale)",
             title = paste0("Severity vs ", var, " (", mlab, ", ", denom_lab, " denominator)"),
             subtitle = stat_line,
-            caption = paste0("Each point is a tract. Line: smooth trend. ", cap)
+            caption = wrap_cap(paste0("Faint points: individual tracts. Dot: median; bar: middle 50% of tracts.", size_note, " ",
+                                      grp_note, " Raw values; the effect size in the subtitle is adjusted for stream size."))
           ) +
-          theme_app()
+          theme_app() +
+          theme(legend.position = "bottom")
       }
     }
   })
