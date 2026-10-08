@@ -856,6 +856,55 @@ eq_stat_line <- function(r, mode) {
           nm, f(r$effect_adj), f(r$lo_adj), f(r$hi_adj), formatC(r$q_adj, format = "e", digits = 1),
           nm, f(r$effect_unadj))
 }  
+# Paired rank-biserial: +1 = month A higher than month B in every unit, -1 = always lower
+eq_rb_paired <- function(a, b) {
+  d <- a - b
+  d <- d[is.finite(d) & d != 0]
+  if (length(d) < 5) return(NA_real_)
+  r <- rank(abs(d))
+  (sum(r[d > 0]) - sum(r[d < 0])) / sum(r)
+}
+
+# Kendall's W (tie-corrected) from a ranks matrix R (units x months) and per-unit tie terms Tv
+eq_w_calc <- function(R, Tv, k, idx) {
+  n  <- length(idx)
+  Rj <- colSums(R[idx, , drop = FALSE])
+  S  <- sum((Rj - mean(Rj))^2)
+  den <- n^2 * (k^3 - k) - n * sum(Tv[idx])
+  if (!is.finite(den) || den <= 0) return(NA_real_)
+  12 * S / den
+}
+
+# One bootstrap draw of row indices, resampling whole county groups
+eq_boot_idx <- function(groups) {
+  g <- sample.int(length(groups), replace = TRUE)
+  unlist(groups[g], use.names = FALSE)
+}
+
+# Paired rank-biserial: +1 = month A higher than month B in every unit, -1 = always lower
+eq_rb_paired <- function(a, b) {
+  d <- a - b
+  d <- d[is.finite(d) & d != 0]
+  if (length(d) < 5) return(NA_real_)
+  r <- rank(abs(d))
+  (sum(r[d > 0]) - sum(r[d < 0])) / sum(r)
+}
+
+# Kendall's W (tie-corrected) from a ranks matrix R (units x months) and per-unit tie terms Tv
+eq_w_calc <- function(R, Tv, k, idx) {
+  n  <- length(idx)
+  Rj <- colSums(R[idx, , drop = FALSE])
+  S  <- sum((Rj - mean(Rj))^2)
+  den <- n^2 * (k^3 - k) - n * sum(Tv[idx])
+  if (!is.finite(den) || den <= 0) return(NA_real_)
+  12 * S / den
+}
+
+# One bootstrap draw of row indices, resampling whole county groups
+eq_boot_idx <- function(groups) {
+  g <- sample.int(length(groups), replace = TRUE)
+  unlist(groups[g], use.names = FALSE)
+}
 
 # --- UI ----------------------------------------------------------------------
 ui <- navbarPage(
@@ -1862,12 +1911,31 @@ server <- function(input, output, session) {
     X <- as.matrix(wide_cc[, mon_codes, drop = FALSE])
     fried <- stats::friedman.test(X)
     
+    # county of each unit (tract GEOID digits 1-5; for segments use the first tract it touches)
+    cty <- if (use_tracts) {
+      substr(as.character(wide_cc$unit_id), 1, 5)
+    } else {
+      substr(as.character(dat$GEOID[match(wide_cc$unit_id, as.character(dat$Hydroseq))]), 1, 5)
+    }
+    cty[is.na(cty)] <- "NA"
+    groups <- split(seq_along(cty), cty)
+    
+    # ---- Kendall's W with county-resampled 95% CI -----------------------------
+    k  <- ncol(X)
+    R  <- t(apply(X, 1, rank))
+    Tv <- apply(X, 1, function(r) { tt <- table(r); sum(tt^3 - tt) })
+    W  <- eq_w_calc(R, Tv, k, seq_len(nrow(X)))
+    W_boot <- replicate(300, eq_w_calc(R, Tv, k, eq_boot_idx(groups)))
+    W_ci   <- stats::quantile(W_boot, c(0.025, 0.975), na.rm = TRUE, names = FALSE)
+    
+    # ---- pairwise paired tests + rank-biserial effect size --------------------
     pairs <- combn(mon_codes, 2, simplify = FALSE)
     pw <- lapply(pairs, function(p) {
-      a <- wide_cc[[p[1]]]; b <- wide_cc[[p[2]]]
+      a <- X[, p[1]]; b <- X[, p[2]]
       wt <- stats::wilcox.test(a, b, paired = TRUE, exact = FALSE)
       data.frame(m1 = p[1], m2 = p[2],
                  med_diff = stats::median(a - b, na.rm = TRUE),
+                 rb = eq_rb_paired(a, b),
                  p_value = wt$p.value,
                  stringsAsFactors = FALSE)
     }) %>% dplyr::bind_rows()
@@ -1880,7 +1948,10 @@ server <- function(input, output, session) {
       med      = apply(X, 2, stats::median, na.rm = TRUE)
     ) %>% dplyr::arrange(dplyr::desc(med))
     
-    list(n = nrow(wide_cc), friedman = fried, pairwise = pw, month_meds = month_meds)
+    list(n = nrow(wide_cc), n_counties = length(groups),
+         friedman = fried, pairwise = pw, month_meds = month_meds,
+         W = W, W_lo = W_ci[1], W_hi = W_ci[2],
+         X = X, groups = groups)
   })
   
   output$season_stats_text <- renderPrint({
@@ -1895,13 +1966,15 @@ server <- function(input, output, session) {
       return(invisible(NULL))
     }
     
-    # 1) Overall test
-    cat(sprintf("Complete paired units (n_complete): %d\n", s$n))
+    # 1) Overall test + how consistent the seasonal pattern is
+    cat(sprintf("Complete paired units (n_complete): %d %s in %d counties\n", s$n, unit_lab, s$n_counties))
     cat("Overall seasonality (Friedman):\n")
-    cat(sprintf("  chi-squared = %.3f, df = %d, p = %s\n\n",
+    cat(sprintf("  chi-squared = %.3f, df = %d, p = %s\n",
                 unname(s$friedman$statistic),
                 unname(s$friedman$parameter),
                 format.pval(s$friedman$p.value, digits = 2, eps = 1e-100)))
+    cat(sprintf("  Kendall's W = %.2f (95%% CI %.2f to %.2f)\n\n", s$W, s$W_lo, s$W_hi))
+    cat("  W: 0 = no shared seasonal pattern across units, 1 = every unit ranks the months identically.\n\n")
     
     # 2) Ranked months by median
     top_n <- 4
@@ -1911,7 +1984,7 @@ server <- function(input, output, session) {
     cat("\nLowest months by median %WW:\n")
     print(utils::tail(s$month_meds, bot_n), row.names = FALSE)
     
-    # 3) Only show “meaningful” significant pairwise differences
+    # 3) Only show "meaningful" significant pairwise differences
     pw <- s$pairwise %>%
       dplyr::mutate(
         sig = !is.na(p_adj_BH) & p_adj_BH < 0.05,
@@ -1928,13 +2001,22 @@ server <- function(input, output, session) {
     }
     
     show_n <- min(8, nrow(pw))
+    pw <- utils::head(pw, show_n)
     
     cat(sprintf(
       "Top significant month-to-month differences (BH-adjusted p < 0.05; showing %d):\n",
       show_n
     ))
     
-    # Prettify month labels (01 -> Jan)
+    # Bootstrap 95% CI for the rank-biserial, only for the rows shown (resamples whole counties)
+    ci <- t(vapply(seq_len(nrow(pw)), function(i) {
+      bs <- replicate(200, {
+        idx <- eq_boot_idx(s$groups)
+        eq_rb_paired(s$X[idx, pw$m1[i]], s$X[idx, pw$m2[i]])
+      })
+      stats::quantile(bs, c(0.025, 0.975), na.rm = TRUE, names = FALSE)
+    }, numeric(2)))
+    
     mm_to_abb <- function(mm) month.abb[as.integer(mm)]
     
     out <- pw %>%
@@ -1942,19 +2024,22 @@ server <- function(input, output, session) {
         month1   = mm_to_abb(m1),
         month2   = mm_to_abb(m2),
         med_diff = round(med_diff, 2),
+        rank_biserial = round(rb, 2),
+        rb_95CI  = sprintf("%.2f to %.2f", ci[, 1], ci[, 2]),
         p_adj_BH_fmt = ifelse(
           p_adj_BH < 1e-100,
           "< 1e-100",
           formatC(p_adj_BH, format = "e", digits = 2)
         )
       ) %>%
-      dplyr::select(month1, month2, med_diff, p_adj_BH = p_adj_BH_fmt) %>%
-      utils::head(show_n)
+      dplyr::select(month1, month2, med_diff, rank_biserial, rb_95CI, p_adj_BH = p_adj_BH_fmt)
     
-    print(out, row.names = FALSE)
+    print(as.data.frame(out), row.names = FALSE)
     
     cat("\nNotes:\n")
     cat("  med_diff = median(month1 - month2) across the same units (paired).\n")
+    cat("  rank_biserial: -1 to +1 effect size (positive = month1 higher in most units). Roughly: 0.1 small, 0.3 medium, 0.5 large.\n")
+    cat("  95% CIs resample whole counties, because tracts in a county are not independent.\n")
     cat("  BH-adjusted p-values control false discovery rate across many pairwise tests.\n")
   })
   
