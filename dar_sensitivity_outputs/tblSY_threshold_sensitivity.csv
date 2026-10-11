@@ -1,0 +1,6 @@
+Gate threshold,Max. downstream/upstream area ratio,Impacted segments with a gage-based flow estimate (%),Gained a gage-based estimate vs. adopted (%),Lost a gage-based estimate vs. adopted (%),"Median %WWef, all segments with an estimate (%)","Median %WWef, segments that gained an estimate (%)","Median %WWef, segments that lost an estimate (%)","Segments changing > 1 pp vs. adopted (%), maximum across months","Largest change vs. adopted (pp), maximum across months"
+10%,1.11,55-59,0.0,19.0-21.0,0.41-3.07,-,0.14-1.62,0.0,0.96
+25%,1.33,71-75,0.0,3.7-5.3,0.35-2.48,-,0.10-1.43,0.2,5.39
+50% (adopted),2.00,75-80,0.0,0.0,0.30-2.40,-,-,0.0,<0.01
+75%,4.00,79-83,3.0-4.6,0.0,0.28-2.35,0.04-0.67,-,0.5,3.82
+Removed,None,80-84,3.9-5.3,0.0,0.28-2.31,0.04-0.55,-,1.6,82.77
