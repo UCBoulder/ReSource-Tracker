@@ -512,6 +512,23 @@ figS_loocv <- combine_panels(list(s1a, s1b),
                              collect = TRUE)
 save_plot(figS_loocv, "figS_loocv_error_bias_by_month.png", w = 12.5, h = 5.4)
 
+#Leave one out analysis on thresholds 
+loocv_at <- function(th) {
+  map_dfr(seq_along(gage_rows), function(k) {
+    hold  <- gage_rows[k]
+    anc   <- get_ancestors(hold)
+    seeds <- setdiff(intersect(gage_rows, anc), hold)
+    ord_k <- anc[order(ord_pos[anc])]
+    b_k   <- fit_b(gage_rows[gage_rows != hold])$b
+    Qk    <- propagate_dar(seeds, th, b_k, ord_k)$Q
+    tibble(month = mon_codes, observed = Qraw[hold, ], predicted = Qk[hold, ])
+  })
+}
+loocv_thr <- map_dfr(c(0.10, 0.25, 0.50, 0.75, Inf), function(th)
+  summarise_loocv(loocv_at(th)) %>% mutate(threshold = th, .before = 1))
+write_csv(loocv_thr, file.path(out_dir, "tbl_loocv_by_threshold.csv"))
+print(as.data.frame(loocv_thr %>%
+                      select(threshold, pct_reconstructed, median_abs_pct_error, median_bias_pct)), row.names = FALSE)
 # ==============================================================================
 # 6. SENSITIVITY ANALYSES (exponent b and similarity gate): shared helpers
 # ==============================================================================
@@ -784,84 +801,55 @@ write_csv(bin_summary, file.path(out_dir, "tbl_pairs_by_area_ratio_bin.csv"))
 cat("\n=== REAL-GAGE PAIRS BY AREA-RATIO JUMP (all months pooled) ===\n")
 print(as.data.frame(bin_summary), row.names = FALSE)
 
+short_lab <- map_chr(seq_along(bin_hi), function(i) {
+  lo <- format(bin_breaks[i], drop0trailing = TRUE)
+  if (is.infinite(bin_hi[i])) paste0(">", lo)
+  else paste0(lo, "\u2013", format(bin_hi[i], drop0trailing = TRUE))
+})
 bin_x <- bin_summary %>%
-  mutate(x_lab = sprintf("%s\n(n = %s)", as.character(bin), format(n, big.mark = ",")),
-         x_lab = factor(x_lab, levels = x_lab))
+  mutate(x_lab = factor(short_lab[as.integer(bin)], levels = short_lab))
+
 gate_fill <- c("TRUE" = COL$accent, "FALSE" = COL$context)
-gate_lab  <- c("TRUE" = sprintf("Within the %g%% gate (ratio ≤ %.2f)", SIMILARITY_THRESHOLD * 100, GATE_MAX_RATIO),
-               "FALSE" = "Beyond the gate")
+gate_lab  <- c("TRUE"  = sprintf("Within %g%% gate (ratio \u2264 %g)", SIMILARITY_THRESHOLD * 100, GATE_MAX_RATIO),
+               "FALSE" = "Beyond gate")
+
 pair_bar <- function(ycol, ylab, title) {
   ggplot(bin_x, aes(x_lab, .data[[ycol]], fill = within_gate)) +
     geom_hline(yintercept = 0, colour = "grey40", linewidth = 0.4) +
     geom_col(width = 0.65) +
-    geom_text(aes(label = sprintf("%.0f%%", .data[[ycol]]), vjust = ifelse(.data[[ycol]] >= 0, -0.5, 1.4)),
+    geom_text(aes(label = sprintf("%.0f%%", .data[[ycol]]),
+                  vjust = ifelse(.data[[ycol]] >= 0, -0.5, 1.4)),
               size = 3.5, fontface = "bold") +
     scale_fill_manual(values = gate_fill, labels = gate_lab, drop = FALSE) +
     scale_y_continuous(labels = pct_lab, expand = expansion(mult = c(0.12, 0.12))) +
-    labs(title = title, x = "Downstream / upstream drainage-area ratio", y = ylab) +
-    theme_resource() +
-    theme(axis.text.x = element_text(size = 9, lineheight = 0.95))
+    labs(title = title, x = "Downstream / Upstream Drainage-Area Ratio", y = ylab) +
+    theme_resource()
 }
-f6a <- pair_bar("median_abs_pct_err", "Median absolute error", "Error")
-f6b <- pair_bar("bias_pct", "Median bias (+ = flow over-predicted)", "Bias")
+f6a <- pair_bar("median_abs_pct_err", "Median Absolute Error", "Error")
+f6b <- pair_bar("bias_pct", "Median Bias (+ = over-predicted)", "Bias")
 fig6 <- combine_panels(list(f6a, f6b),
-                       title = "Drainage-area scaling vs. real paired gages",
-                       subtitle = "Each gage compared with its nearest upstream gage (observed flows only; all months pooled).",
-                       collect = TRUE)
-save_plot(fig6, "fig6_pairs_error_by_area_ratio.png", w = 12.5, h = 5.6)
+                       title = "Scaling Error Grows with Drainage-Area Ratio",
+                       collect = TRUE) & theme(legend.position = "bottom")
+save_plot(fig6, "fig6_pairs_error_by_area_ratio.png", w = 11, h = 5.4)
 
-# --- 11b. within the gate's own range: is the small bias seasonal? -----------------
-boot_median_ci <- function(x, n_boot = N_BOOT) {
-  if (length(x) < 5) return(c(NA_real_, NA_real_))
-  meds <- replicate(n_boot, median(sample(x, replace = TRUE)))
-  unname(quantile(meds, c(0.025, 0.975)))
-}
-gate_month <- pair_long %>%
-  filter(da_ratio <= GATE_MAX_RATIO) %>%
-  group_by(month) %>%
-  summarise(n = n(), med = median(log_over),
-            median_abs_pct_err = round(median(abs_pct_err), 1),
-            ci = list(boot_median_ci(log_over)), .groups = "drop") %>%
-  mutate(bias_pct = (exp(med) - 1) * 100,
-         lo_pct   = (exp(map_dbl(ci, 1)) - 1) * 100,
-         hi_pct   = (exp(map_dbl(ci, 2)) - 1) * 100,
-         median_log_ratio_bias_obs_minus_pred = -med) %>%
-  select(-ci, -med)
-write_csv(gate_month %>% mutate(across(c(bias_pct, lo_pct, hi_pct), ~ round(.x, 2))),
-          file.path(out_dir, "tbl_pairs_within_gate_bias_by_month.csv"))
-cat(sprintf("\n=== BIAS WITHIN THE GATE'S OWN RANGE (Aj/Ai <= %.2f), by month ===\n", GATE_MAX_RATIO))
-print(as.data.frame(gate_month %>% mutate(across(c(bias_pct, lo_pct, hi_pct,
-                                                   median_log_ratio_bias_obs_minus_pred), ~ round(.x, 3)))),
-      row.names = FALSE)
-
-# the finer bin x month detail, as a table only
-gate_bin_month <- pair_long %>%
-  filter(da_ratio <= GATE_MAX_RATIO) %>%
-  mutate(bin = cut(da_ratio, breaks = sort(unique(c(1, 1.25, 1.5, GATE_MAX_RATIO))), include.lowest = TRUE)) %>%
-  filter(!is.na(bin)) %>%
-  group_by(month, bin) %>%
-  summarise(n = n(), bias_pct = round((exp(median(log_over)) - 1) * 100, 1),
-            median_abs_pct_err = round(median(abs_pct_err), 1), .groups = "drop")
-write_csv(gate_bin_month, file.path(out_dir, "tbl_pairs_within_gate_bin_by_month.csv"))
-
-# --- Figure 7: seasonal bias. A = LOOCV bias by month; B = real-pair bias inside the gate (with CI) ---
+# --- Figure 7: is the bias seasonal? (real gage pairs inside the gate) ---
 gm_plot <- gate_month %>%
   mutate(month_f = factor(month, levels = mon_codes, labels = month.abb), season = season_of(month))
-bias_vals <- c(0, gm_plot$bias_pct, gm_plot$lo_pct, gm_plot$hi_pct)
-if (RUN_LOOCV) bias_vals <- c(bias_vals, loocv_by_month$median_bias_pct)
-bias_lim <- range(bias_vals, na.rm = TRUE); bias_lim <- bias_lim + c(-1, 1) * 0.12 * diff(bias_lim)
-dir_note <- "Above 0: flow over-predicted\n(%WWef under-estimated)"
+bias_lim <- range(c(0, gm_plot$lo_pct, gm_plot$hi_pct), na.rm = TRUE)
+bias_lim <- bias_lim + c(-1, 1) * 0.12 * diff(bias_lim)
 
-f7b <- ggplot(gm_plot, aes(month_f, bias_pct, colour = season)) +
+fig7 <- ggplot(gm_plot, aes(month_f, bias_pct, colour = season)) +
   geom_hline(yintercept = 0, colour = "grey30", linewidth = 0.5) +
   geom_errorbar(aes(ymin = lo_pct, ymax = hi_pct), width = 0.2, linewidth = 0.6) +
   geom_point(size = 3.2) +
-  annotate("text", x = 0.6, y = bias_lim[2], hjust = 0, vjust = 1.2, size = 3.5, fontface = "italic",
-           colour = "grey30", label = dir_note) +
+  annotate("text", x = 0.6, y = bias_lim[2], hjust = 0, vjust = 1.2, size = 3.5,
+           fontface = "italic", colour = "grey30", label = "Above 0: flow over-predicted") +
   scale_colour_manual(values = SEASON_COLS, drop = FALSE) +
   scale_y_continuous(limits = bias_lim, labels = pct_lab) +
-  labs(title = "Real gage pairs (inside the gate)", x = NULL, y = "Median bias (95% CI)") +
+  labs(title = "Bias by Month, Paired Gages Within the Gate",
+       x = NULL, y = "Median Bias (95% CI)") +
   theme_resource()
+save_plot(fig7, "fig7_seasonal_bias.png", w = 8, h = 5.4)
 
 if (RUN_LOOCV) {
   lb <- loocv_by_month %>%
