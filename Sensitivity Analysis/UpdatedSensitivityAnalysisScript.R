@@ -529,6 +529,25 @@ loocv_thr <- map_dfr(c(0.10, 0.25, 0.50, 0.75, Inf), function(th)
 write_csv(loocv_thr, file.path(out_dir, "tbl_loocv_by_threshold.csv"))
 print(as.data.frame(loocv_thr %>%
                       select(threshold, pct_reconstructed, median_abs_pct_error, median_bias_pct)), row.names = FALSE)
+
+#Leave one out analysis on b
+loocv_at_b <- function(b_fixed) {
+  map_dfr(seq_along(gage_rows), function(k) {
+    hold  <- gage_rows[k]
+    anc   <- get_ancestors(hold)
+    seeds <- setdiff(intersect(gage_rows, anc), hold)
+    ord_k <- anc[order(ord_pos[anc])]
+    Qk    <- propagate_dar(seeds, SIMILARITY_THRESHOLD, b_fixed, ord_k)$Q
+    tibble(month = mon_codes, observed = Qraw[hold, ], predicted = Qk[hold, ])
+  })
+}
+b_vals <- c(B_CI[1], B_STATE, B_CI[2], 1)
+loocv_b <- map_dfr(b_vals, function(b)
+  summarise_loocv(loocv_at_b(b)) %>% mutate(b = b, .before = 1))
+write_csv(loocv_b, file.path(out_dir, "tbl_loocv_by_exponent.csv"))
+print(as.data.frame(loocv_b %>%
+                      select(b, pct_reconstructed, median_abs_pct_error, median_bias_pct)), row.names = FALSE)
+
 # ==============================================================================
 # 6. SENSITIVITY ANALYSES (exponent b and similarity gate): shared helpers
 # ==============================================================================
@@ -872,16 +891,6 @@ if (RUN_LOOCV) {
   save_plot(fig7, "fig7_seasonal_bias.png", w = 8, h = 5.4)
 }
 
-# ==============================================================================
-# DONE
-# ==============================================================================
-cat(sprintf("\nAll outputs written to ./%s/\n", out_dir))
-cat("  fig1_loocv_observed_vs_reconstructed.png    fig2_threshold_sensitivity.png\n")
-cat("  fig3_exponent_sensitivity.png               fig4_seasonal_exponent.png\n")
-cat("  fig5_gate_loosening_composition.png         fig6_pairs_error_by_area_ratio.png\n")
-cat("  fig7_seasonal_bias.png                      figS1_threshold_by_month_heatmap.png\n")
-cat("  tbl_*.csv: the numbers behind every figure (table view)\n")
-
 #Low-flow screen: how many gages were removed? 
 Qcols <- paste0("Qgage_", mon_codes)
 
@@ -958,3 +967,31 @@ fig_exp <- ggplot() +
   theme(plot.subtitle = element_text(hjust = 0.5, colour = "grey30", size = 10))
 
 save_plot(fig_exp, "fig_exponent_fit.png", w = 8, h = 5.8)
+
+# ---- How often does %WWef reach the 100% cap? (adopted run) ----
+raw_pct <- 100 * WWcum_mat / Q_adopted                  # uncapped %WWef
+imp     <- ww_pos & is.finite(Q_adopted) & Q_adopted > 0 # impacted segments with a gage-based estimate
+at_cap  <- imp & raw_pct >= 100
+
+cap_by_month <- map_dfr(seq_len(n_mon), function(k) {
+  i_all <- imp[, k]; i_gag <- i_all & is_gage
+  tibble(month           = mon_codes[k],
+         n_impacted      = sum(i_all),
+         n_at_cap        = sum(at_cap[, k]),
+         pct_at_cap      = 100 * sum(at_cap[, k]) / sum(i_all),
+         pct_at_cap_gage = if (any(i_gag)) 100 * sum(at_cap[i_gag, k]) / sum(i_gag) else NA_real_,
+         median_uncapped = if (any(at_cap[, k])) median(raw_pct[at_cap[, k], k]) else NA_real_)
+})
+write_csv(cap_by_month, file.path(out_dir, "tbl_pct_wwef_at_cap.csv"))
+print(as.data.frame(cap_by_month %>% mutate(across(where(is.double), ~ round(.x, 1)))), row.names = FALSE)
+
+ever_cap <- rowSums(at_cap) > 0
+cat(sprintf("\nPooled: %.1f%% of impacted segment-months are at the cap (%s of %s)\n",
+            100 * sum(at_cap) / sum(imp), format(sum(at_cap), big.mark = ","), format(sum(imp), big.mark = ",")))
+cat(sprintf("%.1f%% of impacted segments are at the cap in at least one month\n",
+            100 * mean(ever_cap[rowSums(imp) > 0])))
+
+cap_any <- which(rowSums(at_cap[, c(5, 7)]) > 0)          # capped in May or July
+cat("June %WWef at those segments:\n"); print(summary(raw_pct[cap_any, 6]))
+cat("\nEffluent (cfs) at those segments, by month:\n"); print(round(colSums(WWcum_mat[cap_any, ], na.rm = TRUE), 1))
+cat("\nMean estimated flow (cfs) at those segments, by month:\n"); print(round(colMeans(Q_adopted[cap_any, ], na.rm = TRUE), 1))
