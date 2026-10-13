@@ -1,101 +1,101 @@
 indicator,unadj,adj,q_adj,status,source,mode,month
-rurality_rural,1.4543102162387838,-0.3340016884111855,0.6166941180920196,Not significant after adjustment,NHDPlus-based,Prevalence,01
-Percent Black or African American alone,-0.42586214032548136,-0.382573469780859,0.04854403772828006,Still significant after adjustment,NHDPlus-based,Prevalence,01
-Percent American Indian / Alaska Native,0.5858970841608563,0.25090305541991637,0.4379770021447392,Not significant after adjustment,NHDPlus-based,Prevalence,01
-Percent Asian,-0.5061766070274892,0.06380129728009477,0.6166941180920196,Not significant after adjustment,NHDPlus-based,Prevalence,01
-Percent Native Hawaiian or Pacific,0.03926732722104858,-0.016852793570758137,0.8396531689758907,Not significant after adjustment,NHDPlus-based,Prevalence,01
-Percent two or more races,-0.4287636744106371,-0.24387696473723516,0.03827599940862464,Still significant after adjustment,NHDPlus-based,Prevalence,01
-Percent White,0.050002075459605826,0.2466811388964868,0.09179091625901796,Not significant after adjustment,NHDPlus-based,Prevalence,01
-Percent Hispanic or Latino,0.17034913935420928,-0.14517567988119978,0.2991609859639503,Not significant after adjustment,NHDPlus-based,Prevalence,01
-Percent other races,-0.027565604363174238,-0.191120753700647,0.15307926156088844,Not significant after adjustment,NHDPlus-based,Prevalence,01
-Percent age under 10,-0.24125534004081947,-0.31318333318731595,0.00433557395999512,Still significant after adjustment,NHDPlus-based,Prevalence,01
-Percent age 10 to 64,-0.07119819121387937,0.28563770387176546,0.01037322405714085,Still significant after adjustment,NHDPlus-based,Prevalence,01
-Percent age over 64,0.2072788953982508,-0.06582865032754114,0.5420032912390239,Not significant after adjustment,NHDPlus-based,Prevalence,01
-Total threshold criteria exceeded,0.3100280324035208,-0.1846657661546608,0.1372552832814453,Not significant after adjustment,NHDPlus-based,Prevalence,01
-Total categories exceeded,0.29397106966020925,-0.22326145838405675,0.09115198232201709,Not significant after adjustment,NHDPlus-based,Prevalence,01
-Percentage of tract that is disadvantaged by area,0.21890295595982592,-0.42333498166629346,0.00479718261338038,Still significant after adjustment,NHDPlus-based,Prevalence,01
-Share of neighbors that are identified as disadvantaged,0.25594194764944944,-0.47951192467563963,0.01525736463685418,Still significant after adjustment,NHDPlus-based,Prevalence,01
-Total population,-0.183726092806136,0.030818985141545897,0.8396531689758907,Not significant after adjustment,NHDPlus-based,Prevalence,01
-Adjusted percent of individuals below 200% Federal Poverty Line,0.3697066777220988,-0.4761053331931572,0.00409652789690716,Still significant after adjustment,NHDPlus-based,Prevalence,01
-Expected agricultural loss rate (Natural Hazards Risk Index),0.8659866051920383,0.055127552924848784,0.7226671137137345,Not significant after adjustment,NHDPlus-based,Prevalence,01
-Expected building loss rate (Natural Hazards Risk Index),0.11338730448631434,0.1183032215029564,0.6651033880783722,Not significant after adjustment,NHDPlus-based,Prevalence,01
-Expected population loss rate (Natural Hazards Risk Index),0.57521218178228,0.057055504450137975,0.7896220311042317,Not significant after adjustment,NHDPlus-based,Prevalence,01
-Share of properties at risk of flood in 30 years,0.7991082026557627,0.16555216372594936,0.5952052370896916,Not significant after adjustment,NHDPlus-based,Prevalence,01
-Share of properties at risk of fire in 30 years,0.08928372275956657,0.3585611769830678,0.05039113905431069,Not significant after adjustment,NHDPlus-based,Prevalence,01
-Energy burden,0.5350806772792085,-0.619080628672955,0.00409652789690716,Still significant after adjustment,NHDPlus-based,Prevalence,01
-PM2.5 in the air,-0.4892413696105498,0.053956113047958956,0.839963432587424,Not significant after adjustment,NHDPlus-based,Prevalence,01
-Diesel particulate matter exposure,-0.45387611187327426,-0.12981731896072451,0.6166941180920196,Not significant after adjustment,NHDPlus-based,Prevalence,01
-Traffic proximity and volume,-0.03665649448014899,-0.002670482286230174,0.9823959168838152,Not significant after adjustment,NHDPlus-based,Prevalence,01
-Housing burden (percent),0.025591995787525815,-0.22439750249532048,0.03512823514144482,Still significant after adjustment,NHDPlus-based,Prevalence,01
-Percent pre-1960s housing (lead paint indicator),0.4134746156369443,-0.17471588413675496,0.1879048006645427,Not significant after adjustment,NHDPlus-based,Prevalence,01
-Median value ($) of owner-occupied housing units,-0.08300831528732497,0.41769703055466695,0.06611202845221739,Not significant after adjustment,NHDPlus-based,Prevalence,01
-Share of the tract's land area that is covered by impervious surface or cropland as a percent,-0.5152696259651912,-0.7466687293871505,0.0087120434125326,Still significant after adjustment,NHDPlus-based,Prevalence,01
-Share of homes with no kitchen or indoor plumbing (percent),0.02604058121284391,-0.14197236290931098,0.17635831240620947,Not significant after adjustment,NHDPlus-based,Prevalence,01
-Proximity to hazardous waste sites,-0.21212873920472522,-0.11184047708870376,0.2209023328638676,Not significant after adjustment,NHDPlus-based,Prevalence,01
-Proximity to NPL (Superfund) sites,0.13273877563899303,0.3948604007259386,0.12522544022020857,Not significant after adjustment,NHDPlus-based,Prevalence,01
-Proximity to Risk Management Plan (RMP) facilities,0.12399377344621762,-0.36638593563617966,0.0087120434125326,Still significant after adjustment,NHDPlus-based,Prevalence,01
-Leaky underground storage tanks,-0.23036088030345736,-0.1513174224492725,0.2145970892719745,Not significant after adjustment,NHDPlus-based,Prevalence,01
-Current asthma among adults aged greater than or equal to 18 years,-0.065760247163971,-0.3214936177215643,0.01038826841630299,Still significant after adjustment,NHDPlus-based,Prevalence,01
-Diagnosed diabetes among adults aged greater than or equal to 18 years,0.3728509994074424,-0.3645274813565775,0.01038826841630299,Still significant after adjustment,NHDPlus-based,Prevalence,01
-Coronary heart disease among adults aged greater than or equal to 18 years,0.36163484459451595,-0.40316790767369093,0.00409652789690716,Still significant after adjustment,NHDPlus-based,Prevalence,01
-Life expectancy (years),-0.06230119275070271,0.21503497769243446,0.12522544022020857,Not significant after adjustment,NHDPlus-based,Prevalence,01
-Median household income as a percent of area median income,-0.2688035872633427,0.3400248043390583,0.00412721942593863,Still significant after adjustment,NHDPlus-based,Prevalence,01
-Linguistic isolation (percent),0.09980857164590791,-0.1300668443305687,0.13171282637704954,Not significant after adjustment,NHDPlus-based,Prevalence,01
-Unemployment (percent),0.08963308574488757,-0.1508572194922626,0.18723482871048092,Not significant after adjustment,NHDPlus-based,Prevalence,01
-Percent of individuals below 200% Federal Poverty Line,0.3104755667600839,-0.37798036489268516,0.00530109633042834,Still significant after adjustment,NHDPlus-based,Prevalence,01
-Percent of individuals < 100% Federal Poverty Line,0.3107593432788571,-0.14136481665341188,0.23542808769538748,Not significant after adjustment,NHDPlus-based,Prevalence,01
-Percent individuals age 25 or over with less than high school degree,0.26510565994427027,-0.2758846611384942,0.01774052717449167,Still significant after adjustment,NHDPlus-based,Prevalence,01
-Percent of residents who are not currently enrolled in higher ed,0.07813464486217389,-0.16833754058114517,0.13017194420010297,Not significant after adjustment,NHDPlus-based,Prevalence,01
-Unemployment (percent) in 2009 (island areas) and 2010 (states and PR),0.03729858339318222,-0.13895324288008215,0.13589571261519964,Not significant after adjustment,NHDPlus-based,Prevalence,01
-Percentage households below 100% of federal poverty line in 2009 (island areas) and 2010 (states and PR),0.3042413429164688,-0.13751972515399968,0.17635831240620947,Not significant after adjustment,NHDPlus-based,Prevalence,01
-Identified as disadvantaged,0.5540331763756431,-1.0726114304074221,0.00479718261338038,Still significant after adjustment,NHDPlus-based,Prevalence,01
-rurality_rural,-0.33352031786325076,-0.3076428457519959,2.9254435723580868e-5,Still significant after adjustment,NHDPlus-based,Severity,01
-Percent Black or African American alone,0.23930170460107103,0.21579631191538473,0.03545642803863169,Still significant after adjustment,NHDPlus-based,Severity,01
-Percent American Indian / Alaska Native,-0.06292755846674924,-0.04447820732178003,0.6928392045088299,Not significant after adjustment,NHDPlus-based,Severity,01
-Percent Asian,0.2972655656200181,0.2737136813586367,1.1742115641942704e-4,Still significant after adjustment,NHDPlus-based,Severity,01
-Percent Native Hawaiian or Pacific,0.06067217689437342,0.058118141902916,0.12456372744740976,Not significant after adjustment,NHDPlus-based,Severity,01
-Percent two or more races,0.23464411836103957,0.21216498294351377,0.00597753545769834,Still significant after adjustment,NHDPlus-based,Severity,01
-Percent White,-0.2855369669387536,-0.2933279431312615,1.0298765715143092e-4,Still significant after adjustment,NHDPlus-based,Severity,01
-Percent Hispanic or Latino,0.22397878174456787,0.2553260456190786,0.00415578231025621,Still significant after adjustment,NHDPlus-based,Severity,01
-Percent other races,0.17947977812644444,0.16877975440824042,0.04044719454950111,Still significant after adjustment,NHDPlus-based,Severity,01
-Percent age under 10,0.1956881931046413,0.1925331121157342,0.04771249721239301,Still significant after adjustment,NHDPlus-based,Severity,01
-Percent age 10 to 64,0.16536446147913403,0.145871095271851,0.03654681220596514,Still significant after adjustment,NHDPlus-based,Severity,01
-Percent age over 64,-0.26079939825166926,-0.23547987010130975,2.7374205249133495e-4,Still significant after adjustment,NHDPlus-based,Severity,01
-Total threshold criteria exceeded,0.0847578206251668,0.0910197979819182,0.3319469809017349,Not significant after adjustment,NHDPlus-based,Severity,01
-Total categories exceeded,0.07958677225425656,0.08579779694529711,0.3901020949856774,Not significant after adjustment,NHDPlus-based,Severity,01
-Percentage of tract that is disadvantaged by area,0.06617947372054221,0.07201197142273472,0.4502521305131209,Not significant after adjustment,NHDPlus-based,Severity,01
-Share of neighbors that are identified as disadvantaged,2.2591862381079545e-4,0.01598238330754749,0.9210501372378428,Not significant after adjustment,NHDPlus-based,Severity,01
-Total population,0.0979147727480904,0.07256134375578797,0.4238183642809563,Not significant after adjustment,NHDPlus-based,Severity,01
-Adjusted percent of individuals below 200% Federal Poverty Line,-0.04097796193669139,-0.01945208308669423,0.9133747312483486,Not significant after adjustment,NHDPlus-based,Severity,01
-Expected agricultural loss rate (Natural Hazards Risk Index),-0.27798485302235804,-0.2521465503704817,0.00942927783007243,Still significant after adjustment,NHDPlus-based,Severity,01
-Expected building loss rate (Natural Hazards Risk Index),0.22900449506293233,0.22529796768867735,0.05043514606880904,Not significant after adjustment,NHDPlus-based,Severity,01
-Expected population loss rate (Natural Hazards Risk Index),-0.3831689072787175,-0.3593057096422613,7.0836208659793565e-6,Still significant after adjustment,NHDPlus-based,Severity,01
-Share of properties at risk of flood in 30 years,-0.3438189252579832,-0.3171429482413301,3.138540074821858e-6,Still significant after adjustment,NHDPlus-based,Severity,01
-Share of properties at risk of fire in 30 years,-0.0931665709416802,-0.09623977575270162,0.477699070129764,Not significant after adjustment,NHDPlus-based,Severity,01
-Energy burden,-0.251577079093303,-0.22056623971657377,0.05632722669768595,Not significant after adjustment,NHDPlus-based,Severity,01
-PM2.5 in the air,0.5383087755838702,0.5229202844941035,4.687414927982271e-11,Still significant after adjustment,NHDPlus-based,Severity,01
-Diesel particulate matter exposure,0.5630090089400798,0.5534900932199658,3.9248506254995934e-11,Still significant after adjustment,NHDPlus-based,Severity,01
-Traffic proximity and volume,0.2918447132540948,0.25983559260092914,0.0056094798488135,Still significant after adjustment,NHDPlus-based,Severity,01
-Housing burden (percent),0.08551902660796677,0.0956550266994044,0.32590654601501,Not significant after adjustment,NHDPlus-based,Severity,01
-Percent pre-1960s housing (lead paint indicator),-0.06896304276702699,-0.06220553644517142,0.6064204675062796,Not significant after adjustment,NHDPlus-based,Severity,01
-Median value ($) of owner-occupied housing units,-0.06341127802964168,-0.13963225631203324,0.32590654601501,Not significant after adjustment,NHDPlus-based,Severity,01
-Share of the tract's land area that is covered by impervious surface or cropland as a percent,0.4675032462858236,0.4752918539839077,5.2475925188019726e-11,Still significant after adjustment,NHDPlus-based,Severity,01
-Share of homes with no kitchen or indoor plumbing (percent),-0.04051199312573859,-0.01206544556550157,0.9133747312483486,Not significant after adjustment,NHDPlus-based,Severity,01
-Proximity to hazardous waste sites,0.4037127926930422,0.3764716153668982,0.00159806825172093,Still significant after adjustment,NHDPlus-based,Severity,01
-Proximity to NPL (Superfund) sites,0.13732933755330506,0.05848717134748636,0.7942737054236212,Not significant after adjustment,NHDPlus-based,Severity,01
-Proximity to Risk Management Plan (RMP) facilities,0.37518610856061146,0.4143705988577924,7.066010904401525e-7,Still significant after adjustment,NHDPlus-based,Severity,01
-Leaky underground storage tanks,0.27459052312989557,0.2454635307629277,0.00133349970084842,Still significant after adjustment,NHDPlus-based,Severity,01
-Current asthma among adults aged greater than or equal to 18 years,-0.00494882966246609,0.00593452119516158,0.9538284799286544,Not significant after adjustment,NHDPlus-based,Severity,01
-Diagnosed diabetes among adults aged greater than or equal to 18 years,-0.09663503172958386,-0.09290315357813636,0.4502521305131209,Not significant after adjustment,NHDPlus-based,Severity,01
-Coronary heart disease among adults aged greater than or equal to 18 years,-0.18273698548936437,-0.17869956950138585,0.08555634368804943,Not significant after adjustment,NHDPlus-based,Severity,01
-Life expectancy (years),-0.11755825458002714,-0.10647475506588223,0.28571355481602,Not significant after adjustment,NHDPlus-based,Severity,01
-Median household income as a percent of area median income,0.04729276099063539,0.0358776359463925,0.7288095968972188,Not significant after adjustment,NHDPlus-based,Severity,01
-Linguistic isolation (percent),0.16230543189652227,0.1509186736418333,0.04659223389360764,Still significant after adjustment,NHDPlus-based,Severity,01
-Unemployment (percent),-0.00397424753645561,0.00982019401896944,0.9210501372378428,Not significant after adjustment,NHDPlus-based,Severity,01
-Percent of individuals below 200% Federal Poverty Line,-0.0351669268639983,-0.0145156956340199,0.9210501372378428,Not significant after adjustment,NHDPlus-based,Severity,01
-Percent of individuals < 100% Federal Poverty Line,-0.06741024784980307,-0.04597788241083311,0.6928392045088299,Not significant after adjustment,NHDPlus-based,Severity,01
-Percent individuals age 25 or over with less than high school degree,0.10145035204073025,0.14001824073317043,0.05427547669956809,Not significant after adjustment,NHDPlus-based,Severity,01
-Percent of residents who are not currently enrolled in higher ed,-0.20130059298437744,-0.1916561803526489,0.01165533947589175,Still significant after adjustment,NHDPlus-based,Severity,01
-Unemployment (percent) in 2009 (island areas) and 2010 (states and PR),0.0437386729404106,0.03984894252339679,0.6928392045088299,Not significant after adjustment,NHDPlus-based,Severity,01
-Percentage households below 100% of federal poverty line in 2009 (island areas) and 2010 (states and PR),0.06207655120618397,0.090987234269976,0.4238183642809563,Not significant after adjustment,NHDPlus-based,Severity,01
-Identified as disadvantaged,0.0704430494651877,0.0740789926547577,0.4502521305131209,Not significant after adjustment,NHDPlus-based,Severity,01
+rurality_rural,1.4543102162387838,-0.4331812881814114,0.5192323001337189,Not significant after adjustment,NHDPlus-based,Prevalence,01
+Percent Black or African American alone,-0.42586214032548136,-0.38508885452344244,0.03455490762982376,Still significant after adjustment,NHDPlus-based,Prevalence,01
+Percent American Indian / Alaska Native,0.5858970841608563,0.3238371650321883,0.288355251427675,Not significant after adjustment,NHDPlus-based,Prevalence,01
+Percent Asian,-0.5061766070274892,0.05527243310100765,0.6268083675144168,Not significant after adjustment,NHDPlus-based,Prevalence,01
+Percent Native Hawaiian or Pacific,0.03926732722104858,-0.020198205653709514,0.8670926805323956,Not significant after adjustment,NHDPlus-based,Prevalence,01
+Percent two or more races,-0.4287636744106371,-0.22738345479316097,0.05913376446815793,Not significant after adjustment,NHDPlus-based,Prevalence,01
+Percent White,0.050002075459605826,0.24092601630802957,0.11714202516899871,Not significant after adjustment,NHDPlus-based,Prevalence,01
+Percent Hispanic or Latino,0.17034913935420928,-0.13717389450777398,0.4041018103699811,Not significant after adjustment,NHDPlus-based,Prevalence,01
+Percent other races,-0.027565604363174238,-0.18683769651189588,0.2148194396405157,Not significant after adjustment,NHDPlus-based,Prevalence,01
+Percent age under 10,-0.24125534004081947,-0.32333471361482513,0.00717716015671493,Still significant after adjustment,NHDPlus-based,Prevalence,01
+Percent age 10 to 64,-0.07119819121387937,0.2765703238441298,0.01664490256334901,Still significant after adjustment,NHDPlus-based,Prevalence,01
+Percent age over 64,0.2072788953982508,-0.05264077885998857,0.6268083675144168,Not significant after adjustment,NHDPlus-based,Prevalence,01
+Total threshold criteria exceeded,0.3100280324035208,-0.17371339560197183,0.1765605683186647,Not significant after adjustment,NHDPlus-based,Prevalence,01
+Total categories exceeded,0.29397106966020925,-0.21383954288148357,0.12824284203838984,Not significant after adjustment,NHDPlus-based,Prevalence,01
+Percentage of tract that is disadvantaged by area,0.21890295595982592,-0.40937434022518066,0.01122173853489159,Still significant after adjustment,NHDPlus-based,Prevalence,01
+Share of neighbors that are identified as disadvantaged,0.25594194764944944,-0.4570048625639943,0.02679058756775649,Still significant after adjustment,NHDPlus-based,Prevalence,01
+Total population,-0.183726092806136,0.012802539652241167,0.9257707690481106,Not significant after adjustment,NHDPlus-based,Prevalence,01
+Adjusted percent of individuals below 200% Federal Poverty Line,0.3697066777220988,-0.4236999555338219,0.01122173853489159,Still significant after adjustment,NHDPlus-based,Prevalence,01
+Expected agricultural loss rate (Natural Hazards Risk Index),0.8659866051920383,0.02371141368018129,0.9046036366680688,Not significant after adjustment,NHDPlus-based,Prevalence,01
+Expected building loss rate (Natural Hazards Risk Index),0.11338730448631434,0.13935983846863498,0.58303903934539,Not significant after adjustment,NHDPlus-based,Prevalence,01
+Expected population loss rate (Natural Hazards Risk Index),0.57521218178228,0.058710333101837646,0.7881288042424819,Not significant after adjustment,NHDPlus-based,Prevalence,01
+Share of properties at risk of flood in 30 years,0.7991082026557627,0.18305891206984837,0.5407519626003591,Not significant after adjustment,NHDPlus-based,Prevalence,01
+Share of properties at risk of fire in 30 years,0.08928372275956657,0.3423853399227223,0.05007908275355753,Not significant after adjustment,NHDPlus-based,Prevalence,01
+Energy burden,0.5350806772792085,-0.6069685403837232,0.00717716015671493,Still significant after adjustment,NHDPlus-based,Prevalence,01
+PM2.5 in the air,-0.4892413696105498,7.458235386332106e-4,0.9973917000336168,Not significant after adjustment,NHDPlus-based,Prevalence,01
+Diesel particulate matter exposure,-0.45387611187327426,-0.1391863193760414,0.58303903934539,Not significant after adjustment,NHDPlus-based,Prevalence,01
+Traffic proximity and volume,-0.03665649448014899,0.01607515837770032,0.9257707690481106,Not significant after adjustment,NHDPlus-based,Prevalence,01
+Housing burden (percent),0.025591995787525815,-0.17454552341898438,0.16644044183134252,Not significant after adjustment,NHDPlus-based,Prevalence,01
+Percent pre-1960s housing (lead paint indicator),0.4134746156369443,-0.1505472189898918,0.288355251427675,Not significant after adjustment,NHDPlus-based,Prevalence,01
+Median value ($) of owner-occupied housing units,-0.08300831528732497,0.3945713488507569,0.06796546359711747,Not significant after adjustment,NHDPlus-based,Prevalence,01
+Share of the tract's land area that is covered by impervious surface or cropland as a percent,-0.5152696259651912,-0.7031059085988726,0.01651790099652468,Still significant after adjustment,NHDPlus-based,Prevalence,01
+Share of homes with no kitchen or indoor plumbing (percent),0.02604058121284391,-0.12866142887670626,0.2658415561652153,Not significant after adjustment,NHDPlus-based,Prevalence,01
+Proximity to hazardous waste sites,-0.21212873920472522,-0.07360440936753851,0.4093659487040253,Not significant after adjustment,NHDPlus-based,Prevalence,01
+Proximity to NPL (Superfund) sites,0.13273877563899303,0.3774447261656632,0.1302173218605225,Not significant after adjustment,NHDPlus-based,Prevalence,01
+Proximity to Risk Management Plan (RMP) facilities,0.12399377344621762,-0.3594538483245461,0.01664490256334901,Still significant after adjustment,NHDPlus-based,Prevalence,01
+Leaky underground storage tanks,-0.23036088030345736,-0.12395702501047615,0.3553342203002788,Not significant after adjustment,NHDPlus-based,Prevalence,01
+Current asthma among adults aged greater than or equal to 18 years,-0.065760247163971,-0.29136364451519153,0.02754206206273335,Still significant after adjustment,NHDPlus-based,Prevalence,01
+Diagnosed diabetes among adults aged greater than or equal to 18 years,0.3728509994074424,-0.34287825790981225,0.0267338464000246,Still significant after adjustment,NHDPlus-based,Prevalence,01
+Coronary heart disease among adults aged greater than or equal to 18 years,0.36163484459451595,-0.3717982785239486,0.01122173853489159,Still significant after adjustment,NHDPlus-based,Prevalence,01
+Life expectancy (years),-0.06230119275070271,0.16181819814246753,0.2904011146765493,Not significant after adjustment,NHDPlus-based,Prevalence,01
+Median household income as a percent of area median income,-0.2688035872633427,0.312492254824658,0.00717716015671493,Still significant after adjustment,NHDPlus-based,Prevalence,01
+Linguistic isolation (percent),0.09980857164590791,-0.14041164001761533,0.1106377724807448,Not significant after adjustment,NHDPlus-based,Prevalence,01
+Unemployment (percent),0.08963308574488757,-0.11693086706768475,0.4093659487040253,Not significant after adjustment,NHDPlus-based,Prevalence,01
+Percent of individuals below 200% Federal Poverty Line,0.3104755667600839,-0.3074580167182706,0.04522509125696448,Still significant after adjustment,NHDPlus-based,Prevalence,01
+Percent of individuals < 100% Federal Poverty Line,0.3107593432788571,-0.07128477713147512,0.6268083675144168,Not significant after adjustment,NHDPlus-based,Prevalence,01
+Percent individuals age 25 or over with less than high school degree,0.26510565994427027,-0.2773882610146676,0.01926803824305123,Still significant after adjustment,NHDPlus-based,Prevalence,01
+Percent of residents who are not currently enrolled in higher ed,0.07813464486217389,-0.20148132246220316,0.0779791217211438,Not significant after adjustment,NHDPlus-based,Prevalence,01
+Unemployment (percent) in 2009 (island areas) and 2010 (states and PR),0.03729858339318222,-0.1265252631361849,0.16644044183134252,Not significant after adjustment,NHDPlus-based,Prevalence,01
+Percentage households below 100% of federal poverty line in 2009 (island areas) and 2010 (states and PR),0.3042413429164688,-0.07680358513403104,0.5279821456941328,Not significant after adjustment,NHDPlus-based,Prevalence,01
+Identified as disadvantaged,0.5540331763756431,-1.0372149103417803,0.01122173853489159,Still significant after adjustment,NHDPlus-based,Prevalence,01
+rurality_rural,-0.33352031786325076,-0.3327508497490022,7.709844595810072e-5,Still significant after adjustment,NHDPlus-based,Severity,01
+Percent Black or African American alone,0.23930170460107103,0.23810482608876643,0.02107462441541071,Still significant after adjustment,NHDPlus-based,Severity,01
+Percent American Indian / Alaska Native,-0.06292755846674924,-0.05863185728458531,0.5528943095832045,Not significant after adjustment,NHDPlus-based,Severity,01
+Percent Asian,0.2972655656200181,0.30576861758790647,1.5073906581567924e-4,Still significant after adjustment,NHDPlus-based,Severity,01
+Percent Native Hawaiian or Pacific,0.06067217689437342,0.05834147612050102,0.08626127695369361,Not significant after adjustment,NHDPlus-based,Severity,01
+Percent two or more races,0.23464411836103957,0.23405114465428575,0.00305219064260218,Still significant after adjustment,NHDPlus-based,Severity,01
+Percent White,-0.2855369669387536,-0.3190820183896467,1.8367882684025856e-5,Still significant after adjustment,NHDPlus-based,Severity,01
+Percent Hispanic or Latino,0.22397878174456787,0.27839789605932835,0.00106634492879501,Still significant after adjustment,NHDPlus-based,Severity,01
+Percent other races,0.17947977812644444,0.19044775097129657,0.01459070699953721,Still significant after adjustment,NHDPlus-based,Severity,01
+Percent age under 10,0.1956881931046413,0.20523724352772324,0.04127707126533739,Still significant after adjustment,NHDPlus-based,Severity,01
+Percent age 10 to 64,0.16536446147913403,0.1649146026108618,0.02107462441541071,Still significant after adjustment,NHDPlus-based,Severity,01
+Percent age over 64,-0.26079939825166926,-0.25975349313803914,5.159631830622225e-5,Still significant after adjustment,NHDPlus-based,Severity,01
+Total threshold criteria exceeded,0.0847578206251668,0.1040009559806552,0.2864122808738296,Not significant after adjustment,NHDPlus-based,Severity,01
+Total categories exceeded,0.07958677225425656,0.0981541585703269,0.33302975263095974,Not significant after adjustment,NHDPlus-based,Severity,01
+Percentage of tract that is disadvantaged by area,0.06617947372054221,0.08464301471464043,0.3785434013363071,Not significant after adjustment,NHDPlus-based,Severity,01
+Share of neighbors that are identified as disadvantaged,2.2591862381079545e-4,0.02433929987949059,0.8299529348407312,Not significant after adjustment,NHDPlus-based,Severity,01
+Total population,0.0979147727480904,0.09379094209899468,0.30844680638468946,Not significant after adjustment,NHDPlus-based,Severity,01
+Adjusted percent of individuals below 200% Federal Poverty Line,-0.04097796193669139,-0.03145177017831203,0.7671649202387494,Not significant after adjustment,NHDPlus-based,Severity,01
+Expected agricultural loss rate (Natural Hazards Risk Index),-0.27798485302235804,-0.2778993869360099,0.00713288545740251,Still significant after adjustment,NHDPlus-based,Severity,01
+Expected building loss rate (Natural Hazards Risk Index),0.22900449506293233,0.22870748246893596,0.0571139470350358,Not significant after adjustment,NHDPlus-based,Severity,01
+Expected population loss rate (Natural Hazards Risk Index),-0.3831689072787175,-0.3865718833013829,5.967115615890301e-6,Still significant after adjustment,NHDPlus-based,Severity,01
+Share of properties at risk of flood in 30 years,-0.3438189252579832,-0.3420518623976937,1.660174924873368e-6,Still significant after adjustment,NHDPlus-based,Severity,01
+Share of properties at risk of fire in 30 years,-0.0931665709416802,-0.11550859777082106,0.45380199074501143,Not significant after adjustment,NHDPlus-based,Severity,01
+Energy burden,-0.251577079093303,-0.26012574939939487,0.01988199338611328,Still significant after adjustment,NHDPlus-based,Severity,01
+PM2.5 in the air,0.5383087755838702,0.5390216469668031,9.222914160232317e-12,Still significant after adjustment,NHDPlus-based,Severity,01
+Diesel particulate matter exposure,0.5630090089400798,0.5627462334236084,9.222914160232317e-12,Still significant after adjustment,NHDPlus-based,Severity,01
+Traffic proximity and volume,0.2918447132540948,0.29119418443703626,0.00470399267817431,Still significant after adjustment,NHDPlus-based,Severity,01
+Housing burden (percent),0.08551902660796677,0.0929210016348866,0.34617758004185156,Not significant after adjustment,NHDPlus-based,Severity,01
+Percent pre-1960s housing (lead paint indicator),-0.06896304276702699,-0.06322408217810375,0.5857779695624438,Not significant after adjustment,NHDPlus-based,Severity,01
+Median value ($) of owner-occupied housing units,-0.06341127802964168,-0.10437423967884372,0.48374379586873006,Not significant after adjustment,NHDPlus-based,Severity,01
+Share of the tract's land area that is covered by impervious surface or cropland as a percent,0.4675032462858236,0.49778272414148794,9.222914160232317e-12,Still significant after adjustment,NHDPlus-based,Severity,01
+Share of homes with no kitchen or indoor plumbing (percent),-0.04051199312573859,-0.03900432712345191,0.5857779695624438,Not significant after adjustment,NHDPlus-based,Severity,01
+Proximity to hazardous waste sites,0.4037127926930422,0.4039006185849833,6.285795493593298e-4,Still significant after adjustment,NHDPlus-based,Severity,01
+Proximity to NPL (Superfund) sites,0.13732933755330506,0.13472294455529468,0.4693876668549428,Not significant after adjustment,NHDPlus-based,Severity,01
+Proximity to Risk Management Plan (RMP) facilities,0.37518610856061146,0.440823350885834,4.669360768335593e-8,Still significant after adjustment,NHDPlus-based,Severity,01
+Leaky underground storage tanks,0.27459052312989557,0.27491766478393914,0.00159364022515718,Still significant after adjustment,NHDPlus-based,Severity,01
+Current asthma among adults aged greater than or equal to 18 years,-0.00494882966246609,0.00355960771341386,0.9722712400354192,Not significant after adjustment,NHDPlus-based,Severity,01
+Diagnosed diabetes among adults aged greater than or equal to 18 years,-0.09663503172958386,-0.10139744127771692,0.3874133637962596,Not significant after adjustment,NHDPlus-based,Severity,01
+Coronary heart disease among adults aged greater than or equal to 18 years,-0.18273698548936437,-0.19909389200470945,0.05301984315729478,Not significant after adjustment,NHDPlus-based,Severity,01
+Life expectancy (years),-0.11755825458002714,-0.12808886453010748,0.1319057818514143,Not significant after adjustment,NHDPlus-based,Severity,01
+Median household income as a percent of area median income,0.04729276099063539,0.04152639627205536,0.6503697269182647,Not significant after adjustment,NHDPlus-based,Severity,01
+Linguistic isolation (percent),0.16230543189652227,0.1748026060417213,0.02107462441541071,Still significant after adjustment,NHDPlus-based,Severity,01
+Unemployment (percent),-0.00397424753645561,0.00329322145780785,0.9722712400354192,Not significant after adjustment,NHDPlus-based,Severity,01
+Percent of individuals below 200% Federal Poverty Line,-0.0351669268639983,-0.02693567394514982,0.8079432961507134,Not significant after adjustment,NHDPlus-based,Severity,01
+Percent of individuals < 100% Federal Poverty Line,-0.06741024784980307,-0.06411443649265004,0.5475174992416726,Not significant after adjustment,NHDPlus-based,Severity,01
+Percent individuals age 25 or over with less than high school degree,0.10145035204073025,0.15742969832888384,0.03012252438318361,Still significant after adjustment,NHDPlus-based,Severity,01
+Percent of residents who are not currently enrolled in higher ed,-0.20130059298437744,-0.2016879513857122,0.01229624934742856,Still significant after adjustment,NHDPlus-based,Severity,01
+Unemployment (percent) in 2009 (island areas) and 2010 (states and PR),0.0437386729404106,0.04737896397030609,0.5899241934455596,Not significant after adjustment,NHDPlus-based,Severity,01
+Percentage households below 100% of federal poverty line in 2009 (island areas) and 2010 (states and PR),0.06207655120618397,0.08227413505041947,0.48374379586873006,Not significant after adjustment,NHDPlus-based,Severity,01
+Identified as disadvantaged,0.0704430494651877,0.0893865180018488,0.3594387511839858,Not significant after adjustment,NHDPlus-based,Severity,01

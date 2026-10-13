@@ -1,9 +1,9 @@
 spec,source,mode,n_sig_at_baseline,pct_same_direction,pct_still_significant
-block_FE,Gage-based,Prevalence,372,100,39.8
-block_FE,Gage-based,Severity,415,94,8.9
-block_FE,NHDPlus-based,Prevalence,372,100,39.8
-block_FE,NHDPlus-based,Severity,433,94.9,34.6
-excl_metro,Gage-based,Prevalence,372,99.5,9.1
-excl_metro,Gage-based,Severity,415,100,50.1
-excl_metro,NHDPlus-based,Prevalence,372,99.5,9.1
-excl_metro,NHDPlus-based,Severity,433,100,79.7
+block_FE,Gage-based,Prevalence,336,100,43.5
+block_FE,Gage-based,Severity,479,94.4,7.7
+block_FE,NHDPlus-based,Prevalence,336,100,43.5
+block_FE,NHDPlus-based,Severity,481,95.2,31.2
+excl_metro,Gage-based,Prevalence,336,99.4,9.5
+excl_metro,Gage-based,Severity,479,100,46.1
+excl_metro,NHDPlus-based,Prevalence,336,99.4,9.5
+excl_metro,NHDPlus-based,Severity,481,100,71.9

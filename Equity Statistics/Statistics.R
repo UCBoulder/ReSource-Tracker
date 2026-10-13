@@ -1,593 +1,1091 @@
-# ==============================================================================
-# equity_stats_offline.R  -  run ONCE on your machine; writes 4 spreadsheets (CSV)
-# that the app can read later. Does not touch app.R. Covers Gage-based AND NHDPlus-based.
-# Not run on real data - parse-checked only.
-#
-# REVIEWER COMMENT                                   -> OUTPUT FILE
-#  1. Stream hydrology confounds the EJ gradients     -> equity_associations.csv  (unadjusted vs adjusted columns)
-#  2. Neighbouring tracts are spatially correlated    -> moran_check.csv  + CIs/p-values that resample whole watersheds
-#  3. Seasonal differences need effect sizes / CIs    -> seasonality_effects.csv
-#  4. Rural vs urban needs OR / CI / rank-biserial    -> rural_urban_effects.csv
-#
-# Run in the same R session where the app's objects exist (fl_cejst, cejst, cejst_lgl_cols, mon_codes).
-# Packages: dplyr tidyr tibble readr sf sandwich spdep rlang
-# ==============================================================================
-list2env(readRDS(file.path(path.expand("~"), "equity_inputs.rds")), envir = .GlobalEnv)
-sapply(c("fl_cejst", "cejst", "cejst_lgl_cols", "mon_codes", "tracts_sf"), exists)
-head(grep("pct_mean", names(fl_cejst), value = TRUE))
-grep("DA|Order|HUC", names(fl_cejst), value = TRUE)
+# ============================================================
+# Manuscript plots: seasonality + field vs. tool comparisons
+# ============================================================
 
-suppressPackageStartupMessages({
-  library(dplyr); library(tidyr); library(tibble); library(readr); library(sf); library(sandwich); library(spdep)
-})
-stopifnot(exists("fl_cejst"), exists("cejst"), exists("cejst_lgl_cols"), exists("mon_codes"))
+library(readxl)
+library(dplyr)
+library(tidyr)
+library(stringr)
+library(ggplot2)
+library(patchwork)
+library(purrr)
+library(cowplot)
 
-# ---- CONFIG (the only part you should need to edit) -------------------------------
-SOURCES  <- c("Gage-based", "NHDPlus-based")
-MONTHS   <- mon_codes                    # e.g. c("03","06","09","12") to run faster
-DA_COL   <- "TotDASqKM"                  # drainage-area column in fl_cejst
-ORD_COL  <- "StreamOrde"                 # stream-order column (set NA to skip)
-HUC_COL  <- NA_character_                # e.g. "HUC8"; NA -> use county (GEOID digits 1-5)
-B_BOOT   <- 2000                         # resamples for rural/urban CIs
-B_SEASON <- 500                          # resamples for seasonality CIs
-out_dir  <- "equity_stats_outputs"; dir.create(out_dir, showWarnings = FALSE)
-set.seed(42)
+#--------------------------------------------------------------
+# 0. Paths, shared settings, helpers
+#--------------------------------------------------------------
 
-# ---- 0. Prepare data ----------------------------------------------------------------
-if (!DA_COL %in% names(fl_cejst)) stop("DA_COL not found in fl_cejst: ", DA_COL)
-has_ord <- !is.na(ORD_COL) && ORD_COL %in% names(fl_cejst)
-dat0 <- fl_cejst[!is.na(fl_cejst$GEOID), ]
-tract_xy <- NULL                          # tract location (for Moran's I) = centroid of the tract polygon
-if (exists("tracts_sf")) {
-  cen <- sf::st_coordinates(suppressWarnings(sf::st_centroid(sf::st_transform(sf::st_geometry(tracts_sf), 5070))))
-  tract_xy <- tibble(GEOID = tracts_sf$GEOID, X = cen[, 1], Y = cen[, 2]) %>% distinct(GEOID, .keep_all = TRUE)
-} else message("tracts_sf not found: Moran's I will be skipped.")
-dat <- if (inherits(dat0, "sf")) sf::st_drop_geometry(dat0) else dat0
-dat$.cl  <- if (!is.na(HUC_COL)) substr(as.character(dat[[HUC_COL]]), 1, 8) else substr(as.character(dat$GEOID), 1, 5)
-dat$.lDA <- log10(as.numeric(dat[[DA_COL]]))
-dat$.lDA[!is.finite(dat$.lDA)] <- NA_real_      # DA of 0 or negative gives -Inf/NaN, which breaks the models
-dat$.ord <- if (has_ord) as.numeric(dat[[ORD_COL]]) else NA_real_
-cat(sprintf("Clusters: %s | stream order adjustment: %s\n",
-            if (!is.na(HUC_COL)) HUC_COL else "county", if (has_ord) "yes" else "no"))
+# Combined data workbook (seasonality sheets, nitrate/conductivity sheet)
+xlsx_path <- "/Users/kylieboenischoakes/Library/CloudStorage/OneDrive-UCB-O365/General/Boenisch-Oakes, Kylie/Manuscripts/De Facto Reuse Model + DBPs/Data_ManuscriptModel/CombinedData_ManuscriptPlots.xlsx"
 
-ind_cols <- setdiff(intersect(c(names(cejst)[sapply(cejst, is.numeric)], cejst_lgl_cols), names(dat)),
-                    c("GEOID", DA_COL, ORD_COL))
-tract_ind <- dat %>% group_by(GEOID) %>%
-  summarise(rurality = first(rurality), across(all_of(ind_cols), ~ first(.x)), .groups = "drop") %>%
-  mutate(across(all_of(intersect(cejst_lgl_cols, ind_cols)), as.numeric),
-         rurality_rural = as.numeric(rurality == "Rural"))
-ind_all <- c("rurality_rural", ind_cols)
+# Field vs. tool workbook
+model_path <- "/Users/kylieboenischoakes/Library/CloudStorage/OneDrive-UCB-O365/General/Boenisch-Oakes, Kylie/Research/Chapter 4/ModelVToolData.xlsx"
 
-# one row per tract for a given source + month (same definitions as the app)
-build_tract <- function(mm, src) {
-  pc <- if (src == "Gage-based") paste0("pct_mean_", mm) else paste0("pct_mean_", mm, "_nhd")
-  wc <- paste0("WW_cum_mean_", mm)
-  if (!all(c(pc, wc) %in% names(dat))) return(NULL)
-  tibble(GEOID = dat$GEOID, cl = dat$.cl, lDA = dat$.lDA, ord = dat$.ord,
-         ww = as.numeric(dat[[wc]]), pct = as.numeric(dat[[pc]])) %>%
-    mutate(imp_ww = is.finite(ww) & ww > 0, imp_pct = is.finite(pct) & pct > 0) %>%
-    group_by(GEOID) %>%
-    summarise(cl = first(cl), n_seg = n(), any_imp = as.integer(any(imp_ww)),
-              lDA_all = median(lDA, na.rm = TRUE), ord_all = median(ord, na.rm = TRUE),
-              sev     = if (any(imp_pct)) median(pct[imp_pct]) else NA_real_,
-              lDA_imp = if (any(imp_pct)) median(lDA[imp_pct], na.rm = TRUE) else NA_real_,
-              ord_imp = if (any(imp_pct)) median(ord[imp_pct], na.rm = TRUE) else NA_real_,
-              .groups = "drop") %>%
-    mutate(lnseg = log(n_seg),
-           across(c(lDA_all, lDA_imp, ord_all, ord_imp), ~ ifelse(is.finite(.x), .x, NA_real_))) %>%
-    left_join(tract_ind, by = "GEOID")
-}
+# Month ordering
+month_order_full <- month.name      # "January"..."December"
+month_order_abbr <- month.abb       # "Jan"..."Dec"
 
-# ---- helpers --------------------------------------------------------------------------
-zs <- function(x) as.numeric(scale(x));  zr <- function(x) as.numeric(scale(rank(x)))
-
-robust_coef <- function(m, term, cl, odds = FALSE) {       # CI that accounts for clustering of tracts in watersheds
-  G <- length(unique(cl)); V <- sandwich::vcovCL(m, cluster = cl, type = "HC1")
-  b <- unname(coef(m)[term]); se <- sqrt(V[term, term]); tc <- qt(0.975, G - 1)
-  r <- c(est = b, lo = b - tc * se, hi = b + tc * se); if (odds) r <- exp(r)
-  c(r, p = 2 * pt(-abs(b / se), G - 1))
-}
-cluster_boot <- function(cl, B, f) {                         # resample whole watersheds; f(index) -> named numbers
-  idx <- split(seq_along(cl), cl); G <- length(idx); pt <- f(seq_along(cl))
-  bs <- matrix(vapply(seq_len(B), function(i) f(unlist(idx[sample.int(G, G, TRUE)], use.names = FALSE)),
-                      numeric(length(pt))), nrow = length(pt))
-  tibble(stat = names(pt), est = unname(pt), lo = apply(bs, 1, quantile, 0.025, na.rm = TRUE),
-         hi = apply(bs, 1, quantile, 0.975, na.rm = TRUE))
-}
-cliff <- function(x, g) {                                    # rank-biserial: P(Rural > Urban) - P(Rural < Urban)
-  a <- x[g == 1]; b <- x[g == 0]; if (!length(a) || !length(b)) return(NA_real_)
-  2 * (sum(rank(c(a, b))[seq_along(a)]) - length(a) * (length(a) + 1) / 2) / (length(a) * length(b)) - 1
-}
-.lw <- new.env()
-moran_of <- function(v, geoid) {                             # Moran's I with 8 nearest tracts
-  if (is.null(tract_xy)) return(c(I = NA_real_, p = NA_real_, n = NA_real_))
-  keep <- is.finite(v) & geoid %in% tract_xy$GEOID
-  key <- rlang::hash(geoid[keep])
-  if (!exists(key, envir = .lw, inherits = FALSE)) {
-    co <- as.matrix(tract_xy[match(geoid[keep], tract_xy$GEOID), c("X", "Y")]); co <- co + matrix(rnorm(length(co)), ncol = 2)
-    assign(key, nb2listw(knn2nb(knearneigh(co, k = 8)), style = "W", zero.policy = TRUE), envir = .lw)
-  }
-  mt <- moran.test(v[keep], get(key, envir = .lw), zero.policy = TRUE)
-  c(I = unname(mt$estimate[1]), p = mt$p.value, n = sum(keep))
-}
-
-# ---- 1+2. Equity associations (unadjusted vs adjusted for stream size) + Moran's I ------
-# Severity:   estimate = rank correlation (rho) between the indicator and %WW among impacted tracts
-# Prevalence: estimate = odds ratio of tract having any impacted segment
-#             (per +1 SD for continuous indicators; Yes vs No for yes/no indicators)
-# "Adjusted" = also controls for drainage area (+ stream order; + number of segments for prevalence).
-fit_one <- function(d, ind, covs, mode) {
-  covs <- covs[vapply(covs, function(v) dplyr::n_distinct(d[[v]][is.finite(d[[v]])]) > 1, logical(1))]
-  dd <- bind_cols(tibble(cl = d$cl, y = d$y, x = d[[ind]]), d[covs])
-  numc <- vapply(dd, is.numeric, logical(1))
-  dd <- dd[complete.cases(dd) & Reduce(`&`, lapply(dd[numc], is.finite)), ]
-  G <- n_distinct(dd$cl)
-  if (nrow(dd) < 50 || G < 15 || n_distinct(dd$x) < 2) return(NULL)
-  is_bin <- all(dd$x %in% c(0, 1))
-  if (mode == "Severity") {
-    dd$ys <- zr(dd$y); dd$xs <- if (is_bin) zs(dd$x) else zr(dd$x); for (v in covs) dd[[v]] <- zr(dd[[v]])
-    m0 <- lm(ys ~ xs, dd); m1 <- lm(reformulate(c("xs", covs), "ys"), dd); odds <- FALSE
-  } else {
-    dd$xs <- if (is_bin) dd$x else zs(dd$x); for (v in covs) dd[[v]] <- zs(dd[[v]])
-    m0 <- suppressWarnings(glm(y ~ xs, binomial, dd)); m1 <- suppressWarnings(glm(reformulate(c("xs", covs), "y"), binomial, dd)); odds <- TRUE
-  }
-  a <- robust_coef(m0, "xs", dd$cl, odds); b <- robust_coef(m1, "xs", dd$cl, odds)
-  tibble(indicator = ind, type = if (is_bin) "yes/no" else "continuous", n_tracts = nrow(dd), n_watersheds = G,
-         effect_unadj = a["est"], lo_unadj = a["lo"], hi_unadj = a["hi"], p_unadj = a["p"],
-         effect_adj = b["est"], lo_adj = b["lo"], hi_adj = b["hi"], p_adj = b["p"])
-}
-
-assoc <- list(); moran_rows <- list(); tr_store <- list()
-for (src in SOURCES) for (mm in MONTHS) {
-  tr <- build_tract(mm, src); if (is.null(tr)) next
-  tr_store[[paste(src, mm)]] <- tr
-  for (mode in c("Prevalence", "Severity")) {
-    d <- if (mode == "Severity") filter(tr, is.finite(sev)) else tr
-    d$y  <- if (mode == "Severity") d$sev else d$any_imp
-    covs <- if (mode == "Severity") c("lDA_imp", if (has_ord) "ord_imp") else c("lDA_all", "lnseg", if (has_ord) "ord_all")
-    # Moran's I of the outcome, and of what is left after removing stream-size effects
-    ok <- complete.cases(d[, c("y", covs)]) & Reduce(`&`, lapply(d[, c("y", covs)], is.finite)); dm <- d[ok, ]
-    res <- if (mode == "Severity") residuals(lm(reformulate(covs, "ysr"), transform(dm, ysr = rank(y), lDA_imp = dm$lDA_imp)))
-    else residuals(suppressWarnings(glm(reformulate(covs, "y"), binomial, dm)), type = "pearson")
-    mo <- moran_of(if (mode == "Severity") rank(dm$y) else dm$y, dm$GEOID); mr <- moran_of(res, dm$GEOID)
-    moran_rows[[length(moran_rows) + 1]] <- tibble(source = src, month = mm, mode = mode, n_tracts = nrow(dm),
-                                                   n_watersheds = n_distinct(dm$cl), moran_I_outcome = mo["I"], p_outcome = mo["p"],
-                                                   moran_I_after_stream_size = mr["I"], p_after_stream_size = mr["p"])
-    rows <- bind_rows(lapply(ind_all, function(ind) fit_one(d, ind, covs, mode)))
-    if (nrow(rows)) {
-      rows$q_unadj <- p.adjust(rows$p_unadj, "BH"); rows$q_adj <- p.adjust(rows$p_adj, "BH")   # BH across indicators
-      assoc[[length(assoc) + 1]] <- mutate(rows, source = src, month = mm, mode = mode, .before = 1)
-    }
-    message(sprintf("done: %s | %s | %s", src, mm, mode))
-  }
-}
-
-assoc <- bind_rows(assoc); moran_tab <- bind_rows(moran_rows)
-write_csv(assoc, file.path(out_dir, "equity_associations.csv"))
-write_csv(moran_tab, file.path(out_dir, "moran_check.csv"))
-cat("\n--- Share of indicators significant after BH (q < 0.05): before vs after adjusting for stream size ---\n")
-print(assoc %>% group_by(source, mode) %>%
-        summarise(unadjusted = mean(q_unadj < 0.05, na.rm = TRUE), adjusted = mean(q_adj < 0.05, na.rm = TRUE), .groups = "drop"))
-cat("\n--- Moran's I (positive = neighbouring tracts are similar) ---\n"); print(moran_tab %>% head(12))
-
-# ---- 4. Rural vs urban: rank-biserial, median/risk difference, odds ratio, all with CIs ----
-ru <- list()
-for (key in names(tr_store)) {
-  tr <- tr_store[[key]]; src <- sub(" .*", "", key); mm <- sub(".* ", "", key)
-  d <- filter(tr, !is.na(rurality_rural), !is.na(cl)); s <- filter(d, is.finite(sev))
-  bs <- cluster_boot(s$cl, B_BOOT, function(i) c(rank_biserial = cliff(s$sev[i], s$rurality_rural[i]),
-                                                 median_diff_pp = median(s$sev[i][s$rurality_rural[i] == 1]) - median(s$sev[i][s$rurality_rural[i] == 0])))
-  bp <- cluster_boot(d$cl, B_BOOT, function(i) c(risk_diff_pp = 100 * (mean(d$any_imp[i][d$rurality_rural[i] == 1]) -
-                                                                         mean(d$any_imp[i][d$rurality_rural[i] == 0]))))
-  a <- filter(assoc, source == src, month == mm, indicator == "rurality_rural")
-  ru[[key]] <- bind_rows(
-    mutate(bs, mode = "Severity"), mutate(bp, mode = "Prevalence"),
-    a %>% filter(mode == "Prevalence") %>% transmute(stat = "odds_ratio_unadj", est = effect_unadj, lo = lo_unadj, hi = hi_unadj, mode),
-    a %>% filter(mode == "Prevalence") %>% transmute(stat = "odds_ratio_adj",   est = effect_adj,   lo = lo_adj,   hi = hi_adj,   mode),
-    a %>% filter(mode == "Severity")   %>% transmute(stat = "rank_corr_unadj",  est = effect_unadj, lo = lo_unadj, hi = hi_unadj, mode),
-    a %>% filter(mode == "Severity")   %>% transmute(stat = "rank_corr_adj",    est = effect_adj,   lo = lo_adj,   hi = hi_adj,   mode)
-  ) %>% mutate(source = src, month = mm, .before = 1)
-}
-ru <- bind_rows(ru); write_csv(ru, file.path(out_dir, "rural_urban_effects.csv"))
-cat("\n--- Rural vs urban (direction: Rural relative to Urban; first month shown) ---\n")
-print(ru %>% filter(month == MONTHS[1]), n = 24)
-
-# ---- 3. Seasonality: Kendall's W + paired month differences with CIs ---------------------
-season_effects <- function(src, units) {
-  use_tracts <- identical(units, "tracts")
-  long <- bind_rows(lapply(MONTHS, function(mm) {
-    col <- if (src == "Gage-based") paste0("pct_mean_", mm) else paste0("pct_mean_", mm, "_nhd")
-    if (!col %in% names(dat)) return(NULL)
-    tibble(GEOID = dat$GEOID, Hydroseq = dat$Hydroseq, cl = dat$.cl, mon = mm, pct = suppressWarnings(as.numeric(dat[[col]])))
-  })) %>% mutate(unit = if (use_tracts) GEOID else as.character(Hydroseq)) %>%
-    group_by(unit, mon) %>% summarise(cl = first(cl), pct = suppressWarnings(median(pct, na.rm = TRUE)), .groups = "drop") %>%
-    mutate(pct = if_else(is.finite(pct), pct, NA_real_))
-  ever <- long %>% group_by(unit) %>% summarise(ever = any(!is.na(pct) & pct > 0), .groups = "drop")
-  wide <- long %>% inner_join(ever, by = "unit") %>% filter(ever) %>% select(-ever) %>%
-    pivot_wider(id_cols = c(unit, cl), names_from = mon, values_from = pct) %>% drop_na()
-  if (nrow(wide) < 30) return(NULL)
-  X <- as.matrix(wide[, MONTHS]); n <- nrow(X); k <- ncol(X); fr <- friedman.test(X)
-  overall <- tibble(source = src, units = units, n_complete_units = n, n_watersheds = n_distinct(wide$cl),
-                    friedman_p = fr$p.value, kendalls_W = unname(fr$statistic) / (n * (k - 1)))
-  pairs <- combn(MONTHS, 2, simplify = FALSE); np <- length(pairs)
-  nm <- vapply(pairs, paste, "", collapse = "|")
-  pair_stats <- function(i) {
-    Xs <- X[i, , drop = FALSE]; out <- numeric(2 * np)
-    for (j in seq_len(np)) {
-      d <- Xs[, pairs[[j]][1]] - Xs[, pairs[[j]][2]]; out[j] <- median(d); nz <- d[d != 0]
-      out[np + j] <- if (length(nz)) { rk <- rank(abs(nz)); (sum(rk[nz > 0]) - sum(rk[nz < 0])) / sum(rk) } else 0
-    }
-    names(out) <- c(paste0("med|", nm), paste0("rb|", nm)); out
-  }
-  bt <- cluster_boot(wide$cl, B_SEASON, pair_stats) %>%
-    separate(stat, c("measure", "m1", "m2"), sep = "\\|") %>% pivot_wider(names_from = measure, values_from = c(est, lo, hi))
-  pw <- bind_rows(lapply(pairs, function(p) tibble(m1 = p[1], m2 = p[2],
-                                                   p = wilcox.test(X[, p[1]], X[, p[2]], paired = TRUE, exact = FALSE)$p.value))) %>% mutate(q_BH = p.adjust(p, "BH"))
-  list(overall = overall, pairs = left_join(bt, pw, by = c("m1", "m2")) %>%
-         transmute(source = src, units = units, month1 = month.abb[as.integer(m1)], month2 = month.abb[as.integer(m2)],
-                   median_diff_pp = est_med, md_lo = lo_med, md_hi = hi_med,
-                   rank_biserial = est_rb, rb_lo = lo_rb, rb_hi = hi_rb, q_BH))
-}
-se <- list(); for (src in SOURCES) for (u in c("segments", "tracts")) { r <- season_effects(src, u); if (!is.null(r)) se[[paste(src, u)]] <- r }
-write_csv(bind_rows(lapply(se, `[[`, "pairs")), file.path(out_dir, "seasonality_effects.csv"))
-write_csv(bind_rows(lapply(se, `[[`, "overall")), file.path(out_dir, "seasonality_overall.csv"))
-cat("\n--- Seasonality: Kendall's W (0 = no seasonal pattern, 1 = identical month ranking everywhere) ---\n")
-print(bind_rows(lapply(se, `[[`, "overall")))
-cat(sprintf("\nDone. Spreadsheets are in ./%s\n", out_dir))
-
-# =====================================================================
-# equity_figures.R
-# Three simple figures from equity_stats_outputs/equity_associations.csv
-# Runs for BOTH sources (Gage-based and NHDPlus-based). Nothing here
-# touches app.R. Run it in a fresh R session.
-#
-#   Fig 1  Forest plot       unadjusted vs stream-size-adjusted effect (one month)
-#   Fig 2  Attenuation plot  how much each effect moves after adjusting (one month)
-#   Fig 3  Consistency map   do the top indicators hold up in all 12 months?
-#
-# Each figure also writes a CSV of exactly what was plotted (the "table twin").
-# =====================================================================
-suppressPackageStartupMessages({
-  library(dplyr); library(tidyr); library(ggplot2); library(readr); library(patchwork)
-})
-has_repel <- requireNamespace("ggrepel", quietly = TRUE)
-
-# ---- Config (the only thing you should need to edit) -----------------
-in_csv        <- "equity_stats_outputs/equity_associations.csv"
-out_dir       <- "equity_figures"
-FEATURE_MONTH <- NULL      # e.g. "Jul" or "07" (must match the 'month' column); NULL = first month in the file
-TOP_N         <- 15        # indicators shown per panel (ranked by size of adjusted effect)
-ALPHA         <- 0.05      # BH q threshold for "significant"
+# Where figures are saved (change this to your output folder)
+out_dir <- "/Users/kylieboenischoakes/Library/CloudStorage/OneDrive-UCB-O365/General/Boenisch-Oakes, Kylie/Manuscripts/De Facto Reuse Model + DBPs/Figures"
 dir.create(out_dir, showWarnings = FALSE, recursive = TRUE)
 
-COL <- list(accent = "#2a78d6", unadj = "#8a8f98", up = "#2a78d6", down = "#e07b39",
-            ns = "#e5e7eb", grid = "#e6e8eb", ink = "#1f2328")
-
-# ---- Read + tidy ------------------------------------------------------
-a <- read_csv(in_csv, show_col_types = FALSE,
-              col_types = cols(.default = col_guess(), month = col_character()))
-a <- a %>% filter(!grepl("percentile", indicator, ignore.case = TRUE))   # drop duplicate "(percentile)" versions
-# wastewater variables are exposure-related, so they are circular next to the equity indicators; drop them here
-a <- a %>% filter(!grepl("wastewater", indicator, ignore.case = TRUE))
-months <- unique(a$month)
-a$month <- factor(a$month, levels = months)
-if (is.null(FEATURE_MONTH)) FEATURE_MONTH <- months[1]
-stopifnot(FEATURE_MONTH %in% months)
-message("Featured month: ", FEATURE_MONTH)
-
-# Prevalence effects are odds ratios (plot on a log scale); severity effects are rank correlations (linear).
-sc   <- function(x, mode) if (mode == "Prevalence") log(pmax(x, 1e-6)) else x
-wrap <- function(s, w = 30) vapply(s, function(z) paste(strwrap(z, w), collapse = "\n"), "")
-
-theme_resource <- function() {
-  theme_minimal(base_size = 11) +
-    theme(panel.background = element_rect(fill = "white", colour = NA),
-          plot.background  = element_rect(fill = "white", colour = NA),
-          panel.border     = element_rect(colour = "#b8bdc4", fill = NA, linewidth = 0.5),
-          panel.grid.major = element_line(colour = COL$grid, linewidth = 0.3),
-          panel.grid.minor = element_blank(),
-          plot.title       = element_text(face = "bold", hjust = 0.5, size = 12),
-          axis.title       = element_text(colour = COL$ink),
-          axis.text        = element_text(colour = COL$ink),
-          axis.text.y      = element_text(size = 8.5, lineheight = 0.85),
-          legend.position  = "bottom")
+# Save each figure as a 600 dpi PNG (for Word/review) and a vector PDF (for journal)
+# (Avoids cairo/XQuartz: PNG uses ragg if installed -- install.packages("ragg") --
+#  and PDF uses base pdf().)
+save_fig <- function(plot, name, w, h) {
+  png_dev <- if (requireNamespace("ragg", quietly = TRUE)) ragg::agg_png else "png"
+  ggsave(file.path(out_dir, paste0(name, ".png")), plot,
+         width = w, height = h, units = "in", dpi = 600, bg = "white",
+         device = png_dev)
+  ggsave(file.path(out_dir, paste0(name, ".pdf")), plot,
+         width = w, height = h, units = "in", device = grDevices::pdf)
+  message("Saved: ", name)
 }
 
-# pick the TOP_N indicators for one source/mode, ranked by |adjusted effect| in the featured month
-pick_top <- function(src, md) {
-  a %>% filter(source == src, mode == md, month == FEATURE_MONTH, is.finite(effect_adj)) %>%
-    mutate(rk = abs(sc(effect_adj, md))) %>% slice_max(rk, n = TOP_N, with_ties = FALSE) %>%
-    arrange(sc(effect_adj, md)) %>% pull(indicator)
+# Text sizes (pt). Raise these if you want even bigger text.
+TXT_TITLE <- 20; TXT_SUB <- 15; TXT_AXIS_TITLE <- 17; TXT_AXIS <- 15; TXT_LEG <- 14
+GEOM_TXT  <- 6        # in-plot annotation text (mm)
+PT_SIZE   <- 4.5      # point size
+
+# Manuscript theme: large, bold, high-contrast
+theme_ms <- function() {
+  theme_bw(base_size = TXT_AXIS) +
+    theme(
+      plot.title    = element_text(face = "bold", size = TXT_TITLE, hjust = 0.5),
+      plot.subtitle = element_text(size = TXT_SUB, hjust = 0.5),
+      axis.title.x  = element_text(face = "bold", size = TXT_AXIS_TITLE, margin = margin(t = 10)),
+      axis.title.y  = element_text(face = "bold", size = TXT_AXIS_TITLE, margin = margin(r = 10)),
+      axis.text.x   = element_text(size = TXT_AXIS, colour = "black"),
+      axis.text.y   = element_text(size = TXT_AXIS, colour = "black"),
+      legend.title  = element_text(face = "bold", size = TXT_LEG + 1),
+      legend.text   = element_text(size = TXT_LEG),
+      legend.key.size = unit(1.1, "lines"),
+      panel.grid.major.x = element_blank(),
+      plot.margin   = margin(10, 14, 10, 10)
+    )
 }
 
-# ---- Fig 1: forest plot ----------------------------------------------
-forest_panel <- function(src, md) {
-  keep <- pick_top(src, md)
-  d <- a %>% filter(source == src, mode == md, month == FEATURE_MONTH, indicator %in% keep)
-  long <- bind_rows(
-    d %>% transmute(indicator, model = "Unadjusted",              est = effect_unadj, lo = lo_unadj, hi = hi_unadj, q = q_unadj),
-    d %>% transmute(indicator, model = "Adjusted for stream size", est = effect_adj,   lo = lo_adj,   hi = hi_adj,   q = q_adj)) %>%
-    mutate(indicator = factor(wrap(indicator), levels = wrap(keep)),
-           model = factor(model, levels = c("Unadjusted", "Adjusted for stream size")),
-           sig = factor(ifelse(!is.na(q) & q < ALPHA, "sig", "ns"), levels = c("sig", "ns")))
-  p <- ggplot(long, aes(est, indicator, colour = model, group = model)) +
-    geom_vline(xintercept = if (md == "Prevalence") 1 else 0, colour = "#6b7280", linewidth = 0.4) +
-    geom_linerange(aes(xmin = lo, xmax = hi), orientation = "y", linewidth = 0.6,
-                   position = position_dodge(width = 0.65)) +
-    geom_point(aes(shape = sig), size = 2.8, stroke = 1,
-               position = position_dodge(width = 0.65)) +
-    scale_shape_manual(values = c(sig = 16, ns = 1), name = NULL, drop = FALSE,
-                       labels = c(sig = paste0("q < ", ALPHA), ns = paste0("q ≥ ", ALPHA))) +
-    scale_colour_manual(values = c("Unadjusted" = "#9aa0a8", "Adjusted for stream size" = COL$accent), name = NULL) +
-    guides(colour = guide_legend(order = 1, override.aes = list(shape = 16)),
-           shape  = guide_legend(order = 2, override.aes = list(colour = "#1f2328"))) +
-    labs(y = NULL, title = md,
-         x = if (md == "Prevalence") "Odds ratio of any wastewater impact (log scale)" else "Rank correlation with median %WWef") +
-    theme_resource()
-  if (md == "Prevalence") p <- p + scale_x_log10()
-  list(plot = p, data = long %>% mutate(source = src, mode = md, month = FEATURE_MONTH))
+#--------------------------------------------------------------
+# 1. Seasonality: line + ribbon plots
+#--------------------------------------------------------------
+
+seasonality_gage <- read_excel(xlsx_path, sheet = "Seasonality_Gage")
+seasonality_nhd  <- read_excel(xlsx_path, sheet = "Seasonality_NHD")
+
+prep_seasonality <- function(df) {
+  df %>%
+    mutate(
+      month      = factor(month, levels = month_order_full),
+      month_abbr = factor(month.abb[mon_code], levels = month_order_abbr)
+    )
 }
 
-fig_forest <- function(src) {
-  pp <- forest_panel(src, "Prevalence"); ps <- forest_panel(src, "Severity")
-  fig <- (pp$plot | ps$plot) + plot_layout(guides = "collect") +
-    plot_annotation(tag_levels = "A",
-                    title = paste0(src, ", ", FEATURE_MONTH, ": association with wastewater exposure"),
-                    caption = paste0("Filled = BH q < ", ALPHA, "; open = not significant. Bars: 95% cluster-robust CI. Top ", TOP_N, " indicators per panel (wastewater variables excluded)."),
-                    theme = theme(plot.title = element_text(face = "bold", hjust = 0.5),
-                                  plot.caption = element_text(hjust = 0))) &
-    theme(legend.position = "bottom")
-  tag <- gsub("[^A-Za-z]", "", src)
-  ggsave(file.path(out_dir, paste0("fig1_forest_", tag, ".png")), fig, width = 12, height = 9, dpi = 300, bg = "white")
-  write_csv(bind_rows(pp$data, ps$data), file.path(out_dir, paste0("fig1_forest_", tag, "_data.csv")))
-  invisible(fig)
+seasonality_gage <- prep_seasonality(seasonality_gage)
+seasonality_nhd  <- prep_seasonality(seasonality_nhd)
+
+plot_seasonality <- function(df, denom_label) {
+  ggplot(df, aes(x = month_abbr, y = med_pct, group = 1)) +
+    geom_ribbon(
+      aes(ymin = lo_iqr, ymax = hi_iqr),
+      fill   = "grey85",
+      alpha  = 0.6,
+      colour = NA
+    ) +
+    geom_line(linewidth = 1.6) +
+    geom_point(size = 3.8) +
+    labs(
+      x = "Month",
+      y = "Median % Wastewater by Census Tract",
+      title = denom_label,
+      subtitle = NULL
+    ) +
+    theme_ms() +
+    theme(
+      axis.text.x = element_text(angle = 0, hjust = 0.5)
+    )
 }
 
-# ---- Fig 2: attenuation (unadjusted -> adjusted) -----------------------
-slope_panel <- function(src, md) {
-  d <- a %>% filter(source == src, mode == md, month == FEATURE_MONTH, is.finite(effect_adj), is.finite(effect_unadj)) %>%
-    transmute(indicator, unadj = sc(effect_unadj, md), adj = sc(effect_adj, md), q_adj) %>%
-    mutate(status = ifelse(!is.na(q_adj) & q_adj < ALPHA, "Still significant after adjustment", "Not significant after adjustment"))
-  long <- d %>% pivot_longer(c(unadj, adj), names_to = "step", values_to = "y") %>%
-    mutate(step = factor(step, levels = c("unadj", "adj"), labels = c("Unadjusted", "Adjusted for\nstream size")))
-  lab <- long %>% filter(step == "Adjusted for\nstream size", status == "Still significant after adjustment") %>%
-    slice_max(abs(y), n = 8, with_ties = FALSE)
-  p <- ggplot(long, aes(step, y, group = indicator, colour = status)) +
-    geom_hline(yintercept = 0, colour = "#6b7280", linewidth = 0.4) +
-    geom_line(linewidth = 0.5, alpha = 0.8) + geom_point(size = 1.8) +
-    scale_colour_manual(values = c("Still significant after adjustment" = COL$accent,
-                                   "Not significant after adjustment" = COL$unadj), name = NULL) +
-    scale_x_discrete(expand = expansion(add = c(0.3, 1.6))) +
-    labs(x = NULL, title = md,
-         y = if (md == "Prevalence") "log odds ratio" else "Rank correlation (rho)") +
-    theme_resource()
-  p <- if (has_repel)
-    p + ggrepel::geom_text_repel(data = lab, aes(label = indicator), size = 2.6, hjust = 0, direction = "y",
-                                 nudge_x = 0.1, segment.size = 0.2, show.legend = FALSE, colour = COL$ink)
-  else p + geom_text(data = lab, aes(label = indicator), size = 2.6, hjust = -0.05, show.legend = FALSE, colour = COL$ink)
-  list(plot = p, data = d %>% mutate(source = src, mode = md, month = FEATURE_MONTH))
-}
+p_season_gage <- plot_seasonality(seasonality_gage, "Gage-based")
+p_season_nhd  <- plot_seasonality(seasonality_nhd,  "NHDPlus-based")
 
-fig_slope <- function(src) {
-  pp <- slope_panel(src, "Prevalence"); ps <- slope_panel(src, "Severity")
-  fig <- (pp$plot | ps$plot) + plot_layout(guides = "collect") +
-    plot_annotation(tag_levels = "A",
-                    title = paste0(src, ", ", FEATURE_MONTH, ": how much does stream size explain?"),
-                    theme = theme(plot.title = element_text(face = "bold", hjust = 0.5))) &
-    theme(legend.position = "bottom")
-  tag <- gsub("[^A-Za-z]", "", src)
-  ggsave(file.path(out_dir, paste0("fig2_attenuation_", tag, ".png")), fig, width = 12, height = 6.5, dpi = 300, bg = "white")
-  write_csv(bind_rows(pp$data, ps$data), file.path(out_dir, paste0("fig2_attenuation_", tag, "_data.csv")))
-  invisible(fig)
-}
+# Show plots side by side
+p_season_final <- (p_season_gage | p_season_nhd) +
+  plot_annotation(
+    tag_levels = "A",
+    caption = "Line = median; shaded band = interquartile range",
+    theme = theme(plot.caption = element_text(size = TXT_SUB, hjust = 0.5),
+                  plot.tag = element_text(size = TXT_TITLE, face = "bold"))
+  )
+print(p_season_final)
+save_fig(p_season_final, "fig_seasonality", w = 14, h = 6.5)
 
-# ---- Fig 3: consistency across months ----------------------------------
-heat_panel <- function(src, md) {
-  keep <- pick_top(src, md)
-  d <- a %>% filter(source == src, mode == md, indicator %in% keep) %>%
-    mutate(dir = sc(effect_adj, md),
-           status = case_when(is.na(q_adj) | q_adj >= ALPHA ~ "Not significant",
-                              dir > 0 ~ "Higher exposure", TRUE ~ "Lower exposure"),
-           status = factor(status, levels = c("Higher exposure", "Lower exposure", "Not significant")),
-           indicator = factor(wrap(indicator), levels = wrap(keep)))
-  lim <- max(abs(d$dir), na.rm = TRUE)
-  p <- ggplot(d, aes(month, indicator, fill = dir)) +
-    geom_tile(colour = "white", linewidth = 0.8) +
-    geom_point(data = filter(d, status != "Not significant"), shape = 21, fill = "white",
-               colour = COL$ink, size = 1.6, stroke = 0.4) +
-    scale_fill_gradient2(low = COL$down, mid = "#f1f2f4", high = COL$up, midpoint = 0, limits = c(-lim, lim),
-                         name = if (md == "Prevalence") "log odds ratio" else "rank correlation (rho)") +
-    labs(x = NULL, y = NULL, title = md) + theme_resource() +
-    theme(panel.grid = element_blank(), legend.key.width = unit(1.4, "cm"))
-  list(plot = p, data = d %>% select(source, mode, month, indicator, effect_adj, lo_adj, hi_adj, q_adj, status))
-}
+# ============================================================
+# 2. Field vs. tool comparison (gage-based & NHDPlus)
+# ============================================================
 
-fig_heat <- function(src) {
-  pp <- heat_panel(src, "Prevalence"); ps <- heat_panel(src, "Severity")
-  fig <- (pp$plot | ps$plot) + plot_layout(guides = "collect") +
-    plot_annotation(tag_levels = "A",
-                    title = paste0(src, ": adjusted associations by month"),
-                    caption = paste0("Adjusted for stream size. Blue = higher exposure, orange = lower. White dot = BH q < ", ALPHA, ". Indicators are the top ", TOP_N, " in ", FEATURE_MONTH, "."),
-                    theme = theme(plot.title = element_text(face = "bold", hjust = 0.5),
-                                  plot.caption = element_text(hjust = 0))) &
-    theme(legend.position = "bottom")
-  tag <- gsub("[^A-Za-z]", "", src)
-  ggsave(file.path(out_dir, paste0("fig3_months_", tag, ".png")), fig, width = 13, height = 6.5, dpi = 300, bg = "white")
-  write_csv(bind_rows(pp$data, ps$data) %>% mutate(indicator = gsub("\n", " ", indicator)),
-            file.path(out_dir, paste0("fig3_months_", tag, "_data.csv")))
-  invisible(fig)
-}
+# -----------------------------
+# 2a. Read + tidy RData sheet
+# -----------------------------
+rdata <- read_excel(model_path, sheet = "RData") %>%
+  rename(
+    location    = `Location`,
+    field_mean  = `%WW Field`,
+    field_sd    = `%WW Field Sd`,
+    gage_pctww  = `%WW Gage`,
+    gage_max    = `Max Gage%`,
+    gage_min    = `Min Gage %`,
+    nhd_pctww   = `%WW NHDPlus`
+  ) %>%
+  mutate(
+    # always start from character
+    month_chr = str_trim(as.character(Month)),
+    
+    month_str = case_when(
+      # Excel serials that show up as "45231" or "45231.0"
+      str_detect(month_chr, "^[0-9]+(\\.[0-9]+)?$") ~
+        format(as.Date(as.numeric(month_chr), origin = "1899-12-30"), "%b-%y"),
+      
+      # true date strings like 1/15/2024 or 2024-01-15
+      str_detect(month_chr, "^[0-9]{1,2}/[0-9]{1,2}/[0-9]{2,4}$|^[0-9]{4}-[0-9]{2}-[0-9]{2}$") ~
+        format(lubridate::parse_date_time(month_chr, orders = c("mdy", "ymd")), "%b-%y"),
+      
+      # already like "Jan-23" (leave as-is)
+      TRUE ~ month_chr
+    ),
+    
+    # convert fractional columns to percent
+    across(
+      c(field_mean, field_sd, gage_pctww, gage_max, gage_min, nhd_pctww),
+      ~ as.numeric(.x) * 100
+    ),
+    
+    month_idx = match(substr(month_str, 1, 3), month.abb),
+    site_date = paste0("Site ", location, " - ", month_str)
+  ) %>%
+  arrange(location, month_idx) %>%
+  mutate(
+    site_date   = factor(site_date, levels = unique(site_date)),
+    location    = factor(location),
+    field_lower = pmax(0,   field_mean - field_sd),
+    field_upper = pmin(100, field_mean + field_sd)
+  )
 
-# ---- Run for both sources -------------------------------------------------
-for (src in unique(a$source)) {
-  message("Source: ", src)
-  fig_forest(src); fig_slope(src); fig_heat(src)
-}
-message("Done. Figures and table-twin CSVs are in: ", normalizePath(out_dir))
+# -----------------------------
+# 2b. Long format for tool predictions
+#     (carry gage min/max for gage only)
+# -----------------------------
+tool_long <- rdata %>%
+  select(
+    site_date,
+    location,
+    month_str,
+    gage_pctww,
+    gage_min,
+    gage_max,
+    nhd_pctww
+  ) %>%
+  pivot_longer(
+    cols      = c(gage_pctww, nhd_pctww),
+    names_to  = "model",
+    values_to = "tool_pctww"
+  ) %>%
+  mutate(
+    model = case_match(
+      model,
+      "gage_pctww" ~ "Tool - gage-based",
+      "nhd_pctww"  ~ "Tool - NHDPlus"
+    ),
+    raw_min = ifelse(model == "Tool - gage-based", gage_min, NA_real_),
+    raw_max = ifelse(model == "Tool - gage-based", gage_max, NA_real_),
+    gage_lower = dplyr::case_when(
+      !is.na(raw_min) & !is.na(raw_max) ~ raw_min,
+      !is.na(raw_min) &  is.na(raw_max) ~ raw_min,
+      is.na(raw_min)  & !is.na(raw_max) ~ tool_pctww,
+      TRUE                               ~ NA_real_
+    ),
+    gage_upper = dplyr::case_when(
+      !is.na(raw_min) & !is.na(raw_max) ~ raw_max,
+      !is.na(raw_min) &  is.na(raw_max) ~ tool_pctww,
+      is.na(raw_min)  & !is.na(raw_max) ~ raw_max,
+      TRUE                               ~ NA_real_
+    ),
+    gage_lower = ifelse(model == "Tool - NHDPlus", tool_pctww, gage_lower),
+    gage_upper = ifelse(model == "Tool - NHDPlus", tool_pctww, gage_upper)
+  )
 
-#Spatial
-suppressPackageStartupMessages({
-  library(dplyr); library(tidyr); library(tibble); library(readr); library(sf); library(sandwich); library(spdep)
-})
-if (!exists("fl_cejst")) {                     # fresh session: load the objects saved from the app
-  f <- file.path(path.expand("~"), "equity_inputs.rds")
-  stopifnot(file.exists(f)); list2env(readRDS(f), envir = .GlobalEnv)
-}
-stopifnot(exists("fl_cejst"), exists("cejst"), exists("cejst_lgl_cols"), exists("mon_codes"), exists("tracts_sf"))
+# -----------------------------
+# 2c. Field bars + tool points
+# -----------------------------
+pd <- position_dodge(width = 0.5)
 
-# ---- CONFIG -----------------------------------------------------------------------
-SOURCES        <- c("Gage-based", "NHDPlus-based")
-MONTHS         <- mon_codes
-DA_COL         <- "TotDASqKM"
-K_BLOCKS       <- 30                           # number of spatial blocks (try 20-50; results should not hinge on it)
-RUN_EXCL_METRO <- TRUE
-METRO_COUNTIES <- c("08001", "08005", "08013", "08014", "08031", "08035", "08059")  # Adams, Arapahoe, Boulder, Broomfield, Denver, Douglas, Jefferson
-out_dir        <- "equity_stats_outputs"
-set.seed(42)
-base_assoc <- read_csv(file.path(out_dir, "equity_associations.csv"), show_col_types = FALSE,
-                       col_types = cols(.default = col_guess(), month = col_character()))
-base_moran <- read_csv(file.path(out_dir, "moran_check.csv"), show_col_types = FALSE,
-                       col_types = cols(.default = col_guess(), month = col_character()))
+# Gage min-max ranges, clipped to 0-100; flag ranges that reach the 100% cap
+gage_range <- tool_long %>%
+  filter(model == "Tool - gage-based", !is.na(gage_lower), !is.na(gage_upper)) %>%
+  mutate(lo     = pmax(0,   gage_lower),
+         hi     = pmin(100, gage_upper),
+         capped = hi >= 99.99)
 
-# ---- 0. Same data prep as the main script ---------------------------------------------
-dat0 <- fl_cejst[!is.na(fl_cejst$GEOID), ]
-dat  <- if (inherits(dat0, "sf")) sf::st_drop_geometry(dat0) else dat0
-dat$.cl  <- substr(as.character(dat$GEOID), 1, 5)                       # county
-dat$.lDA <- log10(as.numeric(dat[[DA_COL]])); dat$.lDA[!is.finite(dat$.lDA)] <- NA_real_
+p_site_date <- ggplot() +
+  geom_col(
+    data  = rdata,
+    aes(x = site_date, y = field_mean),
+    width  = 0.7,
+    fill   = "grey75",
+    colour = "grey40"
+  ) +
+  geom_errorbar(
+    data = rdata,
+    aes(x = site_date, ymin = field_lower, ymax = field_upper),
+    width  = 0.2,
+    colour = "black"
+  ) +
+  # Gage min-max range: nudged left so it sits on the gage point (not on the field SD bar)
+  # solid with caps = full range below the 100% cap
+  geom_errorbar(
+    data = gage_range %>% filter(!capped),
+    aes(x = site_date, ymin = lo, ymax = hi, colour = model),
+    width     = 0.15,
+    linewidth = 0.7,
+    alpha     = 0.55,
+    position  = position_nudge(x = -0.125)
+  ) +
+  # bottom cap tick for the capped ranges (matches the solid ranges)
+  geom_errorbar(
+    data = gage_range %>% filter(capped),
+    aes(x = site_date, ymin = lo, ymax = lo, colour = model),
+    width     = 0.15,
+    linewidth = 0.7,
+    alpha     = 0.55,
+    position  = position_nudge(x = -0.125)
+  ) +
+  # dashed + arrow = range reaches the 100% cap (upper end is the cap, not an estimate)
+  geom_segment(
+    data = gage_range %>% filter(capped),
+    aes(x = site_date, xend = site_date, y = lo, yend = hi, colour = model),
+    linewidth = 0.7,
+    alpha     = 0.55,
+    linetype  = "dashed",
+    arrow     = arrow(length = unit(0.12, "in"), type = "open", ends = "last"),
+    position  = position_nudge(x = -0.125)
+  ) +
+  geom_point(
+    data = tool_long,
+    aes(
+      x      = site_date,
+      y      = tool_pctww,
+      shape  = model,
+      colour = model
+    ),
+    size     = 4.2,
+    position = pd
+  ) +
+  scale_colour_manual(
+    values = c(
+      "Tool - gage-based" = "#1b9e77",
+      "Tool - NHDPlus"    = "#7570b3"
+    ),
+    name = NULL
+  ) +
+  scale_shape_manual(
+    values = c(
+      "Tool - gage-based" = 16,
+      "Tool - NHDPlus"    = 17
+    ),
+    name = NULL
+  ) +
+  scale_y_continuous(
+    limits = c(0, 100),
+    breaks = seq(0, 100, 10),
+    labels = function(x) paste0(x, "%")
+  ) +
+  labs(
+    x        = "Site ID and Sample Date",
+    y        = "% Wastewater in Stream (%WW)",
+    title    = "Field-Measured vs Tool-Estimated Wastewater Contribution",
+    subtitle = paste0("Grey bars = field mean (±1 SD); green = gage-based with min-max range; purple = NHDPlus\n",
+                      "Dashed arrow = gage range reaches the 100% cap")
+  ) +
+  theme_ms() +
+  theme(
+    axis.text.x = element_text(
+      angle = 60, hjust = 1, vjust = 1, size = 12
+    ),
+    legend.position = "top",
+    legend.direction = "horizontal"
+  )
 
-cen <- sf::st_coordinates(suppressWarnings(sf::st_centroid(sf::st_transform(sf::st_geometry(tracts_sf), 5070))))
-tract_xy <- tibble(GEOID = tracts_sf$GEOID, X = cen[, 1], Y = cen[, 2]) %>% distinct(GEOID, .keep_all = TRUE)
+print(p_site_date)
+save_fig(p_site_date, "fig_field_vs_tool_bars", w = 16, h = 9)
 
-# spatial blocks: K groups of nearby tracts
-km <- kmeans(as.matrix(tract_xy[, c("X", "Y")]), centers = K_BLOCKS, nstart = 10, iter.max = 50)
-blocks <- tibble(GEOID = tract_xy$GEOID, blk = km$cluster)
-cat(sprintf("Spatial blocks: %d blocks, %d to %d tracts each (median %d)\n", K_BLOCKS,
-            min(table(blocks$blk)), max(table(blocks$blk)), as.integer(median(table(blocks$blk)))))
+# -----------------------------
+# 2d. 1:1 plots with season
+# -----------------------------
+axis_max <- 100
 
-ind_cols <- setdiff(intersect(c(names(cejst)[sapply(cejst, is.numeric)], cejst_lgl_cols), names(dat)), c("GEOID", DA_COL))
-tract_ind <- dat %>% group_by(GEOID) %>%
-  summarise(rurality = first(rurality), across(all_of(ind_cols), ~ first(.x)), .groups = "drop") %>%
-  mutate(across(all_of(intersect(cejst_lgl_cols, ind_cols)), as.numeric), rurality_rural = as.numeric(rurality == "Rural"))
-ind_all <- c("rurality_rural", ind_cols)
+# Fix Excel serial dates and add season
+all_locations <- sort(unique(rdata$location))
 
-build_tract <- function(mm, src) {
-  pc <- if (src == "Gage-based") paste0("pct_mean_", mm) else paste0("pct_mean_", mm, "_nhd")
-  wc <- paste0("WW_cum_mean_", mm)
-  if (!all(c(pc, wc) %in% names(dat))) return(NULL)
-  tibble(GEOID = dat$GEOID, cl = dat$.cl, lDA = dat$.lDA, ww = as.numeric(dat[[wc]]), pct = as.numeric(dat[[pc]])) %>%
-    mutate(imp_ww = is.finite(ww) & ww > 0, imp_pct = is.finite(pct) & pct > 0) %>%
-    group_by(GEOID) %>%
-    summarise(cl = first(cl), n_seg = n(), any_imp = as.integer(any(imp_ww)),
-              lDA_all = median(lDA, na.rm = TRUE),
-              sev     = if (any(imp_pct)) median(pct[imp_pct]) else NA_real_,
-              lDA_imp = if (any(imp_pct)) median(lDA[imp_pct], na.rm = TRUE) else NA_real_, .groups = "drop") %>%
-    mutate(lnseg = log(n_seg), across(c(lDA_all, lDA_imp), ~ ifelse(is.finite(.x), .x, NA_real_))) %>%
-    left_join(tract_ind, by = "GEOID") %>% left_join(blocks, by = "GEOID")
-}
+rdata <- rdata %>%
+  mutate(
+    Month = ifelse(grepl("^[0-9]+$", Month),
+                   format(as.Date(as.numeric(Month), origin = "1899-12-30"), "%b"),
+                   Month),
+    season = case_when(
+      grepl("^Dec|^Jan|^Feb", Month, ignore.case = TRUE) ~ "Winter",
+      grepl("^Mar|^Apr|^May", Month, ignore.case = TRUE) ~ "Spring",
+      grepl("^Jun|^Jul|^Aug", Month, ignore.case = TRUE) ~ "Summer",
+      grepl("^Sep|^Oct|^Nov", Month, ignore.case = TRUE) ~ "Fall"
+    ),
+    season   = factor(season, levels = c("Spring", "Summer", "Fall", "Winter")),
+    location = factor(location, levels = all_locations)
+  )
 
-# ---- helpers (same as main script) ------------------------------------------------------
-zs <- function(x) as.numeric(scale(x));  zr <- function(x) as.numeric(scale(rank(x)))
-robust_coef <- function(m, term, cl, odds = FALSE) {
-  G <- length(unique(cl)); V <- sandwich::vcovCL(m, cluster = cl, type = "HC1")
-  b <- unname(coef(m)[term]); se <- sqrt(V[term, term]); tc <- qt(0.975, G - 1)
-  r <- c(est = b, lo = b - tc * se, hi = b + tc * se); if (odds) r <- exp(r)
-  c(r, p = 2 * pt(-abs(b / se), G - 1))
-}
-.lw <- new.env()
-moran_of <- function(v, geoid) {
-  keep <- is.finite(v) & geoid %in% tract_xy$GEOID
-  key <- rlang::hash(geoid[keep])
-  if (!exists(key, envir = .lw, inherits = FALSE)) {
-    co <- as.matrix(tract_xy[match(geoid[keep], tract_xy$GEOID), c("X", "Y")]); co <- co + matrix(rnorm(length(co)), ncol = 2)
-    assign(key, nb2listw(knn2nb(knearneigh(co, k = 8)), style = "W", zero.policy = TRUE), envir = .lw)
+# Color and shape scales
+season_colors <- c(
+  "Spring" = "#4daf4a",
+  "Summer" = "#ff7f00",
+  "Fall"   = "#a65628",
+  "Winter" = "#377eb8"
+)
+
+shape_vals <- c(16, 17, 15, 18, 8, 10, 11, 12)[seq_along(all_locations)]
+names(shape_vals) <- all_locations
+
+# Shared scales as functions
+shared_colour <- function() scale_colour_manual(values = season_colors, name = "Season",   drop = FALSE)
+shared_shape  <- function() scale_shape_manual(values  = shape_vals,    name = "Location", drop = FALSE)
+
+# Helper: build one 1:1 panel
+make_1to1_plot <- function(df, x_col, y_col,
+                           x_label, y_label, title_str,
+                           through_zero = TRUE) {
+  
+  df$location <- factor(df$location, levels = all_locations)
+  df$season   <- factor(df$season,   levels = c("Spring", "Summer", "Fall", "Winter"))
+  
+  if (through_zero) {
+    fit      <- lm(df[[y_col]] ~ df[[x_col]] + 0)
+    lm_label <- sprintf("y = %.2fx  (through 0)\nR² = %.2f",
+                        coef(fit)[1], summary(fit)$r.squared)
+    smooth_formula <- y ~ x + 0
+  } else {
+    fit      <- lm(df[[y_col]] ~ df[[x_col]])
+    lm_label <- sprintf("y = %.2fx %s %.1f\nR² = %.2f",
+                        coef(fit)[2], ifelse(coef(fit)[1] >= 0, "+", "-"),
+                        abs(coef(fit)[1]), summary(fit)$r.squared)
+    smooth_formula <- y ~ x
   }
-  mt <- moran.test(v[keep], get(key, envir = .lw), zero.policy = TRUE)
-  c(I = unname(mt$estimate[1]), p = mt$p.value)
+  
+  ggplot(df, aes(x = .data[[x_col]], y = .data[[y_col]],
+                 colour = season, shape = location)) +
+    geom_abline(slope = 1, intercept = 0,
+                linetype = "dashed", colour = "grey40", linewidth = 1.1) +
+    geom_smooth(method      = "lm",
+                formula     = smooth_formula,
+                se          = TRUE,
+                colour      = "grey30",
+                fill        = "grey70",
+                alpha       = 0.15,
+                linewidth   = 1.4,
+                inherit.aes = FALSE,
+                aes(x = .data[[x_col]], y = .data[[y_col]])) +
+    geom_errorbarh(
+      aes(xmin = field_lower, xmax = field_upper),
+      height    = 0,
+      linewidth = 0.8,
+      alpha     = 0.6
+    ) +
+    geom_point(size = PT_SIZE, alpha = 0.9) +
+    annotate("text",
+             x = 0.02 * axis_max, y = 0.98 * axis_max,
+             label    = lm_label,
+             hjust    = 0, vjust = 1,
+             size     = GEOM_TXT,
+             fontface = "italic", colour = "black") +
+    shared_colour() +
+    shared_shape() +
+    scale_x_continuous(limits = c(0, axis_max),
+                       breaks = seq(0, axis_max, 20),
+                       labels = function(x) paste0(x, "%")) +
+    scale_y_continuous(limits = c(0, axis_max),
+                       breaks = seq(0, axis_max, 20),
+                       labels = function(x) paste0(x, "%")) +
+    coord_fixed() +
+    labs(x = x_label, y = y_label, title = title_str) +
+    theme_ms()
 }
 
-# adjusted model only; fe = TRUE adds block fixed effects (d$cl must then be the block id)
-fit_adj <- function(d, ind, covs, mode, fe = FALSE) {
-  tryCatch({
-    covs <- covs[vapply(covs, function(v) n_distinct(d[[v]][is.finite(d[[v]])]) > 1, logical(1))]
-    dd <- bind_cols(tibble(cl = d$cl, blk = d$blk, y = d$y, x = d[[ind]]), d[covs])
-    numc <- vapply(dd, is.numeric, logical(1))
-    dd <- dd[complete.cases(dd) & Reduce(`&`, lapply(dd[numc], is.finite)), ]
-    if (fe && mode == "Prevalence") {          # blocks where everyone is 0 (or 1) carry no information
-      ok_blk <- names(which(tapply(dd$y, dd$blk, function(v) n_distinct(v) > 1)))
-      dd <- dd[as.character(dd$blk) %in% ok_blk, ]
-    }
-    G <- n_distinct(dd$cl)
-    if (nrow(dd) < 50 || G < 15 || n_distinct(dd$x) < 2) return(NULL)
-    is_bin <- all(dd$x %in% c(0, 1)); rhs <- c("xs", covs, if (fe) "factor(blk)")
-    if (mode == "Severity") {
-      dd$ys <- zr(dd$y); dd$xs <- if (is_bin) zs(dd$x) else zr(dd$x); for (v in covs) dd[[v]] <- zr(dd[[v]])
-      m <- lm(reformulate(rhs, "ys"), dd); odds <- FALSE
-    } else {
-      dd$xs <- if (is_bin) dd$x else zs(dd$x); for (v in covs) dd[[v]] <- zs(dd[[v]])
-      m <- suppressWarnings(glm(reformulate(rhs, "y"), binomial, dd)); odds <- TRUE
-    }
-    r <- robust_coef(m, "xs", dd$cl, odds)
-    tibble(indicator = ind, n_tracts = nrow(dd), n_clusters = G, effect = r["est"], lo = r["lo"], hi = r["hi"], p = r["p"])
-  }, error = function(e) NULL)
+build_1to1_fig <- function(through_zero, fit_type, file_name) {
+  # Panel A: Gage-based vs Field
+  p_1to1_gage <- make_1to1_plot(
+    df        = rdata %>% filter(!is.na(field_mean) & !is.na(gage_pctww)),
+    x_col     = "field_mean",
+    y_col     = "gage_pctww",
+    x_label   = "Field-Measured %WW (mean ± 1 SD)",
+    y_label   = "Tool-Estimated %WW (Gage-based)",
+    title_str = "A: Gage-based vs. Field",
+    through_zero = through_zero
+  )
+  
+  # Panel B: NHDPlus vs Field
+  p_1to1_nhd <- make_1to1_plot(
+    df        = rdata %>% filter(!is.na(field_mean) & !is.na(nhd_pctww)),
+    x_col     = "field_mean",
+    y_col     = "nhd_pctww",
+    x_label   = "Field-Measured %WW (mean ± 1 SD)",
+    y_label   = "Tool-Estimated %WW (NHDPlus)",
+    title_str = "B: NHDPlus vs. Field",
+    through_zero = through_zero
+  )
+  
+  # Extract legend from one panel only
+  legend <- get_legend(
+    p_1to1_nhd + theme(legend.position = "right")
+  )
+  
+  # Strip legends from both panels
+  p_gage_noleg <- p_1to1_gage + theme(legend.position = "none")
+  p_nhd_noleg  <- p_1to1_nhd  + theme(legend.position = "none")
+  
+  # Combine with cowplot
+  p_1to1 <- plot_grid(
+    plot_grid(p_gage_noleg, p_nhd_noleg, nrow = 1, labels = NULL),
+    legend,
+    nrow = 1,
+    rel_widths = c(1, 0.15)
+  )
+  
+  # Add title
+  title <- ggdraw() +
+    draw_label(
+      paste0("Field-Measured vs. Tool-Estimated Wastewater Contribution (", fit_type, ")"),
+      fontface = "bold", size = TXT_TITLE, hjust = 0.5
+    )
+  subtitle <- ggdraw() +
+    draw_label(
+      "Horizontal error bars = ±1 SD of field mean; dashed line = 1:1 agreement",
+      size = TXT_SUB, hjust = 0.5
+    )
+  
+  p_1to1_final <- plot_grid(title, subtitle, p_1to1,
+                            ncol = 1, rel_heights = c(0.07, 0.05, 1))
+  
+  print(p_1to1_final)
+  save_fig(p_1to1_final, file_name, w = 17, h = 8.5)
+  invisible(p_1to1_final)
 }
 
-# ---- 1. Run the checks ---------------------------------------------------------------------
-res <- list(); mor <- list()
-for (src in SOURCES) for (mm in MONTHS) {
-  tr <- build_tract(mm, src); if (is.null(tr)) next
-  for (mode in c("Prevalence", "Severity")) {
-    d <- if (mode == "Severity") filter(tr, is.finite(sev)) else tr
-    d$y <- if (mode == "Severity") d$sev else d$any_imp
-    covs <- if (mode == "Severity") "lDA_imp" else c("lDA_all", "lnseg")
-    
-    # (a) block fixed effects, CIs clustered on blocks
-    d_fe <- d %>% filter(!is.na(blk)) %>% mutate(cl = as.character(blk))
-    rows <- bind_rows(lapply(ind_all, fit_adj, d = d_fe, covs = covs, mode = mode, fe = TRUE))
-    if (nrow(rows)) res[[length(res) + 1]] <- mutate(rows, spec = "block_FE", source = src, month = mm, mode = mode, .before = 1)
-    
-    # (b) drop the Denver-area counties
-    if (RUN_EXCL_METRO) {
-      d_ex <- d %>% filter(!substr(GEOID, 1, 5) %in% METRO_COUNTIES)
-      rows <- bind_rows(lapply(ind_all, fit_adj, d = d_ex, covs = covs, mode = mode, fe = FALSE))
-      if (nrow(rows)) res[[length(res) + 1]] <- mutate(rows, spec = "excl_metro", source = src, month = mm, mode = mode, .before = 1)
-    }
-    
-    # leftover spatial correlation once blocks are in the model
-    dm <- d_fe[complete.cases(d_fe[, c("y", covs)]) & Reduce(`&`, lapply(d_fe[, c("y", covs)], is.finite)), ]
-    if (mode == "Prevalence") { ok_blk <- names(which(tapply(dm$y, dm$blk, function(v) n_distinct(v) > 1))); dm <- dm[as.character(dm$blk) %in% ok_blk, ] }
-    rs <- tryCatch(if (mode == "Severity") residuals(lm(reformulate(c(covs, "factor(blk)"), "ysr"), transform(dm, ysr = rank(y))))
-                   else residuals(suppressWarnings(glm(reformulate(c(covs, "factor(blk)"), "y"), binomial, dm)), type = "pearson"),
-                   error = function(e) NULL)
-    if (!is.null(rs)) { m <- moran_of(rs, dm$GEOID)
-    mor[[length(mor) + 1]] <- tibble(source = src, month = mm, mode = mode, moran_I_after_blocks = m["I"], p_after_blocks = m["p"]) }
-    message(sprintf("done: %s | %s | %s", src, mm, mode))
+# Constrained (through 0) and unconstrained (free intercept) versions
+p_1to1_zero <- build_1to1_fig(TRUE,  "regression through 0",  "fig_field_vs_tool_1to1_through0")
+p_1to1_free <- build_1to1_fig(FALSE, "regression with intercept", "fig_field_vs_tool_1to1_free")
+
+# -----------------------------
+# 2e. Deviations from 1:1
+# -----------------------------
+make_resid_plot <- function(df, x_col, y_col,
+                            x_label, y_label, title_str, y_lim) {
+  
+  df$location <- factor(df$location, levels = all_locations)
+  df$season   <- factor(df$season,   levels = c("Spring", "Summer", "Fall", "Winter"))
+  
+  df$resid <- df[[y_col]] - df[[x_col]]  # deviation from 1:1 line
+  
+  ggplot(df, aes(x = .data[[x_col]], y = resid,
+                 colour = season, shape = location)) +
+    geom_hline(yintercept = 0,
+               linetype = "dashed", colour = "grey40", linewidth = 1.1) +
+    geom_point(size = PT_SIZE, alpha = 0.9) +
+    shared_colour() +
+    shared_shape() +
+    scale_x_continuous(limits = c(0, axis_max),
+                       breaks = seq(0, axis_max, 20),
+                       labels = function(x) paste0(x, "%")) +
+    scale_y_continuous(
+      limits = c(-y_lim, y_lim),
+      breaks = seq(-y_lim, y_lim, by = 10),
+      labels = function(x) paste0(x, "%")
+    ) +
+    labs(x = x_label, y = y_label, title = title_str) +
+    theme_ms()
+}
+
+# Shared y-axis limit from 1:1 deviations
+gage_dev  <- rdata %>% filter(!is.na(field_mean) & !is.na(gage_pctww)) %>% mutate(dev = gage_pctww - field_mean) %>% pull(dev)
+nhd_dev   <- rdata %>% filter(!is.na(field_mean) & !is.na(nhd_pctww))  %>% mutate(dev = nhd_pctww  - field_mean) %>% pull(dev)
+resid_lim <- ceiling(max(abs(c(gage_dev, nhd_dev))) / 10) * 10
+
+# Panel A: Gage-based deviations
+p_resid_gage <- make_resid_plot(
+  df        = rdata %>% filter(!is.na(field_mean) & !is.na(gage_pctww)),
+  x_col     = "field_mean",
+  y_col     = "gage_pctww",
+  x_label   = "Field-Measured %WW (mean ± 1 SD)",
+  y_label   = "Deviation from 1:1 (%WW)",
+  title_str = "A: Gage-based Deviations from 1:1",
+  y_lim     = resid_lim
+)
+
+# Panel B: NHDPlus deviations
+p_resid_nhd <- make_resid_plot(
+  df        = rdata %>% filter(!is.na(field_mean) & !is.na(nhd_pctww)),
+  x_col     = "field_mean",
+  y_col     = "nhd_pctww",
+  x_label   = "Field-Measured %WW (mean ± 1 SD)",
+  y_label   = "Deviation from 1:1 (%WW)",
+  title_str = "B: NHDPlus Deviations from 1:1",
+  y_lim     = resid_lim
+)
+
+# Legend from panel B (has all locations)
+legend_resid <- get_legend(
+  p_resid_nhd + theme(legend.position = "right")
+)
+
+p_resid_gage_noleg <- p_resid_gage + theme(legend.position = "none")
+p_resid_nhd_noleg  <- p_resid_nhd  + theme(legend.position = "none")
+
+p_resid <- plot_grid(
+  plot_grid(p_resid_gage_noleg, p_resid_nhd_noleg, nrow = 1, labels = NULL),
+  legend_resid,
+  nrow = 1,
+  rel_widths = c(1, 0.15)
+)
+
+title_resid <- ggdraw() +
+  draw_label(
+    "Deviation from 1:1 Agreement: Tool vs. Field-Measured %WW",
+    fontface = "bold", size = TXT_TITLE, hjust = 0.5
+  )
+subtitle_resid <- ggdraw() +
+  draw_label(
+    "Deviation = tool estimate minus field measurement; dashed line = perfect agreement",
+    size = TXT_SUB, hjust = 0.5
+  )
+
+p_resid_final <- plot_grid(title_resid, subtitle_resid, p_resid,
+                           ncol = 1, rel_heights = c(0.07, 0.05, 1))
+
+print(p_resid_final)
+save_fig(p_resid_final, "fig_field_vs_tool_deviations", w = 17, h = 7.5)
+
+# -----------------------------
+# 2f. Agreement metrics (tool vs. field)
+# -----------------------------
+# Errors are tool minus field, in percentage points (pp), so positive = tool over-estimates.
+# PBIAS = 100 * sum(tool - field) / sum(field)  (positive = over-estimate).
+# R2_free is the usual R2; R2_zero is from the through-origin fit and is NOT comparable to it.
+agreement_metrics <- function(df, pred_col, label) {
+  d   <- df %>% filter(!is.na(field_mean), !is.na(.data[[pred_col]]))
+  obs <- d$field_mean
+  sim <- d[[pred_col]]
+  fit_free <- lm(sim ~ obs)
+  fit_zero <- lm(sim ~ obs + 0)
+  tibble(
+    tool           = label,
+    n              = nrow(d),
+    MAE_pp         = mean(abs(sim - obs)),
+    RMSE_pp        = sqrt(mean((sim - obs)^2)),
+    mean_error_pp  = mean(sim - obs),
+    PBIAS_pct      = 100 * sum(sim - obs) / sum(obs),
+    slope_free     = unname(coef(fit_free)[2]),
+    intercept_free = unname(coef(fit_free)[1]),
+    R2_free        = summary(fit_free)$r.squared,
+    slope_zero     = unname(coef(fit_zero)[1]),
+    R2_zero        = summary(fit_zero)$r.squared,
+    n_with_sd      = sum(!is.na(d$field_lower) & !is.na(d$field_upper)),
+    within_1SD     = sum(sim >= d$field_lower & sim <= d$field_upper, na.rm = TRUE)
+  )
+}
+
+metrics <- bind_rows(
+  agreement_metrics(rdata, "gage_pctww", "Gage-based"),
+  agreement_metrics(rdata, "nhd_pctww",  "NHDPlus-based")
+) %>% mutate(across(where(is.numeric), ~ round(.x, 2)))
+print(as.data.frame(metrics))
+
+# Bias by season (is there a seasonal pattern in the errors?)
+season_bias <- bind_rows(
+  rdata %>% filter(!is.na(field_mean), !is.na(gage_pctww)) %>%
+    group_by(season) %>%
+    summarise(tool = "Gage-based", n = n(),
+              mean_error_pp = mean(gage_pctww - field_mean),
+              MAE_pp = mean(abs(gage_pctww - field_mean)), .groups = "drop"),
+  rdata %>% filter(!is.na(field_mean), !is.na(nhd_pctww)) %>%
+    group_by(season) %>%
+    summarise(tool = "NHDPlus-based", n = n(),
+              mean_error_pp = mean(nhd_pctww - field_mean),
+              MAE_pp = mean(abs(nhd_pctww - field_mean)), .groups = "drop")
+) %>% mutate(across(where(is.numeric), ~ round(.x, 1)))
+print(as.data.frame(season_bias))
+
+# Gage range checks: does the gage min-max range contain the field mean? how many hit the 100% cap?
+gage_range_check <- rdata %>%
+  filter(!is.na(field_mean), !is.na(gage_pctww)) %>%
+  summarise(n = n(),
+            field_in_gage_range = sum(field_mean >= gage_min & field_mean <= gage_max, na.rm = TRUE),
+            gage_range_capped   = sum(gage_max >= 99.99, na.rm = TRUE),
+            gage_range_missing  = sum(is.na(gage_min) | is.na(gage_max)))
+print(as.data.frame(gage_range_check))
+
+write.csv(metrics,      file.path(out_dir, "tool_vs_field_metrics.csv"),      row.names = FALSE)
+write.csv(season_bias,  file.path(out_dir, "tool_vs_field_season_bias.csv"),  row.names = FALSE)
+
+# ============================================================
+# 3. Nitrate & conductivity vs. average %WW (1:1 style plots)
+# ============================================================
+
+nitrate_cond <- read_excel(xlsx_path, sheet = "Nitrate_CondVEstimate") %>%
+  rename(
+    site        = Site,
+    month_year  = `Mon. + Year`,
+    cond_pct    = `Cond.`,
+    nitrate_pct = Nitrate,
+    avg_pct     = `Average (%)`
+  ) %>%
+  mutate(
+    # Excel % cells come in as decimals (0.23); multiply by 100
+    across(c(cond_pct, nitrate_pct, avg_pct),
+           ~ {
+             x <- as.numeric(.x)
+             # If all non-NA values are <= 1, assume 0-1 scale and convert
+             if (all(x[!is.na(x)] <= 1)) x * 100 else x
+           }),
+    site = factor(site)
+  )
+
+# Shared axis max
+nc_axis_max <- 100
+
+# Fit stats helper
+fit_label <- function(df, x_col, y_col) {
+  fit   <- lm(df[[y_col]] ~ df[[x_col]])
+  slope <- coef(fit)[2]
+  inter <- coef(fit)[1]
+  r2    <- summary(fit)$r.squared
+  sign_str <- ifelse(inter >= 0, "+", "-")
+  sprintf("y = %.2fx %s %.1f\nR² = %.2f", slope, sign_str, abs(inter), r2)
+}
+
+# Site color/shape scales
+site_levels <- levels(nitrate_cond$site)
+nc_shapes   <- c(16, 17, 15, 18, 8, 10)[seq_along(site_levels)]
+names(nc_shapes) <- site_levels
+
+nc_colors <- RColorBrewer::brewer.pal(max(3, length(site_levels)), "Dark2")[seq_along(site_levels)]
+names(nc_colors) <- site_levels
+
+# Panel A: Conductivity vs Average
+lab_cond <- fit_label(nitrate_cond, "cond_pct", "avg_pct")
+
+p_cond_vs_avg <- ggplot(nitrate_cond,
+                        aes(x = cond_pct, y = avg_pct,
+                            colour = site, shape = site)) +
+  geom_abline(slope = 1, intercept = 0,
+              linetype = "dashed", colour = "grey40", linewidth = 1.1) +
+  geom_smooth(method = "lm", formula = y ~ x,
+              se = TRUE, colour = "grey30", fill = "grey70",
+              alpha = 0.15, linewidth = 1.4,
+              inherit.aes = FALSE,
+              aes(x = cond_pct, y = avg_pct),
+              data = nitrate_cond) +
+  geom_point(size = PT_SIZE, alpha = 0.9) +
+  annotate("text",
+           x = 0.02 * nc_axis_max, y = 0.98 * nc_axis_max,
+           label = lab_cond, hjust = 0, vjust = 1,
+           size = GEOM_TXT, fontface = "italic", colour = "black") +
+  scale_colour_manual(values = nc_colors, name = "Site") +
+  scale_shape_manual(values  = nc_shapes, name = "Site") +
+  scale_x_continuous(limits = c(0, nc_axis_max),
+                     breaks = seq(0, nc_axis_max, 20),
+                     labels = function(x) paste0(x, "%")) +
+  scale_y_continuous(limits = c(0, nc_axis_max),
+                     breaks = seq(0, nc_axis_max, 20),
+                     labels = function(x) paste0(x, "%")) +
+  coord_fixed() +
+  labs(
+    x = "Conductivity-Estimated %WW",
+    y = "Multi-Constituent Average %WW",
+    title = "A: Conductivity vs. Average %WW"
+  ) +
+  theme_ms()
+
+# Panel B: Nitrate vs Average
+lab_nit <- fit_label(nitrate_cond, "nitrate_pct", "avg_pct")
+
+p_nit_vs_avg <- ggplot(nitrate_cond,
+                       aes(x = nitrate_pct, y = avg_pct,
+                           colour = site, shape = site)) +
+  geom_abline(slope = 1, intercept = 0,
+              linetype = "dashed", colour = "grey40", linewidth = 1.1) +
+  geom_smooth(method = "lm", formula = y ~ x,
+              se = TRUE, colour = "grey30", fill = "grey70",
+              alpha = 0.15, linewidth = 1.4,
+              inherit.aes = FALSE,
+              aes(x = nitrate_pct, y = avg_pct),
+              data = nitrate_cond) +
+  geom_point(size = PT_SIZE, alpha = 0.9) +
+  annotate("text",
+           x = 0.02 * nc_axis_max, y = 0.98 * nc_axis_max,
+           label = lab_nit, hjust = 0, vjust = 1,
+           size = GEOM_TXT, fontface = "italic", colour = "black") +
+  scale_colour_manual(values = nc_colors, name = "Site") +
+  scale_shape_manual(values  = nc_shapes, name = "Site") +
+  scale_x_continuous(limits = c(0, nc_axis_max),
+                     breaks = seq(0, nc_axis_max, 20),
+                     labels = function(x) paste0(x, "%")) +
+  scale_y_continuous(limits = c(0, nc_axis_max),
+                     breaks = seq(0, nc_axis_max, 20),
+                     labels = function(x) paste0(x, "%")) +
+  coord_fixed() +
+  labs(
+    x = "Nitrate-Estimated %WW",
+    y = "Multi-Constituent Average %WW",
+    title = "B: Nitrate vs. Average %WW"
+  ) +
+  theme_ms()
+
+# Combine with shared legend
+legend_nc <- get_legend(p_nit_vs_avg + theme(legend.position = "right"))
+
+p_nc_final <- plot_grid(
+  plot_grid(
+    p_cond_vs_avg + theme(legend.position = "none"),
+    p_nit_vs_avg  + theme(legend.position = "none"),
+    nrow = 1
+  ),
+  legend_nc,
+  nrow = 1,
+  rel_widths = c(1, 0.12)
+)
+
+title_nc <- ggdraw() +
+  draw_label(
+    "Single-Constituent Estimates vs. Multi-Constituent Average %WW",
+    fontface = "bold", size = TXT_TITLE, hjust = 0.5
+  )
+subtitle_nc <- ggdraw() +
+  draw_label(
+    "Dashed line = 1:1 agreement; shaded band = 95% CI of regression",
+    size = TXT_SUB, hjust = 0.5
+  )
+
+p_nc_final <- plot_grid(title_nc, subtitle_nc, p_nc_final,
+                        ncol = 1, rel_heights = c(0.07, 0.05, 1))
+
+print(p_nc_final)
+save_fig(p_nc_final, "fig_nitrate_conductivity_vs_avg", w = 17, h = 8.5)
+
+# ============================================================
+# 4. Rural vs. urban: prevalence (shown once) + severity across 12 months
+# ============================================================
+# Sheet in the combined workbook holding rural_urban_effects.csv
+# (columns: source, month, stat, est, lo, hi, mode)
+effects_sheet <- "RuralUrban_Effects"   # <- change if you name the sheet differently
+
+if (!effects_sheet %in% excel_sheets(xlsx_path)) {
+  stop("Sheet '", effects_sheet, "' not found. Sheets in the workbook: ",
+       paste(excel_sheets(xlsx_path), collapse = ", "),
+       "\nSet effects_sheet (Section 4) to the right name.")
+}
+eff <- read_excel(xlsx_path, sheet = effects_sheet) %>%
+  mutate(month_f = factor(as.integer(month), levels = 1:12, labels = month.abb))
+
+src_cols <- c("Gage-based" = "#1b9e77", "NHDPlus-based" = "#7570b3")
+dodge    <- position_dodge(width = 0.55)
+
+# Local theme tweaks for this figure (left-aligned titles, no legend title)
+theme_eff <- function() {
+  theme_ms() + theme(plot.title    = element_text(face = "bold", size = TXT_TITLE, hjust = 0),
+                     plot.title.position = "plot",      # anchor titles to the full panel width so they are not clipped
+                     plot.subtitle = element_text(size = TXT_SUB, hjust = 0),
+                     legend.title  = element_blank())
+}
+
+# ---- A. Prevalence odds ratio, unadjusted vs. adjusted (shown once) ----------
+# Prevalence = any impacted segment, so it does not depend on month or flow source.
+# Use the gage rows and summarise across the 12 months (estimates differ by < 0.3).
+prev <- eff %>%
+  filter(source == "Gage-based", stat %in% c("odds_ratio_unadj", "odds_ratio_adj")) %>%
+  group_by(stat) %>%
+  summarise(est = median(est), lo = median(lo), hi = median(hi), .groups = "drop") %>%
+  mutate(model = factor(ifelse(stat == "odds_ratio_unadj",
+                               "Unadjusted", "Adjusted for\nDrainage Area"),
+                        levels = c("Adjusted for\nDrainage Area", "Unadjusted")),
+         label = sprintf("OR = %.2f\n(%.2f-%.2f)", est, lo, hi))
+
+p_prev <- ggplot(prev, aes(est, model)) +
+  geom_vline(xintercept = 1, linetype = "dashed", colour = "grey40", linewidth = 1) +
+  geom_errorbarh(aes(xmin = lo, xmax = hi), height = 0.18, linewidth = 1.2) +
+  geom_point(size = 5) +
+  geom_text(aes(label = label), vjust = -0.9, size = 5.2, lineheight = 0.95) +
+  scale_x_log10(breaks = c(0.25, 0.5, 1, 2, 4, 8),
+                labels = c("0.25", "0.5", "1", "2", "4", "8")) +
+  coord_cartesian(ylim = c(0.6, 2.6)) +
+  labs(title = "A  Prevalence",
+       subtitle = "Rural vs. Urban Odds of an\nImpacted Segment",
+       x = "Odds Ratio (Log Scale)\n>1 = More in Rural", y = NULL) +
+  theme_eff() + theme(panel.grid.major.y = element_blank())
+
+# ---- B. Severity rank correlation, unadjusted vs. adjusted (same style as A) ----
+# Median across the 12 monthly estimates (and CI limits), gage-based rows.
+sev_sum <- eff %>%
+  filter(source == "Gage-based", stat %in% c("rank_corr_unadj", "rank_corr_adj")) %>%
+  group_by(stat) %>%
+  summarise(est = median(est), lo = median(lo), hi = median(hi), .groups = "drop") %>%
+  mutate(model = factor(ifelse(stat == "rank_corr_unadj", "Unadjusted", "Adjusted for\nDrainage Area"),
+                        levels = c("Adjusted for\nDrainage Area", "Unadjusted")),
+         label = sprintf("rho = %.2f\n(%.2f to %.2f)", est, lo, hi))
+
+p_sev_sum <- ggplot(sev_sum, aes(est, model)) +
+  geom_vline(xintercept = 0, linetype = "dashed", colour = "grey40", linewidth = 1) +
+  geom_errorbarh(aes(xmin = lo, xmax = hi), height = 0.18, linewidth = 1.2) +
+  geom_point(size = 5) +
+  geom_text(aes(label = label), vjust = -0.9, size = 5.2, lineheight = 0.95) +
+  coord_cartesian(xlim = c(-0.6, 0.1), ylim = c(0.6, 2.6)) +
+  labs(title = "B  Severity",
+       subtitle = "Rank Correlation of Rurality With %WWef\nAmong Impacted Segments",
+       x = "Rank Correlation (Median Across Months)\n<0 = Lower in Rural", y = NULL) +
+  theme_eff() + theme(panel.grid.major.y = element_blank())
+
+p_rural_urban <- (p_prev | p_sev_sum) +
+  plot_annotation(
+    title = "Rural vs. Urban Wastewater Effluent Prevalence and Severity",
+    theme = theme(plot.title = element_text(face = "bold", size = TXT_TITLE + 2))
+  )
+print(p_rural_urban)
+save_fig(p_rural_urban, "fig_rural_urban_prevalence_severity", w = 16, h = 7.5)
+
+# ---- SI figures: severity by month (one per flow source) -----------------------
+# A: rank correlation, unadjusted vs adjusted. B, C: probability urban is higher and
+# median difference (these exist only unadjusted).
+model_cols <- c("Unadjusted" = "grey35", "Adjusted for Drainage Area" = "#2a78d6")
+
+make_severity_si <- function(src, file_name) {
+  src_col <- unname(src_cols[src])
+  d <- eff %>% filter(source == src)
+  
+  p_rc <- d %>%
+    filter(stat %in% c("rank_corr_unadj", "rank_corr_adj")) %>%
+    mutate(model = factor(ifelse(stat == "rank_corr_unadj", "Unadjusted", "Adjusted for Drainage Area"),
+                          levels = names(model_cols))) %>%
+    ggplot(aes(month_f, est, colour = model)) +
+    geom_hline(yintercept = 0, colour = "grey40", linewidth = 0.9) +
+    geom_errorbar(aes(ymin = lo, ymax = hi), width = 0.25, linewidth = 0.9,
+                  alpha = 0.75, position = dodge) +
+    geom_point(size = 4, position = dodge) +
+    scale_colour_manual(values = model_cols, name = NULL) +
+    labs(title = "A  Rank Correlation, Unadjusted vs. Adjusted",
+         subtitle = "Negative = Lower %WWef in Rural Tracts",
+         x = NULL, y = "Rank Correlation") +
+    theme_eff() + theme(legend.position = "top")
+  
+  # rank-biserial r = P(rural > urban) - P(rural < urban), so
+  # P(urban higher) = (1 - r)/2. The CI flips because the transform is decreasing.
+  p_prob <- d %>%
+    filter(stat == "rank_biserial") %>%
+    mutate(prob = 100 * (1 - est) / 2, p_lo = 100 * (1 - hi) / 2, p_hi = 100 * (1 - lo) / 2) %>%
+    ggplot(aes(month_f, prob)) +
+    geom_hline(yintercept = 50, colour = "grey40", linewidth = 0.9) +
+    geom_errorbar(aes(ymin = p_lo, ymax = p_hi), width = 0.25, linewidth = 0.9,
+                  alpha = 0.75, colour = src_col) +
+    geom_point(size = 4, colour = src_col) +
+    scale_y_continuous(limits = c(40, 90), breaks = seq(40, 90, 10),
+                       labels = function(x) paste0(x, "%")) +
+    labs(title = "B  How Often Urban Is Higher (Unadjusted)",
+         subtitle = "Chance a Random Urban Tract Has Higher %WWef\nThan a Rural One (50% = No Difference)",
+         x = NULL, y = "Probability Urban Is Higher") +
+    theme_eff()
+  
+  p_md <- d %>%
+    filter(stat == "median_diff_pp") %>%
+    ggplot(aes(month_f, est)) +
+    geom_hline(yintercept = 0, colour = "grey40", linewidth = 0.9) +
+    geom_errorbar(aes(ymin = lo, ymax = hi), width = 0.25, linewidth = 0.9,
+                  alpha = 0.75, colour = src_col) +
+    geom_point(size = 4, colour = src_col) +
+    labs(title = "C  Size of Difference (Unadjusted)",
+         subtitle = "Rural Minus Urban Median %WWef Among Impacted Segments",
+         x = NULL, y = "Median Difference (Percentage Points)") +
+    theme_eff()
+  
+  fig <- (p_rc / p_prob / p_md) +
+    plot_annotation(
+      title = paste0("Rural vs. Urban Wastewater Effluent\nSeverity by Month (", src, ")"),
+      theme = theme(plot.title = element_text(face = "bold", size = TXT_TITLE + 2)))
+  print(fig)
+  save_fig(fig, file_name, w = 12, h = 14)
+  invisible(fig)
+}
+make_severity_si("Gage-based",    "figS_rural_urban_severity_Gage")
+make_severity_si("NHDPlus-based", "figS_rural_urban_severity_NHDPlus")
+
+# ---- SI figure: prevalence odds ratio by month --------------------------------
+# Prevalence does not depend on the flow source, so the gage-based rows are used
+# (they are identical to the NHDPlus-based rows).
+prev_month <- eff %>%
+  filter(source == "Gage-based", stat %in% c("odds_ratio_unadj", "odds_ratio_adj")) %>%
+  mutate(model = factor(ifelse(stat == "odds_ratio_unadj", "Unadjusted", "Adjusted for Drainage Area"),
+                        levels = c("Unadjusted", "Adjusted for Drainage Area")))
+
+p_prev_month <- ggplot(prev_month, aes(month_f, est, colour = model)) +
+  geom_hline(yintercept = 1, linetype = "dashed", colour = "grey40", linewidth = 1) +
+  geom_errorbar(aes(ymin = lo, ymax = hi), width = 0.25, linewidth = 0.9,
+                alpha = 0.7, position = dodge) +
+  geom_point(size = 4, position = dodge) +
+  scale_colour_manual(values = c("Unadjusted" = "grey35", "Adjusted for Drainage Area" = "#2a78d6"),
+                      name = NULL) +
+  scale_y_log10(breaks = c(0.25, 0.5, 1, 2, 4, 8),
+                labels = c("0.25", "0.5", "1", "2", "4", "8")) +
+  labs(title = "Prevalence of Wastewater Effluent in\nRural vs. Urban Tracts, by Month",
+       subtitle = "Odds a rural tract contains an impacted segment,\nrelative to an urban tract (>1 = more in rural)",
+       x = NULL, y = "Odds Ratio (Log Scale)") +
+  theme_ms() +
+  theme(plot.title    = element_text(face = "bold", size = TXT_TITLE - 2, hjust = 0),
+        plot.title.position = "plot",
+        plot.subtitle = element_text(size = TXT_SUB - 2, hjust = 0),
+        legend.position = "top")
+
+print(p_prev_month)
+save_fig(p_prev_month, "figS_prevalence_by_month", w = 12, h = 7.5)
+
+# ============================================================
+# 5. Equity: severity associations (one summary figure, gage-based)
+#    + SI table with all indicators and both denominators
+# ============================================================
+# Sheets in the combined workbook (CSV outputs from the offline equity scripts)
+eq_sheet <- "Equity_Associations"   # equity_associations.csv
+sb_sheet <- "SpatialBlock_Check"    # spatial_block_check.csv
+
+MIN_MONTHS      <- 9          # "most months" = at least this many of 12
+TOP_N           <- 15         # indicators shown (ranked by |median adjusted association|, gage-based)
+ALPHA           <- 0.05       # BH q threshold
+EXCLUDE_PATTERN <- "wastewater|percentile|rurality"   # circular / duplicate / shown in Section 4
+
+for (s in c(eq_sheet, sb_sheet)) {
+  if (!s %in% excel_sheets(xlsx_path)) {
+    stop("Sheet '", s, "' not found. Sheets in the workbook: ",
+         paste(excel_sheets(xlsx_path), collapse = ", "))
   }
 }
-chk <- bind_rows(res) %>%
-  group_by(spec, source, month, mode) %>% mutate(q = p.adjust(p, "BH")) %>% ungroup() %>%
-  left_join(base_assoc %>% select(source, month, mode, indicator, base_effect = effect_adj, base_q = q_adj),
-            by = c("source", "month", "mode", "indicator")) %>%
-  mutate(dir_new  = ifelse(mode == "Prevalence", log(pmax(effect, 1e-6)), effect),
-         dir_base = ifelse(mode == "Prevalence", log(pmax(base_effect, 1e-6)), base_effect),
-         same_sign = sign(dir_new) == sign(dir_base),
-         still_sig = !is.na(q) & q < 0.05 & same_sign) %>%
-  select(-dir_new, -dir_base)
-write_csv(chk, file.path(out_dir, "spatial_block_check.csv"))
 
-# ---- 2. Headline summary ---------------------------------------------------------------------
-summ <- chk %>% filter(!is.na(base_q), base_q < 0.05) %>%
-  group_by(spec, source, mode) %>%
-  summarise(n_sig_at_baseline = n(), pct_same_direction = round(100 * mean(same_sign, na.rm = TRUE), 1),
-            pct_still_significant = round(100 * mean(still_sig, na.rm = TRUE), 1), .groups = "drop")
-write_csv(summ, file.path(out_dir, "spatial_block_summary.csv"))
-cat("\n--- Of the indicators significant at baseline (adjusted, q<0.05), how many survive? ---\n"); print(summ, n = 20)
+eqa <- read_excel(xlsx_path, sheet = eq_sheet) %>%
+  mutate(month = as.integer(month)) %>%
+  filter(mode == "Severity",
+         !grepl(EXCLUDE_PATTERN, indicator, ignore.case = TRUE),
+         is.finite(effect_adj))
 
-mor_tab <- bind_rows(mor) %>% left_join(base_moran %>% select(source, month, mode, moran_I_outcome, moran_I_after_stream_size),
-                                        by = c("source", "month", "mode"))
-write_csv(mor_tab, file.path(out_dir, "spatial_block_moran.csv"))
-cat("\n--- Moran's I (median across months): raw outcome -> after stream size -> after stream size + blocks ---\n")
-print(mor_tab %>% group_by(source, mode) %>%
-        summarise(outcome = median(moran_I_outcome, na.rm = TRUE), after_stream_size = median(moran_I_after_stream_size, na.rm = TRUE),
-                  after_blocks = median(moran_I_after_blocks, na.rm = TRUE), .groups = "drop"))
-cat(sprintf("\nDone. Files are in ./%s\n", out_dir))
+sbc <- read_excel(xlsx_path, sheet = sb_sheet) %>%
+  mutate(month = as.integer(month), still_sig = as.logical(still_sig)) %>%
+  filter(mode == "Severity",
+         !grepl(EXCLUDE_PATTERN, indicator, ignore.case = TRUE))
 
+# One row per source x indicator, summarised across months
+eq_sum <- eqa %>%
+  group_by(source, indicator) %>%
+  summarise(
+    med_adj    = median(effect_adj),
+    min_adj    = min(effect_adj),
+    max_adj    = max(effect_adj),
+    med_unadj  = median(effect_unadj, na.rm = TRUE),
+    sig_months = sum(q_adj < ALPHA & sign(effect_adj) == sign(median(effect_adj)), na.rm = TRUE),
+    .groups = "drop"
+  )
+
+# Robust to the spatial checks: still significant in most months under BOTH
+# the block-fixed-effects and the Denver-excluded runs (reported in the SI table, not the figure)
+sb_sum <- sbc %>%
+  group_by(source, indicator, spec) %>%
+  summarise(ok = sum(still_sig, na.rm = TRUE), .groups = "drop") %>%
+  group_by(source, indicator) %>%
+  summarise(spatial_checks_hold = n_distinct(spec) == 2 && all(ok >= MIN_MONTHS), .groups = "drop")
+
+# ---- Theme assignment (keyword rules on the indicator name) ----------------
+# CHECK the printed table below: edit the patterns if any indicator lands in the wrong theme.
+theme_levels <- c("Air pollution & traffic",
+                  "Facilities & land use",
+                  "Natural hazard risk",
+                  "Demographics",
+                  "Other burdens")
+assign_theme <- function(x) {
+  case_when(
+    grepl("diesel|pm2|pm 2|particulate|ozone|traffic|air toxics", x, ignore.case = TRUE) ~ theme_levels[1],
+    grepl("flood|wildfire|expected .*loss|natural hazard", x, ignore.case = TRUE)         ~ theme_levels[3],
+    grepl("hazardous|risk management|rmp|superfund|impervious|cropland|underground|lead paint|facilit|proximity", x, ignore.case = TRUE) ~ theme_levels[2],
+    grepl("^percent|^share of (people|persons|residents)|age |race|hispanic|asian|white|black|language|education", x, ignore.case = TRUE) ~ theme_levels[4],
+    TRUE ~ theme_levels[5]
+  )
+}
+
+eq_sum <- eq_sum %>%
+  left_join(sb_sum, by = c("source", "indicator")) %>%
+  mutate(spatial_checks_hold = coalesce(spatial_checks_hold, FALSE),
+         consistent = sig_months >= MIN_MONTHS,
+         theme = factor(assign_theme(indicator), levels = theme_levels))
+
+# ---- SI table: ALL indicators, both denominators ---------------------------
+si_tbl <- eq_sum %>%
+  arrange(source, theme, desc(abs(med_adj))) %>%
+  transmute(source, theme, indicator,
+            median_rho_adj = round(med_adj, 3),
+            min_rho_adj    = round(min_adj, 3),
+            max_rho_adj    = round(max_adj, 3),
+            median_rho_unadj = round(med_unadj, 3),
+            months_significant = sig_months,
+            holds_in_spatial_checks = spatial_checks_hold)
+write.csv(si_tbl, file.path(out_dir, "tableS_equity_associations_all_indicators.csv"), row.names = FALSE)
+
+cat("\nThemes assigned (gage-based, shown indicators):\n")
+
+# ---- Figure: gage-based only, top indicators, grouped by theme --------------
+wrap_lab <- function(x, w = 38) vapply(x, function(z) paste(strwrap(z, w), collapse = "\n"), "")
+
+eq_gage <- eq_sum %>% filter(source == "Gage-based")
+keep <- eq_gage %>% slice_max(abs(med_adj), n = TOP_N, with_ties = FALSE) %>% pull(indicator)
+
+eq_plot <- eq_gage %>%
+  filter(indicator %in% keep) %>%
+  droplevels() %>%
+  group_by(theme) %>%
+  arrange(med_adj, .by_group = TRUE) %>%
+  ungroup() %>%
+  mutate(indicator = factor(wrap_lab(indicator), levels = unique(wrap_lab(indicator))),
+         consistent_lab = factor(ifelse(consistent,
+                                        "Significant in most months",
+                                        "Not consistently significant"),
+                                 levels = c("Significant in most months", "Not consistently significant")))
+
+print(eq_plot %>% select(theme, indicator, med_adj, sig_months, spatial_checks_hold) %>% arrange(theme, med_adj), n = Inf)
+
+gage_col <- unname(src_cols["Gage-based"])
+
+p_equity <- ggplot(eq_plot, aes(med_adj, indicator)) +
+  geom_vline(xintercept = 0, colour = "grey40", linewidth = 0.9) +
+  geom_linerange(aes(xmin = min_adj, xmax = max_adj), orientation = "y",
+                 colour = gage_col, linewidth = 1.2, alpha = 0.6) +
+  geom_point(aes(shape = consistent_lab), colour = gage_col, fill = "white",
+             size = 5, stroke = 1.5) +
+  scale_shape_manual(values = c("Significant in most months" = 16,
+                                "Not consistently significant" = 1),
+                     limits = c("Significant in most months", "Not consistently significant"),
+                     name = NULL, drop = FALSE) +
+  facet_grid(theme ~ ., scales = "free_y", space = "free_y", switch = "y") +
+  labs(
+    title    = "Screening-Level Associations Between Tract Indicators\nand Wastewater Effluent Severity",
+    x = "Association With %WWef (Rank Correlation, Adjusted for Drainage Area)",
+    y = NULL
+  ) +
+  theme_ms() +
+  theme(plot.title    = element_text(face = "bold", size = TXT_TITLE - 2, hjust = 0),
+        plot.title.position = "plot",     # anchor title to the full figure, not the panel
+        axis.text.y   = element_text(size = TXT_AXIS - 2, lineheight = 0.9),
+        strip.placement = "outside",
+        strip.text.y.left = element_text(angle = 0, hjust = 1, face = "bold", size = TXT_AXIS - 2),
+        strip.background  = element_blank(),
+        panel.spacing.y   = unit(0.6, "lines"),
+        # legend only needed if some plotted indicators are not consistently significant
+        legend.position = if (all(eq_plot$consistent)) "none" else "bottom",
+        legend.title = element_blank(),
+        panel.grid.major.y = element_line(colour = "grey92"))
+
+print(p_equity)
+save_fig(p_equity, "fig_equity_severity_associations", w = 15, h = 11)

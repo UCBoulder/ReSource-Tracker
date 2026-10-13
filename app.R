@@ -532,7 +532,7 @@ same_seg_ww_adj_seed <- c(
   "760015713", #Aspen
   "390005515", #Las Animas
   "550018746"  #BoxElder
-  )
+)
 
 # One row per Hydroseq
 flow_order <- flow_order %>%
@@ -814,7 +814,7 @@ eq_robust <- function(m, term, cl, odds = FALSE) {
   c(r, p = 2 * stats::pt(-abs(b / se), G - 1))
 }
 
-# One indicator -> unadjusted + stream-size-adjusted effect.
+# One indicator -> unadjusted + drainage-area-adjusted effect.
 #   Severity  : rank correlation (rho); adjusted = also controls for log10 drainage area
 #   Prevalence: odds ratio (Yes vs No, or per +1 SD); adjusted = also controls for log10 drainage area + log(# segments)
 # `tab` is the output of cejst_summary() (needs metric_value, lDA, lnseg, county, rurality).
@@ -852,7 +852,7 @@ eq_stat_line <- function(r, mode) {
   if (is.null(r) || nrow(r) != 1) return(NULL)
   f <- function(x) formatC(x, format = "f", digits = 2)
   nm <- if (identical(mode, "Prevalence")) "OR" else "rho"
-  sprintf("Adjusted for stream size: %s = %s (95%% CI %s to %s), BH q = %s  |  unadjusted %s = %s",
+  sprintf("Adjusted for drainage area: %s = %s (95%% CI %s to %s), BH q = %s  |  unadjusted %s = %s",
           nm, f(r$effect_adj), f(r$lo_adj), f(r$hi_adj), formatC(r$q_adj, format = "e", digits = 1),
           nm, f(r$effect_unadj))
 }  
@@ -955,7 +955,7 @@ ui <- navbarPage(
             tags$br(), tags$br(),
             "For equity analysis using Climate and Economic Justice Screening Tool (CEJST) indicators, use the 'Equity' tab."
           ), 
-         
+          
           tags$hr(),
           h4("Selected census tract"),
           verbatimTextOutput("tract_info")
@@ -1017,7 +1017,7 @@ ui <- navbarPage(
             "The Equity tab links the stream network to Climate and Economic Justice Screening Tool (CEJST) census tracts. ",
             "For each tract, it summarizes tract-level wastewater prevalence (whether any intersecting segment is impacted) ",
             "and severity (how large % wastewater is among impacted segments), ",
-            "and estimates how strongly each tract-level CEJST indicators is associated with wastewater influence, adjusting for stream size."
+            "and estimates how strongly each tract-level CEJST indicators is associated with wastewater influence, adjusting for drainage area."
           ),
           h4("5. Reading the popups (Map tab)"),
           p("Click on a stream segment to see a popup with:"),
@@ -1104,20 +1104,20 @@ ui <- navbarPage(
             "CEJST variable",
             choices = NULL
           )
-          ),
+        ),
         
         column(
           width = 9,
           h3("Wastewater influence and CEJST indicators"),
           tags$p(
             style = "color:#555;",
-            "Co-location patterns, adjusted for stream size and clustered by county. ",
+            "Co-location patterns, adjusted for drainage area and clustered by county. ",
             "Not causal, and not individual exposure. Prevalence results are descriptive."
           ),
           
           h4("Overview: all indicators"),
           helpText(
-            "Each row is one CEJST indicator, adjusted for stream size (drainage area). ",
+            "Each row is one CEJST indicator, adjusted for drainage area. ",
             "Filled = BH q < 0.05, open = not significant. Orange = the indicator selected on the left. ",
             "Click a row to select it."
           ),
@@ -1470,14 +1470,14 @@ server <- function(input, output, session) {
   flowlines_4326 <- sf::st_transform(flowlines, 4326)
   fl_cejst_sf <- sf::st_join(flowlines_4326, tracts_sf, left = TRUE)
   fl_cejst <- fl_cejst_sf %>% sf::st_drop_geometry()
-
+  
   # Boolean CEJST columns are treated like rurality.
   # Only the hardcoded columns below are offered (disadvantaged yes/no)
   cejst_lgl_keep <- c("Identified as disadvantaged")
   cejst_lgl_cols <- intersect(cejst_lgl_keep, names(cejst)[sapply(cejst, is.logical)])
   is_cat_var <- function(v) identical(v, "rurality") || isTRUE(v %in% cejst_lgl_cols)
   
-
+  
   # Populate CEJST variable choices (numeric, non-percentile) + rurality
   observe({
     cejst_num_all <- names(cejst)[sapply(cejst, is.numeric)]
@@ -1507,7 +1507,7 @@ server <- function(input, output, session) {
   ## This is the bulk of the changes to mapgl. 
   ## mapgl functions reference the entire 'sf' object when sent to functions. 
   ## This helper function trims the tracts to what the map actually calls to reduce some comptuaiton. 
-
+  
   ## Trimming flowlines data in tracts_sf
   tracts_map <- tracts_sf %>%
     dplyr::mutate(
@@ -1517,21 +1517,21 @@ server <- function(input, output, session) {
         "<b> Low income tract? </b>",
         ifelse(low_income, "Yes", "No"), "<br>", 
         ifelse(!is.na(status), 
-                paste0("<b>Status: </b>", status, "<br>"), 
-                ""), 
+               paste0("<b>Status: </b>", status, "<br>"), 
+               ""), 
         "<i>Click to see tract-level wastewater metrics in left panel.</i>"
       )
     )%>%
     dplyr::select(GEOID, popup_html)
-
-## Generates static object that is developed once. 
+  
+  ## Generates static object that is developed once. 
   dwtp_map <- geocoded_dwtp
   if (!inherits(dwtp_map, "sf")) {
     dwtp_map <- dwtp_map %>%
       dplyr::filter(!is.na(Longitude), !is.na(Latitude)) %>%
       sf::st_as_sf(coords = c("Longitude", "Latitude"), crs = 4326)
   }
-## Transmute drops trims columns not called explictly. Repeated for dwtp and wwtp
+  ## Transmute drops trims columns not called explictly. Repeated for dwtp and wwtp
   dwtp_map <- dwtp_map %>%
     dplyr::transmute(
       pws_name   = `PWS Name`,
@@ -1546,8 +1546,8 @@ server <- function(input, output, session) {
   ## Uses select to filter gage sf
   gages_map <- usgs_gages_sf %>%
     dplyr::select(station_nm, popup_str)
-
-
+  
+  
   # ---- STREAMS: colours + popups for the current month / denominator ---------
   ## Updating color logic for heatmap with mapgl functions. 
   ## Note steams_layer_data is reactive; depends on month and source to determine color, 
@@ -1557,20 +1557,20 @@ server <- function(input, output, session) {
     dat  <- filtered_flowlines()
     m    <- input$month
     mlab <- month_labels[m]
-
+    
     vals     <- dat[[spec$pct]]
     ww_color <- ifelse(is.na(vals), "#d9d9d9", pal(vals))
-
+    
     if (input$src == "Gage-based") {
       ww_mean_col <- paste0("WW_cum_mean_", m)
       ww_low_col  <- paste0("WW_cum_low_",  m)
       ww_high_col <- paste0("WW_cum_high_", m)
       sd_col      <- paste0("WW_cum_sd_",   m)
-
+      
       pct_mean_col <- paste0("pct_mean_", m)
       pct_min_col  <- paste0("pct_min_",  m)
       pct_max_col  <- paste0("pct_max_",  m)
-
+      
       popup_html <- paste0(
         "<b>Hydroseq:</b> ", dat$Hydroseq, "<br><br>",
         "<b>", mlab, " WW Flow (mean±sd):</b> ",
@@ -1595,7 +1595,7 @@ server <- function(input, output, session) {
     } else {
       q_nhd_col    <- paste0("QE_", m, "_nhd")
       pct_mean_nhd <- paste0("pct_mean_", m, "_nhd")
-
+      
       popup_html <- paste0(
         "<b>Hydroseq:</b> ", dat$Hydroseq, "<br><br>",
         "<b>", mlab, " NHDPlus flow:</b> ",
@@ -1605,7 +1605,7 @@ server <- function(input, output, session) {
         contrib_block(dat[[paste0("contributors_html_", m)]])
       )
     }
-
+    
     sf::st_sf(
       data.frame(
         hydroseq   = dat$Hydroseq,
@@ -1618,15 +1618,15 @@ server <- function(input, output, session) {
       geometry = sf::st_geometry(dat)
     )
   })
-
+  
   pct_legend_title <- function(src, m) {
     paste0("% Wastewater (", src, ", ", month_labels[m], ")")
   }
-
-
-    # Custom HTML legend with circle markers
-    symbol_legend_html <-
-      "<div style='background: white; padding: 6px 8px; font-size: 12px;
+  
+  
+  # Custom HTML legend with circle markers
+  symbol_legend_html <-
+    "<div style='background: white; padding: 6px 8px; font-size: 12px;
                box-shadow: 0 0 10px rgba(0,0,0,0.2);'>
      <b>Map symbols</b><br>
      <div>
@@ -1650,7 +1650,7 @@ server <- function(input, output, session) {
        Stream with no %WW data
      </div>
    </div>"
-
+  
   # ---- BASE MAP ----------------------------------------------
   # MapLibre draws layers inthe order they are called.
   output$map <- renderMaplibre({
@@ -1660,32 +1660,32 @@ server <- function(input, output, session) {
       mapgl::fit_bounds(flowlines, animate = FALSE) %>%
       mapgl::add_navigation_control(position = "top-right") %>%
       mapgl::add_scale_control(position = "bottom-left") %>%
-
+      
       ## --- Census Tract Polygons ------------------------------
-      ## Those drawn first are on the 'bottom' of the map
-      ## The color options here can be changed based on readability etc
-      mapgl::add_fill_layer(
-        id = "tracts", 
-        source = tracts_map, 
-        fill_color = "#CCCCCC", 
-        fill_opacity = 0.15, 
-        fill_outline_color = "#666666", 
-        hover_options = list(fill_color = "#000000", fill_opacity = 0.35), 
-        popup = "popup_html"
-      ) %>%
+    ## Those drawn first are on the 'bottom' of the map
+    ## The color options here can be changed based on readability etc
+    mapgl::add_fill_layer(
+      id = "tracts", 
+      source = tracts_map, 
+      fill_color = "#CCCCCC", 
+      fill_opacity = 0.15, 
+      fill_outline_color = "#666666", 
+      hover_options = list(fill_color = "#000000", fill_opacity = 0.35), 
+      popup = "popup_html"
+    ) %>%
       
       ## --- Streams ---------------------------------------------------
-      ## source calls isolate() to not recompute on changes to month/source dropdown
-      mapgl::add_line_layer(
-        id = "streams", 
-        source = isolate(streams_layer_data()), 
-        line_color = mapgl::get_column("ww_color"), 
-        line_width = mapgl::get_column("line_w"), 
-        line_opacity = 0.85, 
-        popup = "popup_html"
-      ) %>%
-    
-    ## --- DWTP Markers -------------------------------------------------
+    ## source calls isolate() to not recompute on changes to month/source dropdown
+    mapgl::add_line_layer(
+      id = "streams", 
+      source = isolate(streams_layer_data()), 
+      line_color = mapgl::get_column("ww_color"), 
+      line_width = mapgl::get_column("line_w"), 
+      line_opacity = 0.85, 
+      popup = "popup_html"
+    ) %>%
+      
+      ## --- DWTP Markers -------------------------------------------------
     mapgl::add_circle_layer(
       id = "dwtp", 
       source = dwtp_map, 
@@ -1695,8 +1695,8 @@ server <- function(input, output, session) {
       popup = "popup_html", 
       tooltip = "pws_name"
     ) %>%
-
-    ## --- WWTP Markers -------------------------------------------------
+      
+      ## --- WWTP Markers -------------------------------------------------
     mapgl::add_circle_layer(
       id = "Wwtp", 
       source = wwtp_map, 
@@ -1706,8 +1706,8 @@ server <- function(input, output, session) {
       popup = "popup_html", 
       tooltip = "facility"
     ) %>%
-
-    ## --- USGS Gages -------------------------------------------------
+      
+      ## --- USGS Gages -------------------------------------------------
     mapgl::add_circle_layer(
       id = "gages", 
       source = gages_map, 
@@ -1719,39 +1719,39 @@ server <- function(input, output, session) {
       popup = "popup_str", 
       tooltip = "station_nm"
     ) %>%
-
-    ## --- Controls -------------------------------------------------
-      mapgl::add_layers_control(
-        position = "top-left", 
-        layers = list(
-          "Streams" = "streams", 
-          "DWTP" = "dwtp", 
-          "WWTP" = "wwtp", 
-          "USGS Gages" = "gages", 
-          "Census tracts" = "tracts"
-        ), 
-        collapsible = TRUE
-      )%>%
-    mapgl::add_legend(
-      legend_title = pct_legend_title(isolate(input$src), isolate(input$month)), 
-      values = c("0%", "100%"), 
-      colors = pal(seq(0, 100, length.out = 11)), ##  uses same pallete from leaflet
-      type = "continuous",
-      position = "bottom-right", 
-      unique_id = "pctLegend"
-    ) %>%
-    mapgl::add_control(
-      html = symbol_legend_html, 
-      position = "bottom-left", 
-      id = "symbolLegend"
-    )
+      
+      ## --- Controls -------------------------------------------------
+    mapgl::add_layers_control(
+      position = "top-left", 
+      layers = list(
+        "Streams" = "streams", 
+        "DWTP" = "dwtp", 
+        "WWTP" = "wwtp", 
+        "USGS Gages" = "gages", 
+        "Census tracts" = "tracts"
+      ), 
+      collapsible = TRUE
+    )%>%
+      mapgl::add_legend(
+        legend_title = pct_legend_title(isolate(input$src), isolate(input$month)), 
+        values = c("0%", "100%"), 
+        colors = pal(seq(0, 100, length.out = 11)), ##  uses same pallete from leaflet
+        type = "continuous",
+        position = "bottom-right", 
+        unique_id = "pctLegend"
+      ) %>%
+      mapgl::add_control(
+        html = symbol_legend_html, 
+        position = "bottom-left", 
+        id = "symbolLegend"
+      )
   })
   
   observeEvent(input$reset_map, {
     mapgl::maplibre_proxy("map") %>%
       mapgl::fit_bounds(flowlines, animate = TRUE)
   })
-
+  
   # --- Recolor and repopulate streams when dropdown changes --------------
   observeEvent(list(input$src, input$month), {
     mapgl::maplibre_proxy("map") %>%
@@ -1775,7 +1775,7 @@ server <- function(input, output, session) {
         unique_id    = "pctLegend"
       )
   }, ignoreInit = TRUE)   # initial draw happens during renderMaplibre()
-
+  
   # ================= SEASONALITY TAB LOGIC ====================
   season_cols_for <- reactive({
     src <- input$season_src %||% "Gage-based"
@@ -2107,7 +2107,7 @@ server <- function(input, output, session) {
     cat(sprintf("  %s (%s): median %.1f%% (IQR %.1f–%.1f%%)\n",
                 as.character(peak_med$month), as.character(peak_med$mon_code),
                 peak_med$med_pct, peak_med$lo_iqr, peak_med$hi_iqr))
-   
+    
   })
   
   # ---- Download: Seasonality data -----------------
@@ -2336,7 +2336,7 @@ server <- function(input, output, session) {
         x = if (identical(mode, "Prevalence")) "Adjusted odds ratio of any wastewater impact (log scale)"
         else "Adjusted rank correlation (rho) with %WW among impacted tracts",
         y = NULL,
-        title = paste0(mode, " (", mlab, "): effect of each indicator after accounting for stream size")
+        title = paste0(mode, " (", mlab, "): effect of each indicator after accounting for drainage area")
       ) +
       theme_app() +
       theme(legend.position = "bottom",
@@ -2375,11 +2375,11 @@ server <- function(input, output, session) {
     sig_u <- !is.na(r$q_unadj) && r$q_unadj < 0.05
     
     badge <- if (sig_a && sign(dir_a) == sign(dir_u)) {
-      list("Holds after adjusting for stream size", "#2a78d6")
+      list("Holds after adjusting for drainage area", "#2a78d6")
     } else if (sig_a) {
-      list("Direction reverses after adjusting for stream size", "#e07b39")
+      list("Direction reverses after adjusting for drainage area", "#e07b39")
     } else if (sig_u) {
-      list("Largely explained by stream size", "#6b7280")
+      list("Largely explained by drainage area", "#6b7280")
     } else {
       list("No clear association", "#6b7280")
     }
@@ -2569,7 +2569,7 @@ server <- function(input, output, session) {
             title = paste0("Prevalence vs ", var, " (", mlab, ")"),
             subtitle = stat_line,
             caption = wrap_cap(paste0("Dot: share of tracts impacted; bar: 95% CI (Wilson).", size_note, " ",
-                                      grp_note, " Raw values; the effect size in the subtitle is adjusted for stream size."))
+                                      grp_note, " Raw values; the effect size in the subtitle is adjusted for drainage area."))
           ) +
           theme_app() +
           theme(legend.position = "bottom")
@@ -2607,7 +2607,7 @@ server <- function(input, output, session) {
             title = paste0("Severity vs ", var, " (", mlab, ", ", denom_lab, " denominator)"),
             subtitle = stat_line,
             caption = wrap_cap(paste0("Faint points: individual tracts. Dot: median; bar: middle 50% of tracts.", size_note, " ",
-                                      grp_note, " Raw values; the effect size in the subtitle is adjusted for stream size."))
+                                      grp_note, " Raw values; the effect size in the subtitle is adjusted for drainage area."))
           ) +
           theme_app() +
           theme(legend.position = "bottom")
@@ -2739,6 +2739,3 @@ server <- function(input, output, session) {
 
 # --- Launch App -------------------------------------------------------------
 shinyApp(ui = ui, server = server)
-
- 
-
