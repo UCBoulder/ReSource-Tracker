@@ -1,4 +1,4 @@
-# --- Title --------------------------------------------------------------------
+
 # This is the Shiny app for Resource Tracker.
 
 # Description:
