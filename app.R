@@ -2,9 +2,9 @@
 # This is the Shiny app for Resource Tracker.
 
 # Description:
-# Generates the Resource Tracker Shiny app. This app allows input of watershed flows (as 
+# Generates the Resource Tracker Shiny app. This app allows input of stream flows (as 
 # DMR and gage data), wastewater treatment discharges, and environmental justice data 
-# for a specified region. The app calculates the percentage of wastewater in watersheds
+# for a specified region. The app calculates the percentage of wastewater in streams
 # across the given area on a monthly basis, builds in native support for EJ screening 
 # criteria, and provides useful data visualizations for wastewater influence. 
  
@@ -295,7 +295,7 @@ if (any(check_hseq$DnHydroseq_num >= check_hseq$Hydroseq_num)) {
   warning("Some DnHydroseq have Hydroseq >= upstream segment; verify network ordering.")
 }
 
-# ------------------- CONTRIBUTORS (DMR-seeded) + MONTH-SPECIFIC HTML -------------------
+# ------------------- CONTRIBUTORS (DMR-seeded) + MONTH-SPECIFIC HTML ----------
 
 # COMID -> Hydroseq lookup
 comid_hseq <- flowlines %>%
@@ -352,7 +352,7 @@ for (i in seq_len(nrow(flow_map))) {
   }
 }
 
-# Now compute cumulative SD, low, high downstream (derived from mean+var)
+# Compute cumulative SD, low, high downstream (derived from mean+var)
 for (mm in mon_codes) {
   sd_col <- paste0("WW_cum_sd_", mm)
   flow_map[[sd_col]] <- sqrt(pmax(flow_map[[paste0("WW_cum_var_", mm)]], 0))
@@ -432,7 +432,7 @@ flowlines <- flowlines %>%
     by = "Hydroseq"
   )
 
-# Also keep a "contributors_str" column so existing helper doesn't break
+# Keep a "contributors_str" column for helper
 if (!"contributors_str" %in% names(flowlines)) flowlines$contributors_str <- ""
 flowlines$contributors_str <- flowlines$contributors_all_str
 
@@ -504,6 +504,7 @@ if (!"TotDASqKM" %in% names(flowlines)) {
   stop("Flowlines are missing the TotDASqKM (total drainage area) column, ",
        "which the drainage-area-ratio propagation requires.", call. = FALSE)
 }
+
 # Set up a flow_order table used for gage propagation down the network
 flow_order <- flowlines %>%
   st_drop_geometry() %>%
@@ -534,7 +535,7 @@ for (mm in mon_codes) {
 
 flow_order <- flow_order %>% select(-low_flow)
 
-# --- Manual overrides for segments where NHDPlus is clearly wrong ----------
+# --- Manual overrides for segments -------------------------------------------
 # These Hydroseqs will always accept propagated gage flows (force_gage = TRUE)
 forced_hseq <- c(
   "550025960",
@@ -596,7 +597,7 @@ flow_order <- flow_order %>%
     across(starts_with("WW_var_"),  ~coalesce(as.numeric(.x), 0))
   )
 
-# Bake local WW into Qgage_prop at same-seg seeds so downstream inherits correct denominator
+# Include local WW into Qgage_prop at same-seg seeds so downstream inherits correct denominator
 for (mm in mon_codes) {
   mcol     <- paste0("Qgage_",     mm, "_prop")
   vcol     <- paste0("Qgage_var_", mm, "_prop")
@@ -774,13 +775,13 @@ compute_pct <- function(ww, denom) {
 }
 
 # NHDPlus monthly denominators 
-# QE_mm_nhd is the original NHDPlus monthly flow
+# QE_mm_nhd = original NHDPlus monthly flow
 for (mm in mon_codes) {
   flowlines[[paste0("QE_", mm, "_nhd")]] <- as.numeric(flowlines[[paste0("QE_", mm)]])
 }
 
 # Gage-based %WW for each month:
-#   - - pct_mean_mm: WW_cum / Qgage_prop (WW already baked into denominator via propagation)
+#   - pct_mean_mm: WW_cum / Qgage_prop (WW already baked into denominator via propagation)
 #   - pct_min_mm, pct_max_mm: bands using WW_low/WW_high and Q_high/Q_low
 for (mm in mon_codes) {
   ww_mean <- paste0("WW_cum_mean_", mm)
@@ -810,7 +811,7 @@ for (mm in mon_codes) {
   flowlines[[pct_max_col]]       <- compute_pct(WW_seg_high, Q_low)
 }
 
-# NHDPlus-based %WW (parallel to the gage-based %WW, but using NHDPlus denominators)
+# NHDPlus-based %WW (parallel to the gage-based %WW, using NHDPlus denominators)
 for (mm in mon_codes) {
   ww_mean <- paste0("WW_cum_mean_", mm)
   ww_low  <- paste0("WW_cum_low_",  mm)
@@ -826,6 +827,7 @@ for (mm in mon_codes) {
 # Drop Z/M dimensions from geometry (if present)
 flowlines <- st_zm(flowlines, drop = TRUE, what = "ZM")
 
+#Pre-computations for statistics 
 eq_zs <- function(x) as.numeric(scale(x))
 eq_zr <- function(x) as.numeric(scale(rank(x)))
 
@@ -840,7 +842,7 @@ eq_robust <- function(m, term, cl, odds = FALSE) {
 # One indicator -> unadjusted + drainage-area-adjusted effect.
 #   Severity  : rank correlation (rho); adjusted = also controls for log10 drainage area
 #   Prevalence: odds ratio (Yes vs No, or per +1 SD); adjusted = also controls for log10 drainage area + log(# segments)
-# `tab` is the output of cejst_summary() (needs metric_value, lDA, lnseg, county, rurality).
+
 eq_fit <- function(tab, var, mode) {
   tryCatch({
     x <- if (identical(var, "rurality")) as.numeric(tab$rurality == "Rural") else as.numeric(tab[[var]])
@@ -870,7 +872,7 @@ eq_fit <- function(tab, var, mode) {
   }, error = function(e) NULL)
 }
 
-# one-line text used in plot subtitles
+# One-line text used in plot subtitles
 eq_stat_line <- function(r, mode) {
   if (is.null(r) || nrow(r) != 1) return(NULL)
   f <- function(x) formatC(x, format = "f", digits = 2)
@@ -888,7 +890,7 @@ eq_rb_paired <- function(a, b) {
   (sum(r[d > 0]) - sum(r[d < 0])) / sum(r)
 }
 
-# Kendall's W (tie-corrected) from a ranks matrix R (units x months) and per-unit tie terms Tv
+# Kendall's W (tie-corrected) from a ranks matrix R (units x months) 
 eq_w_calc <- function(R, Tv, k, idx) {
   n  <- length(idx)
   Rj <- colSums(R[idx, , drop = FALSE])
@@ -904,30 +906,6 @@ eq_boot_idx <- function(groups) {
   unlist(groups[g], use.names = FALSE)
 }
 
-# Paired rank-biserial: +1 = month A higher than month B in every unit, -1 = always lower
-eq_rb_paired <- function(a, b) {
-  d <- a - b
-  d <- d[is.finite(d) & d != 0]
-  if (length(d) < 5) return(NA_real_)
-  r <- rank(abs(d))
-  (sum(r[d > 0]) - sum(r[d < 0])) / sum(r)
-}
-
-# Kendall's W (tie-corrected) from a ranks matrix R (units x months) and per-unit tie terms Tv
-eq_w_calc <- function(R, Tv, k, idx) {
-  n  <- length(idx)
-  Rj <- colSums(R[idx, , drop = FALSE])
-  S  <- sum((Rj - mean(Rj))^2)
-  den <- n^2 * (k^3 - k) - n * sum(Tv[idx])
-  if (!is.finite(den) || den <= 0) return(NA_real_)
-  12 * S / den
-}
-
-# One bootstrap draw of row indices, resampling whole county groups
-eq_boot_idx <- function(groups) {
-  g <- sample.int(length(groups), replace = TRUE)
-  unlist(groups[g], use.names = FALSE)
-}
 
 # --- UI ----------------------------------------------------------------------
 ui <- navbarPage(
@@ -1411,7 +1389,7 @@ server <- function(input, output, session) {
   )
   
   safe_round <- function(x) ifelse(is.finite(x), round(x, 1), "NA")
-  pal        <- leaflet::colorNumeric(palette = "plasma", domain = c(0, 100), na.color = "transparent") ## Last use of leaflet function
+  pal        <- leaflet::colorNumeric(palette = "plasma", domain = c(0, 100), na.color = "transparent") 
   
   # Build popup string per gage with monthly mean±sd and low/high
   usgs_gages$popup_str <- sapply(seq_len(nrow(usgs_gages)), function(i) {
@@ -1434,7 +1412,7 @@ server <- function(input, output, session) {
   
   usgs_gages_sf <- sf::st_as_sf(usgs_gages, coords = c("dec_long_va", "dec_lat_va"), crs = 4326)
   
-  #For looking at tract polygons. Tracts is called later in mapgl function
+  #For looking at tract polygons on the map 
   observeEvent(input$map_feature_click, {
     click <- input$map_feature_click
     if (is.null(click)) return()
@@ -1489,6 +1467,7 @@ server <- function(input, output, session) {
         legend.position = "none"
       )
   }
+  
   # ---- Precompute flowlines–CEJST join for equity tab ----------------------
   flowlines_4326 <- sf::st_transform(flowlines, 4326)
   fl_cejst_sf <- sf::st_join(flowlines_4326, tracts_sf, left = TRUE)
@@ -1527,11 +1506,8 @@ server <- function(input, output, session) {
   })
   
   # ---- BASE MAP (Map tab) ----------------------------------------------------
-  ## This is the bulk of the changes to mapgl. 
-  ## mapgl functions reference the entire 'sf' object when sent to functions. 
-  ## This helper function trims the tracts to what the map actually calls to reduce some comptuaiton. 
   
-  ## Trimming flowlines data in tracts_sf
+  # Trimming flowlines data in tracts_sf
   tracts_map <- tracts_sf %>%
     dplyr::mutate(
       popup_html = paste0(
@@ -1547,14 +1523,14 @@ server <- function(input, output, session) {
     )%>%
     dplyr::select(GEOID, popup_html)
   
-  ## Generates static object that is developed once. 
+  # Generates static object that is developed once. 
   dwtp_map <- geocoded_dwtp
   if (!inherits(dwtp_map, "sf")) {
     dwtp_map <- dwtp_map %>%
       dplyr::filter(!is.na(Longitude), !is.na(Latitude)) %>%
       sf::st_as_sf(coords = c("Longitude", "Latitude"), crs = 4326)
   }
-  ## Transmute drops trims columns not called explictly. Repeated for dwtp and wwtp
+  # Transmute drops trims columns not called explictly. Repeated for dwtp and wwtp
   dwtp_map <- dwtp_map %>%
     dplyr::transmute(
       pws_name   = `PWS Name`,
@@ -1566,15 +1542,12 @@ server <- function(input, output, session) {
       facility = Facility,
       popup_html = paste0("<b>", Facility, "</b><br>Design Flow: ", DesignFlow, "MGD")
     )
-  ## Uses select to filter gage sf
+  # Uses select to filter gage sf
   gages_map <- usgs_gages_sf %>%
     dplyr::select(station_nm, popup_str)
   
   
-  # ---- STREAMS: colours + popups for the current month / denominator ---------
-  ## Updating color logic for heatmap with mapgl functions. 
-  ## Note steams_layer_data is reactive; depends on month and source to determine color, 
-  ## and thus are recomputed when dropdowns are changed. 
+  # ---- STREAMS: colors + popups for the current month / denominator ---------
   streams_layer_data <- reactive({
     spec <- cols_for()
     dat  <- filtered_flowlines()
@@ -1675,18 +1648,15 @@ server <- function(input, output, session) {
    </div>"
   
   # ---- BASE MAP ----------------------------------------------
-  # MapLibre draws layers inthe order they are called.
   output$map <- renderMaplibre({
     mapgl::maplibre(
-      style = mapgl::openfreemap_style("positron") # This matches Carto theme best I think 
+      style = mapgl::openfreemap_style("positron") 
     ) %>%
       mapgl::fit_bounds(flowlines, animate = FALSE) %>%
       mapgl::add_navigation_control(position = "top-right") %>%
       mapgl::add_scale_control(position = "bottom-left") %>%
       
-      ## --- Census Tract Polygons ------------------------------
-    ## Those drawn first are on the 'bottom' of the map
-    ## The color options here can be changed based on readability etc
+    # --- Census Tract Polygons ------------------------------
     mapgl::add_fill_layer(
       id = "tracts", 
       source = tracts_map, 
@@ -1697,7 +1667,7 @@ server <- function(input, output, session) {
       popup = "popup_html"
     ) %>%
       
-      ## --- Streams ---------------------------------------------------
+      # --- Streams ---------------------------------------------------
     ## source calls isolate() to not recompute on changes to month/source dropdown
     mapgl::add_line_layer(
       id = "streams", 
@@ -1708,7 +1678,7 @@ server <- function(input, output, session) {
       popup = "popup_html"
     ) %>%
       
-      ## --- DWTP Markers -------------------------------------------------
+      # --- DWTP Markers -------------------------------------------------
     mapgl::add_circle_layer(
       id = "dwtp", 
       source = dwtp_map, 
@@ -1719,7 +1689,7 @@ server <- function(input, output, session) {
       tooltip = "pws_name"
     ) %>%
       
-      ## --- WWTP Markers -------------------------------------------------
+      # --- WWTP Markers -------------------------------------------------
     mapgl::add_circle_layer(
       id = "Wwtp", 
       source = wwtp_map, 
@@ -1730,7 +1700,7 @@ server <- function(input, output, session) {
       tooltip = "facility"
     ) %>%
       
-      ## --- USGS Gages -------------------------------------------------
+      # --- USGS Gages -------------------------------------------------
     mapgl::add_circle_layer(
       id = "gages", 
       source = gages_map, 
@@ -1743,7 +1713,7 @@ server <- function(input, output, session) {
       tooltip = "station_nm"
     ) %>%
       
-      ## --- Controls -------------------------------------------------
+      # --- Controls -------------------------------------------------
     mapgl::add_layers_control(
       position = "top-left", 
       layers = list(
@@ -1758,7 +1728,7 @@ server <- function(input, output, session) {
       mapgl::add_legend(
         legend_title = pct_legend_title(isolate(input$src), isolate(input$month)), 
         values = c("0%", "100%"), 
-        colors = pal(seq(0, 100, length.out = 11)), ##  uses same pallete from leaflet
+        colors = pal(seq(0, 100, length.out = 11)), 
         type = "continuous",
         position = "bottom-right", 
         unique_id = "pctLegend"
@@ -1797,7 +1767,7 @@ server <- function(input, output, session) {
         position     = "bottom-right",
         unique_id    = "pctLegend"
       )
-  }, ignoreInit = TRUE)   # initial draw happens during renderMaplibre()
+  }, ignoreInit = TRUE)   
   
   # ================= SEASONALITY TAB LOGIC ====================
   season_cols_for <- reactive({
@@ -1989,7 +1959,7 @@ server <- function(input, output, session) {
       return(invisible(NULL))
     }
     
-    # 1) Overall test + how consistent the seasonal pattern is
+    # Overall test + how consistent the seasonal pattern is
     cat(sprintf("Complete paired units (n_complete): %d %s in %d counties\n", s$n, unit_lab, s$n_counties))
     cat("Overall seasonality (Friedman):\n")
     cat(sprintf("  chi-squared = %.3f, df = %d, p = %s\n",
@@ -1999,7 +1969,7 @@ server <- function(input, output, session) {
     cat(sprintf("  Kendall's W = %.2f (95%% CI %.2f to %.2f)\n\n", s$W, s$W_lo, s$W_hi))
     cat("  W: 0 = no shared seasonal pattern across units, 1 = every unit ranks the months identically.\n\n")
     
-    # 2) Ranked months by median
+    # Ranked months by median
     top_n <- 4
     bot_n <- 4
     cat("Highest months by median %WW :\n")
@@ -2007,7 +1977,7 @@ server <- function(input, output, session) {
     cat("\nLowest months by median %WW:\n")
     print(utils::tail(s$month_meds, bot_n), row.names = FALSE)
     
-    # 3) Only show "meaningful" significant pairwise differences
+    # Only show significant pairwise differences
     pw <- s$pairwise %>%
       dplyr::mutate(
         sig = !is.na(p_adj_BH) & p_adj_BH < 0.05,
@@ -2073,7 +2043,7 @@ server <- function(input, output, session) {
     src_lab  <- ifelse((input$season_src %||% "Gage-based") == "Gage-based", "gage-based", "NHDPlus-based")
     unit_lab <- ifelse(isTRUE(input$season_use_tracts), "tracts", "segments")
     
-    # y-limit with a bit of headroom
+    # y-limit 
     ymax <- max(df$hi_iqr, na.rm = TRUE)
     
     ggplot(df, aes(x = mon_code, y = med_pct, group = 1)) +
@@ -2181,7 +2151,7 @@ server <- function(input, output, session) {
     
     dat <- fl_cejst
     
-    # Filter by rurality if requested
+    # Filter by rurality 
     if (!is.null(input$rurality) && input$rurality != "All") {
       if ("rurality" %in% names(dat)) {
         dat <- dplyr::filter(dat, rurality == input$rurality)
@@ -2280,6 +2250,7 @@ server <- function(input, output, session) {
     
     out
   })
+  
   # Tract table for yes/no and Rurality indicators, with a Yes/No or Urban/Rural group column
   cejst_cat_df <- reactive({
     tab <- cejst_summary()
@@ -2299,7 +2270,7 @@ server <- function(input, output, session) {
     }
   })
   
-  # Indicators offered in the dropdown (same rules as the observe() that fills it)
+  # Indicators offered in the dropdown 
   cejst_ind_cols <- function() {
     all_num <- names(cejst)[sapply(cejst, is.numeric)]
     raw <- all_num[!grepl("percentile", all_num, ignore.case = TRUE) &
@@ -2324,7 +2295,7 @@ server <- function(input, output, session) {
     res
   })
   
-  # Rows shown in the overview plot (also used to translate a click into an indicator)
+  # Rows shown in the overview plot 
   eq_forest_df <- reactive({
     res  <- eq_all()
     mode <- input$cejst_mode %||% "Prevalence"
@@ -2638,7 +2609,7 @@ server <- function(input, output, session) {
     }
   })
   
-  # ---- Download: Equity data (tract-level values + bins) --------------------
+  # ---- Download: Equity data (tract-level values) 
   output$download_cejst_data <- downloadHandler(
     filename = function() {
       paste0("ReSourceTracker_equity_", Sys.Date(), ".csv")
@@ -2717,7 +2688,7 @@ server <- function(input, output, session) {
       dplyr::mutate(
         pct = suppressWarnings(as.numeric(.data[[pct_col]])),
         ww  = suppressWarnings(as.numeric(.data[[ww_col]])),
-        impacted = is.finite(ww) & ww > 0   # prevalence uses WW>0
+        impacted = is.finite(ww) & ww > 0  
       )
     
     n_seg_total <- nrow(seg)
