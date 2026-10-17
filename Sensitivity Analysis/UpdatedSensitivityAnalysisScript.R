@@ -1,3 +1,4 @@
+#Required packages 
 suppressPackageStartupMessages({
   library(tidyverse)
   library(sf)
@@ -5,9 +6,7 @@ suppressPackageStartupMessages({
 if (!requireNamespace("patchwork", quietly = TRUE))
   stop('Package "patchwork" is needed for the A/B panel figures. Install it once with: install.packages("patchwork")', call. = FALSE)
 
-# ==============================================================================
-# 0. CONFIG
-# ==============================================================================
+#Configuration
 out_dir <- "dar_sensitivity_outputs"
 if (!dir.exists(out_dir)) dir.create(out_dir)
 
@@ -24,30 +23,26 @@ for (p in paths) if (!file.exists(p)) stop("Missing required data file: ", p, ca
 mon_codes <- sprintf("%02d", 1:12)
 n_mon     <- length(mon_codes)
 
-# --- Must match app.R ---------------------------------------------------------
+#Alignment with main app 
 SIMILARITY_THRESHOLD <- 0.50
 forced_hseq <- c("550025960", "550020503", "390005386", "390025451", "390005505")
 same_seg_ww_adj_seed <- c("550022475", "550015536", "550062530", "390045364", "550025946",
                           "550019184", "760015713", "390005515", "550018746")
 
-# --- Analysis settings ---------------------------------------------------------
+# Analysis settings ---
 HIGHLIGHT_MONTH    <- "06"
 THRESHOLD_GRID     <- c(0.10, 0.25, 0.50, 0.75, Inf)   # Inf = gate removed
 N_EXPONENT_STEPS   <- 7      # grid points across the exponent's 95% CI
 MIN_MONTHS_ALT_FIT <- 10     # alternative exponent fit: only gages with >= this many months
 COMP_TIGHT         <- 0.10   # tight gate for the gate-loosening composition figure
 N_BOOT             <- 1000   # bootstrap resamples for the within-gate monthly bias CIs
-RUN_LOOCV          <- TRUE   # the slowest section; set FALSE to skip while iterating
+RUN_LOOCV          <- TRUE   
 set.seed(42)
 
 hl      <- match(HIGHLIGHT_MONTH, mon_codes)
 hl_name <- month.name[hl]
 
-# --- Plot style ----------------------------------------------------------------
-# Matches the manuscript figures: white background, boxed panels, light grey grid,
-# bold centred titles, A/B panel tags, one season colour set used everywhere.
-# >>> The four season hex codes below are PLACEHOLDERS: replace them with the exact
-#     colours used in your existing figures so the sets match. <<<
+# Plot theme
 COL <- list(accent = "#2a78d6", context = "#c3c2b7", ink = "#0b0b0b", ink2 = "#52514e",
             muted = "#898781", grid = "grey90", band = "#d9d8d2", heat_lo = "#cde2fb", heat_hi = "#0d366b")
 ORDINAL_BLUE  <- c("#86b6ef", "#3987e5", "#184f95")          # light -> dark = tighter -> looser gate
@@ -76,7 +71,7 @@ theme_resource <- function() {
     )
 }
 
-# A/B panels in a row under one bold title (+ optional grey subtitle)
+# A/B panels in a row under one bold title 
 combine_panels <- function(plots, title, subtitle = NULL, widths = NULL, collect = FALSE) {
   patchwork::wrap_plots(plots, nrow = 1, widths = widths,
                         guides = if (collect) "collect" else "keep") +
@@ -87,8 +82,7 @@ combine_panels <- function(plots, title, subtitle = NULL, widths = NULL, collect
                     plot.tag      = element_text(face = "bold", size = 14)))
 }
 
-# Line + dots with the value printed above every dot; the adopted setting is the filled dot.
-# d needs columns: x (factor), y (numeric), adopted (logical)
+# Line + dots with the value printed above every dot
 dot_panel <- function(d, xlab, ylab, ymax = NA, digits = 1, suffix = "%", axis_lab = pct_lab) {
   ggplot(d, aes(x, y, group = 1)) +
     geom_line(colour = COL$accent, linewidth = 0.6) +
@@ -108,12 +102,10 @@ save_plot <- function(p, name, w = 9, h = 5) {
 fmt_num <- scales::label_number(big.mark = ",", drop0trailing = TRUE)
 pct_lab <- scales::label_number(suffix = "%", big.mark = ",", drop0trailing = TRUE)
 
-# ==============================================================================
-# 1. DATA PREP  (mirrors app.R)
-# ==============================================================================
+#Data prep, follows app.R logic 
 message("Loading and preparing network data...")
 
-# --- DMR wastewater: facility-month -> COMID-month mean + variance -------------
+# --- DMR wastewater: facility-month -> COMID-month mean + variance ------------
 matched_dmr <- read_csv(
   paths$matched_dmr,
   col_types = cols(.default = col_guess(), geometry = col_skip(), `...1` = col_skip()),
@@ -128,7 +120,7 @@ dmr_monthly_fac <- matched_dmr %>%
   summarise(mean_dmr_cfs_fac = mean(mean_dmr_cfs, na.rm = TRUE),
             sd_dmr_cfs_fac   = mean(sd_dmr_cfs,   na.rm = TRUE), .groups = "drop")
 
-if (length(fill_facs) > 0) {   # fill missing months for verified continuous dischargers
+if (length(fill_facs) > 0) {   
   fac_fill <- dmr_monthly_fac %>%
     filter(Facility %in% fill_facs) %>%
     group_by(Facility, matched_COMID) %>%
@@ -146,7 +138,7 @@ dmr_monthly_wide <- dmr_monthly_fac %>%
             WW_var  = sum(var_dmr_cfs_fac,  na.rm = TRUE), .groups = "drop") %>%
   pivot_wider(names_from = mon_code, values_from = c(WW_mean, WW_var), names_sep = "_")
 
-# --- Flowlines (geometry is not needed here) ------------------------------------
+# Flowlines
 flowlines <- st_read(paths$flowlines, quiet = TRUE) %>% st_drop_geometry()
 if (!"TotDASqKM" %in% names(flowlines)) {
   stop("Flowlines are missing TotDASqKM (total drainage area), which DAR propagation requires.",
@@ -162,7 +154,7 @@ for (cc in c(paste0("WW_mean_", mon_codes), paste0("WW_var_", mon_codes))) {
   if (!cc %in% names(flowlines)) flowlines[[cc]] <- NA_real_   # month with no DMR data at all
 }
 
-# --- Local WW per Hydroseq, then accumulated downstream (matrix form of app.R loop) ---
+# --- Local WW per Hydroseq, then accumulated downstream ---
 flow_map <- flowlines %>%
   select(Hydroseq, DnHydroseq, starts_with("WW_mean_"), starts_with("WW_var_")) %>%
   mutate(across(starts_with("WW_"), as.numeric)) %>%
@@ -170,7 +162,7 @@ flow_map <- flowlines %>%
   summarise(DnHydroseq = first(DnHydroseq),
             across(starts_with("WW_mean_"), ~sum(.x, na.rm = TRUE)),
             across(starts_with("WW_var_"),  ~sum(.x, na.rm = TRUE)), .groups = "drop") %>%
-  arrange(desc(as.numeric(Hydroseq)))          # upstream first (Hydroseq falls downstream)
+  arrange(desc(as.numeric(Hydroseq)))          # upstream first 
 
 fm_mean <- unname(as.matrix(flow_map[, paste0("WW_mean_", mon_codes)]))
 fm_var  <- unname(as.matrix(flow_map[, paste0("WW_var_",  mon_codes)]))
@@ -184,7 +176,7 @@ for (i in seq_len(nrow(flow_map))) {
   if (!is.na(j)) cum_mean[j, ] <- cum_mean[j, ] + cum_mean[i, ]
 }
 
-# --- Gage monthly stats -> one gage per COMID ------------------------------------
+# --- Gage monthly stats -> one gage per COMID ---------------------------------
 monthly_flows <- read_csv(paths$monthly_flows, show_col_types = FALSE)
 gage_monthlies <- monthly_flows %>%
   select(site_no, starts_with("mean_cfs_"), starts_with("sd_cfs_"), start_year, end_year, n_obs) %>%
@@ -208,7 +200,7 @@ gages_per_comid <- gages_sf %>%
 
 flowlines <- flowlines %>% left_join(gages_per_comid %>% rename(COMID = best_COMID), by = "COMID")
 
-# --- flow_order: low-flow screen exactly as in app.R -----------------------------
+# --- flow_order: low-flow screen --------------------------
 flow_order <- flowlines %>%
   select(Hydroseq, DnHydroseq, site_no, DA, starts_with("Qgage_")) %>%
   arrange(as.numeric(Hydroseq)) %>%
@@ -237,7 +229,7 @@ WWm_mat[is.na(WWm_mat)] <- 0
 WWv_mat[is.na(WWv_mat)] <- 0
 
 # Seed values: raw gage flow, with local WW mean AND variance baked in at the
-# same-segment seeds (so downstream inherits the right denominator) - as app.R.
+# same-segment seeds .
 Q0 <- Qraw
 V0 <- Vraw
 seed_ww <- which(flow_order$Hydroseq %in% same_seg_ww_adj_seed)
@@ -251,7 +243,7 @@ is_gage       <- !is.na(flow_order$site_no) & is.finite(ann_mean_flow)
 gage_rows     <- which(is_gage)
 n_months_obs  <- rowSums(is.finite(Qraw))
 
-# Upstream-neighbour structure and topological order (app.R: pred_list / order_idx)
+# Upstream-neighbour structure and topological order 
 order_idx   <- order(as.numeric(flow_order$Hydroseq), decreasing = TRUE)   # most-upstream first
 ord_pos     <- integer(n_seg); ord_pos[order_idx] <- seq_len(n_seg)
 valid_edges <- which(!is.na(dn_index))
@@ -262,9 +254,7 @@ pred_list[sapply(pred_list, is.null)] <- list(integer(0))
 
 message("Data prep complete: ", n_seg, " segments, ", length(gage_rows), " usable gages.")
 
-# ==============================================================================
-# 2. PROPAGATION ENGINE  (the app.R month-aware loop, parametrised)
-# ==============================================================================
+# Propagation
 #   >= 2 branches carry a value in a month -> unconditional sum (mass balance)
 #   exactly 1 branch carries a value        -> ordinary gated, DA-scaled hop
 #   0 branches                              -> NA
@@ -323,7 +313,7 @@ propagate_dar <- function(seed_rows, threshold = SIMILARITY_THRESHOLD, b = B_STA
   list(Q = Q, V = V)
 }
 
-# %WW exactly as app.R's compute_pct (also works on matrices)
+# %WW 
 compute_pct <- function(ww, denom) {
   out <- 100 * ww / denom
   bad <- is.na(denom) | is.na(ww) | denom <= 0
@@ -333,7 +323,7 @@ compute_pct <- function(ww, denom) {
   out
 }
 
-# Upstream watershed of a segment (including itself) - used to speed up LOOCV
+# Upstream watershed of a segment 
 get_ancestors <- function(target) {
   buf <- integer(n_seg); buf[1L] <- target; n <- 1L; h <- 1L
   while (h <= n) {
@@ -362,9 +352,8 @@ nearest_upstream_gages <- function(d) {
   out
 }
 
-# ==============================================================================
-# 3. STATEWIDE EXPONENT
-# ==============================================================================
+
+# STATEWIDE EXPONENT
 fit_b <- function(rows) {
   q  <- ann_mean_flow[rows]; a <- DA_vec[rows]
   ok <- is.finite(q) & is.finite(a) & q > 0 & a > 0
@@ -380,9 +369,7 @@ alt_rows <- gage_rows[n_months_obs[gage_rows] >= MIN_MONTHS_ALT_FIT]
 alt_fit  <- fit_b(alt_rows)
 alt_ci   <- unname(confint(alt_fit$model)[2, ])
 
-# ==============================================================================
-# 4. ALIGNMENT CHECKPOINT vs app.R
-# ==============================================================================
+# ALIGNMENT CHECKPOINT vs full app
 message(sprintf("DA-ratio exponent: b = %.3f (n = %d gaged segments, R^2 = %.3f)",
                 B_STATE, full_fit$n, full_fit$r2))
 
@@ -404,9 +391,8 @@ cat(sprintf("  alt fit (gages with >= %d months): b = %.3f (95%% CI %.3f-%.3f), 
 cat("  reference values from the earlier validated run: b = 0.719, n = 396; June median %WWef (percent, all segments with an estimate) about 0.14\n")
 cat("  (June median can shift slightly if fill_facs is used or the DMR/gage inputs changed)\n")
 
-# ==============================================================================
-# 5. LEAVE-ONE-GAGE-OUT VALIDATION  (adopted method)
-# ==============================================================================
+
+# LEAVE-ONE-GAGE-OUT VALIDATION
 # Hide each gage, refit the exponent without it, re-propagate from the remaining
 # gages upstream of it, and compare the reconstructed monthly flow with what the
 # gage actually recorded. Only the held-out gage's upstream watershed is
@@ -458,7 +444,8 @@ if (RUN_LOOCV) {
   cat("  reference from the earlier validated run: median_abs_pct_error = 23.8\n")
   cat("\nBy month:\n"); print(as.data.frame(loocv_by_month), row.names = FALSE)
 }
-# ---- Figure 1 (main body): observed vs. reconstructed flow ----
+
+# ---- Figure 1 observed vs. reconstructed flow ----
 sc <- loocv %>%
   filter(is.finite(observed), is.finite(predicted), observed > 0, predicted > 0) %>%
   mutate(season = season_of(month))
@@ -481,7 +468,7 @@ fig1 <- ggplot(sc, aes(observed, predicted, colour = season)) +
   theme(plot.subtitle = element_text(hjust = 0.5, colour = "grey30", size = 10))
 save_plot(fig1, "fig1_loocv_observed_vs_reconstructed.png", w = 7.5, h = 6.5)
 
-# ---- Figure S-LOOCV (SI): error and bias by month ----
+# ---- Figure error and bias by month ----
 mb <- loocv_by_month %>%
   mutate(month_f = factor(month, levels = mon_codes, labels = month.abb), season = season_of(month))
 
@@ -548,15 +535,14 @@ write_csv(loocv_b, file.path(out_dir, "tbl_loocv_by_exponent.csv"))
 print(as.data.frame(loocv_b %>%
                       select(b, pct_reconstructed, median_abs_pct_error, median_bias_pct)), row.names = FALSE)
 
-# ==============================================================================
-# 6. SENSITIVITY ANALYSES (exponent b and similarity gate): shared helpers
-# ==============================================================================
+
+# SENSITIVITY ANALYSES (exponent b and similarity gate): helpers
 # Each scenario = one full-network propagation with all real gages in place, compared
 # with the adopted run (fitted b, 50% gate). Summaries use WASTEWATER-IMPACTED segments
 # only (cumulative upstream effluent > 0); all others are 0% %WWef under any setting.
 # "Change" = |%WWef in scenario - %WWef in adopted run|, in percentage points, for
 # segments that have an estimate in BOTH runs. Segments that gain or lose an estimate
-# (gate sweep) are counted separately.
+# are counted separately.
 ww_pos  <- !is.na(WWcum_mat) & WWcum_mat > 0
 REF_Q   <- propagate_dar(gage_rows)$Q
 REF_PCT <- compute_pct(WWcum_mat, REF_Q)
@@ -589,9 +575,7 @@ sweep_scenarios <- function(values, run_fn) {
 }
 fmt_pp <- function(x) ifelse(x < 0.01, "<0.01", sprintf("%.2f", x))
 
-# ==============================================================================
-# 7. EXPONENT SENSITIVITY  (Table SX)
-# ==============================================================================
+# EXPONENT SENSITIVITY  
 message("Exponent sweep...")
 B_GRID <- seq(B_CI[1], B_CI[2], length.out = N_EXPONENT_STEPS)   # 7 values; midpoint = fitted b
 expo   <- sweep_scenarios(B_GRID, function(b) propagate_dar(gage_rows, b = b)$Q) %>%
@@ -615,9 +599,8 @@ write_csv(tbl_b, file.path(out_dir, "tblSX_exponent_sensitivity.csv"))
 cat("\n=== TABLE SX: EXPONENT SENSITIVITY (worst month for each b) ===\n")
 print(as.data.frame(tbl_b), row.names = FALSE)
 
-# ==============================================================================
-# 8. SIMILARITY-GATE SENSITIVITY  (Table SY)
-# ==============================================================================
+
+# SIMILARITY-GATE SENSITIVITY  
 message("Threshold sweep...")
 THRESHOLD_GRID <- sort(unique(c(THRESHOLD_GRID, SIMILARITY_THRESHOLD)))
 thr <- sweep_scenarios(THRESHOLD_GRID, function(th) propagate_dar(gage_rows, threshold = th)$Q) %>%
@@ -658,9 +641,8 @@ tbl_th <- thr %>%
 write_csv(tbl_th, file.path(out_dir, "tblSY_threshold_sensitivity.csv"))
 cat("\n=== TABLE SY: SIMILARITY-GATE SENSITIVITY ===\n")
 print(as.data.frame(tbl_th), row.names = FALSE)
-# ==============================================================================
-# 9. IS THE EXPONENT SEASONAL?  (monthly fits + nested-model F-test)
-# ==============================================================================
+
+# IS THE EXPONENT SEASONAL?  (monthly fits + nested-model F-test)
 message("Seasonal exponent check...")
 monthly_fits <- map_dfr(seq_len(n_mon), function(k) {
   q  <- Qraw[gage_rows, k]; a <- DA_vec[gage_rows]
@@ -705,9 +687,8 @@ fig4 <- ggplot(mf_plot, aes(month_f, b)) +
   theme_resource()
 save_plot(fig4, "fig4_seasonal_exponent.png", w = 10, h = 5.4)
 
-# ==============================================================================
-# 10. WHAT DOES LOOSENING THE GATE ADD?  (composition of the network)
-# ==============================================================================
+
+# WHAT DOES LOOSENING THE GATE ADD?  (composition of the network)
 message("Gate-loosening composition...")
 Q_tight <- propagate_dar(gage_rows, threshold = COMP_TIGHT)$Q[, hl]
 Q_adopt <- propagate_dar(gage_rows, threshold = SIMILARITY_THRESHOLD)$Q[, hl]
@@ -770,14 +751,9 @@ fig5 <- combine_panels(list(f5a, f5b),
                        subtitle = sprintf("%s. Segments grouped by the first gate that reaches them (darker = looser gate).", hl_name))
 save_plot(fig5, "fig5_gate_loosening_composition.png", w = 11.5, h = 5.6)
 
-# ==============================================================================
-# 11. REAL-GAGE PAIRS: DOES OBSERVED FLOW GROW LIKE (Ad/Au)^b?
-# ==============================================================================
+# REAL-GAGE PAIRS: DOES OBSERVED FLOW GROW LIKE (Ad/Au)^b?
 # Pairs = each gage with its NEAREST upstream gage on every branch (no other real
-# gage in between): the real-data analogue of one propagation hop. Uses observed
-# gage flows only; no propagation involved.
-#   log_over = log(predicted ratio) - log(observed ratio)   -> positive = DAR over-predicts
-#   abs_pct_err = |observed ratio / predicted ratio - 1| x 100
+# gage in between) 
 message("Nested real-gage pair checks...")
 nested_pairs <- map_dfr(gage_rows, function(d) {
   u <- nearest_upstream_gages(d)
@@ -801,7 +777,7 @@ GATE_MAX_RATIO <- 1 / (1 - SIMILARITY_THRESHOLD)   # |Ai-Aj|/Aj < tau  <=>  Aj/A
 cat(sprintf("Single-hop area ratio allowed by the %g%% gate: Aj/Ai < %.2f\n",
             SIMILARITY_THRESHOLD * 100, GATE_MAX_RATIO))
 
-# --- 11a. error and bias by size of the area-ratio jump ---------------------------
+# --- error and bias by size of the area-ratio jump ---------------------------
 bin_breaks <- sort(unique(c(1, 1.25, 1.5, GATE_MAX_RATIO, 3, 5, 10, Inf)))
 bin_hi     <- bin_breaks[-1]
 bin_labels <- map_chr(seq_along(bin_hi), function(i) {
@@ -851,7 +827,7 @@ fig6 <- combine_panels(list(f6a, f6b),
                        collect = TRUE) & theme(legend.position = "bottom")
 save_plot(fig6, "fig6_pairs_error_by_area_ratio.png", w = 11, h = 5.4)
 
-# --- Figure 7: is the bias seasonal? (real gage pairs inside the gate) ---
+# --- Is the bias seasonal? (real gage pairs inside the gate) ---
 gm_plot <- gate_month %>%
   mutate(month_f = factor(month, levels = mon_codes, labels = month.abb), season = season_of(month))
 bias_lim <- range(c(0, gm_plot$lo_pct, gm_plot$hi_pct), na.rm = TRUE)
@@ -968,7 +944,7 @@ fig_exp <- ggplot() +
 
 save_plot(fig_exp, "fig_exponent_fit.png", w = 8, h = 5.8)
 
-# ---- How often does %WWef reach the 100% cap? (adopted run) ----
+# ---- How often does %WWef reach the 100% cap? ----
 raw_pct <- 100 * WWcum_mat / Q_adopted                  # uncapped %WWef
 imp     <- ww_pos & is.finite(Q_adopted) & Q_adopted > 0 # impacted segments with a gage-based estimate
 at_cap  <- imp & raw_pct >= 100
