@@ -1,5 +1,0 @@
-group,n_segments,median_DA_km2,mean_DA_km2,median_pctWWef,mean_pctWWef,share_no_upstream_WW_pct
-Reached at 10% gate,3406,3875.8,13638.3,0.227,7.714,23.2
-Added from 10% to 50%,1620,1466.8,4545.1,0.01,2.431,42.8
-Added beyond 50% gate,399,1188.8,4249.4,0,0.081,56.6
-Added beyond 10% gate (both groups),2019,1324.1,4486.7,0.01,1.967,45.5
