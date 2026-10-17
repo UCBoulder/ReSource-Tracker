@@ -1,2 +1,0 @@
-df1,df2,F_stat,p_value,n_obs,conclusion
-11,4365,0.698,0.742,4389,No significant evidence the exponent differs by month (p >= 0.05)

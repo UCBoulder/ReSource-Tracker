@@ -1,4 +1,0 @@
-method,n_gages_total,n_reconstructed,pct_reconstructed,median_abs_pct_error,rmse_cfs,median_bias_cfs,pearson_r
-pred_baseline,396,157,39.6,32.5,778.66,-52.8,0.934
-pred_dar_state,396,192,48.5,31.4,794.39,10.85,0.914
-pred_dar_region,396,192,48.5,31.2,800.93,14.82,0.915
