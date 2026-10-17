@@ -1,4 +1,14 @@
-# --- Libraries ---------------------------------------------------------------
+# --- Title --------------------------------------------------------------------
+# This is the Shiny app for Resource Tracker.
+
+# Description:
+# Generates the Resource Tracker Shiny app. This app allows input of watershed flows (as 
+# DMR and gage data), wastewater treatment discharges, and environmental justice data 
+# for a specified region. The app calculates the percentage of wastewater in watersheds
+# across the given area on a monthly basis, builds in native support for EJ screening 
+# criteria, and provides useful data visualizations for wastewater influence. 
+ 
+# --- Libraries ----------------------------------------------------------------
 library(tidyverse)
 library(readxl)
 library(leaflet)
@@ -7,17 +17,30 @@ library(shiny)
 library(tigris)
 library(viridisLite)
 library(mapgl)
+library(here)
 
-setwd('/Users/kylieboenischoakes/Documents/ReSource-Tracker')
+# --- Zenodo Import ------------------------------------------------------------
+data_dir <- here("data-raw") ## Defines data directory
+zenodo_record <- "TCTC" ## Update with record ID from Zenodo URL
+
+fetch_zenodo <- function(filename, record = zenodo_record, dest_dir = data_dir, timeout = 6000) {
+  dest <- file.path(dest_dir, filename)
+  if (!file.exists(dest)) {
+    url <- sprintf("https://zenodo.org/records/%s/files/%s?download=1", record, filename)
+    message( "Downloading ", filename, " from Zenodo")
+    download.file(url, dest, mode = "wb") ## For Windows users
+  }
+  dest
+}
+
 # --- Relative Paths ----------------------------------------------------------
-data_dir <- "data-raw"
-
 paths <- list(
   dwtp          = file.path(data_dir, "filtereddwtpCOFinal.csv"),
   cejst         = file.path(data_dir, "ColoradoCEJSTData.xlsx"),
   matched_dmr   = file.path(data_dir, "matchedDMRwwtpupdated6.csv"),
   wwtp          = file.path(data_dir, "PermittedPOTW.xlsx"),
   flowlines     = file.path(data_dir, "Flowlines_Colorado_Filtered.gpkg"),
+  #flowlines     = fetch_zenodo("Flowlines_Colorado_Filtered.gpkg"),
   monthly_flows = file.path(data_dir, "CO_Seasonal_Flow_Summary_Feb2026.csv"),
   gages_sf      = file.path(data_dir, "processed_gages_sf_combinedV4.gpkg"), 
   ur10          = file.path(data_dir, "CO_2010_URBANRURAL_TRACTS.csv")
