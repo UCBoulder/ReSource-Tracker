@@ -1,4 +1,3 @@
-
 # This is the Shiny app for Resource Tracker.
 
 # Description:
@@ -18,18 +17,45 @@ library(tigris)
 library(viridisLite)
 library(mapgl)
 library(here)
+library(jsonlite)
 
 # --- Zenodo Import ------------------------------------------------------------
 data_dir <- here("data-raw") ## Defines data directory
-zenodo_record <- "TCTC" ## Update with record ID from Zenodo URL
+zenodo_record <- "23444014" ## Directs to Zenodo repository for Resource Tracker
 
-fetch_zenodo <- function(filename, record = zenodo_record, dest_dir = data_dir, timeout = 6000) {
+fetch_zenodo <- function(filename, record = zenodo_record, dest_dir = data_dir, timeout = 600) {
   dest <- file.path(dest_dir, filename)
-  if (!file.exists(dest)) {
-    url <- sprintf("https://zenodo.org/records/%s/files/%s?download=1", record, filename)
-    message( "Downloading ", filename, " from Zenodo")
-    download.file(url, dest, mode = "wb") ## For Windows users
+  if (file.exists(dest)) return(dest)  # already downloaded, no network needed
+
+  # Extend timeout for large files, restore the user's setting afterward
+  old_opts <- options(timeout = max(timeout, getOption("timeout")))
+  on.exit(options(old_opts), add = TRUE)
+
+  # Look up file metadata (download link + checksum) via the Zenodo API
+  meta <- fromJSON(sprintf("https://zenodo.org/api/records/%s", record), simplifyVector = FALSE)
+  file_info <- Filter(function(f) f$key == filename, meta$files)
+  if (length(file_info) == 0) {
+    stop("'", filename, "' not found in Zenodo record ", record, call. = FALSE)
   }
+  file_info    <- file_info[[1]]
+  expected_md5 <- sub("^md5:", "", file_info$checksum)
+
+  # Download to a temp file first, so a failed or corrupt download never lands in data-raw/
+  message("Downloading ", filename, " from Zenodo...")
+  tmp <- tempfile(fileext = paste0(".", tools::file_ext(filename)))
+  on.exit(unlink(tmp), add = TRUE)
+  download.file(file_info$links$self, tmp, mode = "wb")  # "wb" for Windows binary safety
+
+  # Verify integrity
+  actual_md5 <- unname(tools::md5sum(tmp))
+  if (!identical(actual_md5, expected_md5)) {
+    stop("Checksum mismatch for ", filename,
+         "\n  expected: ", expected_md5,
+         "\n  actual:   ", actual_md5, call. = FALSE)
+  }
+
+  file.copy(tmp, dest)
+  message("Checksum verified: ", filename)
   dest
 }
 
@@ -39,8 +65,7 @@ paths <- list(
   cejst         = file.path(data_dir, "ColoradoCEJSTData.xlsx"),
   matched_dmr   = file.path(data_dir, "matchedDMRwwtpupdated6.csv"),
   wwtp          = file.path(data_dir, "PermittedPOTW.xlsx"),
-  flowlines     = file.path(data_dir, "Flowlines_Colorado_Filtered.gpkg"),
-  #flowlines     = fetch_zenodo("Flowlines_Colorado_Filtered.gpkg"),
+  flowlines     = fetch_zenodo("Flowlines_Colorado_Filtered.gpkg"),
   monthly_flows = file.path(data_dir, "CO_Seasonal_Flow_Summary_Feb2026.csv"),
   gages_sf      = file.path(data_dir, "processed_gages_sf_combinedV4.gpkg"), 
   ur10          = file.path(data_dir, "CO_2010_URBANRURAL_TRACTS.csv")
@@ -68,7 +93,7 @@ check_required_file <- function(path, label, url = NULL) {
 check_required_file(
   paths$flowlines,
   "Flowlines_Colorado_Filtered.gpkg",
-  "https://github.com/sheldonmasters/Masters-Research-Group/releases/tag/v0.1.0"
+  "https://zenodo.org/records/23444014"
 )
 
 # --- Constants ---------------------------------------------------------------
