@@ -1,2 +1,14 @@
+# OS files
 .DS_Store
+
+# Colorado flowlines geopackage. Accessed via Zenodo
 Flowlines_Colorado_Filtered.gpkg
+
+# DMR data. Zip, CSVs accessed via Zenodo
+CO_DMR_2019-2024_ResourceTracker.zip
+DMR_CO_2019.csv
+DMR_CO_2020.csv
+DMR_CO_2021.csv
+DMR_CO_2022.csv
+DMR_CO_2023.csv
+DMR_CO_2024.csv
