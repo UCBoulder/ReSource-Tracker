@@ -1,7 +1,12 @@
+# This script processes multiple years of DMR data into one file to be used in app.R
+# Currrently designed to download from Zenodo repository (Colorado, 2019-2024)
+# This can be modulated to add additional years/regions, depending on the user. 
+
 # --- Libraries ---------------------------------------------------------------
 library(lubridate)
 library(dplyr)
 library(readr)
+library(here)
 
 # --- Column spec for raw DMR files ------------------------------------------
 dmr_headers <- c(
@@ -21,20 +26,20 @@ dmr_headers <- c(
   "RNC_DETECTION_CODE","RNC_DETECTION_DATE","RNC_RESOLUTION_CODE","RNC_RESOLUTION_DATE"
 )
 
+data_dir <- here("preproccessing-scripts") # Defines data directory
+source(file.path(data_dir, "DMR_download.R"))
+
 read_dmr_file <- function(path) {
   read.csv(path, header = FALSE, col.names = dmr_headers, colClasses = "character")
 }
-
+ 
 # --- Read & combine ----------------------------------------------------------
-dmr_2019 <- read_dmr_file('/Users/kylieboenischoakes/Library/CloudStorage/OneDrive-UCB-O365/General/Boenisch-Oakes, Kylie/Research/Chapter 4/DMR_CO_2019.csv')
-dmr_2020 <- read_dmr_file('/Users/kylieboenischoakes/Library/CloudStorage/OneDrive-UCB-O365/General/Boenisch-Oakes, Kylie/Research/Chapter 4/DMR_CO_2020.csv')
-dmr_2021 <- read_dmr_file('/Users/kylieboenischoakes/Library/CloudStorage/OneDrive-UCB-O365/General/Boenisch-Oakes, Kylie/Research/Chapter 4/DMR_CO_2021.csv')
-dmr_2022 <- read_dmr_file('/Users/kylieboenischoakes/Library/CloudStorage/OneDrive-UCB-O365/General/Boenisch-Oakes, Kylie/Research/Chapter 4/DMR_CO_2022.csv')
-dmr_2023 <- read_dmr_file('/Users/kylieboenischoakes/Library/CloudStorage/OneDrive-UCB-O365/General/Boenisch-Oakes, Kylie/Research/Chapter 4/DMR_CO_2023.csv')
-dmr_2024 <- read.csv('/Users/kylieboenischoakes/Library/CloudStorage/OneDrive-UCB-O365/General/Boenisch-Oakes, Kylie/Research/Chapter 4/DMR_CO_2024.csv',
-                     colClasses = "character") # already has headers
+dmr_list <- read_zenodo_zip(record_id = 23444014, reader = read_dmr_file)
+dmr_all  <- dplyr::bind_rows(dmr_list, .id = "source_file")
 
-dmr_all <- bind_rows(dmr_2019, dmr_2020, dmr_2021, dmr_2022, dmr_2023, dmr_2024)
+# If local download is preferred over Zenodo, the following can be used. 
+# This may be useful for users in different regions or as DMR data is updated.
+# dmr_YYYY <- read_dmr_file('DMR_YYYY.csv')
 
 # --- Normalize IDs & dates ---------------------------------------------------
 dmr_all$EXTERNAL_PERMIT_NMBR <- trimws(as.character(dmr_all$EXTERNAL_PERMIT_NMBR))
@@ -98,7 +103,4 @@ wwtp_dmr_monthly <- matched_outfalls %>%
 options(scipen = 999)
 
 # --- Export -----------------------------------------------------------------
-write_csv(
-  wwtp_dmr_monthly,
-  "/Users/kylieboenischoakes/Library/CloudStorage/OneDrive-UCB-O365/General/Boenisch-Oakes, Kylie/Research/Chapter 4/matchedDMRwwtpupdated6.csv"
-)
+write_csv(wwtp_dmr_monthly, here("data-raw", "matchedDMRwwtp_19-24.csv")) # Named to distiguish this dataset as water year 2019-2024

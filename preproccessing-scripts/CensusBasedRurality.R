@@ -1,3 +1,7 @@
+# This script defines the urban and rural census tracts for a given region.
+# It currently defaults to Colorado, although other states can be identified. 
+
+# --- Libraries ---------------------------------------------------------------
 library(tigris)
 library(tidycensus)
 
@@ -9,7 +13,7 @@ urban10 <- tigris::urban_areas(state= 08, year = 2010, class = "sf") %>%
 sf1_2010 <- load_variables(2010, "sf1", cache = TRUE)
 ur10_raw <- get_decennial(
   geography = "tract",
-  state     = "08",   # Colorado
+  state     = "08",   # This corresponds to Colorado. User can change to include other areas. 
   year      = 2010,
   variables = c(
     total = "P002001",
@@ -31,4 +35,4 @@ ur10 <- ur10_raw %>%
   ) %>%
   select(GEOID, rurality)
 
-write.csv(ur10, "/Users/kylieboenischoakes/Documents/Masters-Research-Group/ReSourceTracker/data-raw/CO_2010_URBANRURAL_TRACTS.csv")
+write.csv(ur10, here("data-raw", "CO_2010_URBANRURAL_TRACTS.csv"))
