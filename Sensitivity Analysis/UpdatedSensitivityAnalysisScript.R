@@ -10,7 +10,7 @@ if (!requireNamespace("patchwork", quietly = TRUE))
 out_dir <- "dar_sensitivity_outputs"
 if (!dir.exists(out_dir)) dir.create(out_dir)
 
-data_dir <- "data-raw"
+data_dir <- here("data-raw")
 paths <- list(
   matched_dmr   = file.path(data_dir, "matchedDMRwwtpupdated6.csv"),
   flowlines     = file.path(data_dir, "Flowlines_Colorado_Filtered.gpkg"),

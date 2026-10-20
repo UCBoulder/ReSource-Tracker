@@ -63,9 +63,9 @@ fetch_zenodo <- function(filename, record = zenodo_record, dest_dir = data_dir, 
 paths <- list(
   dwtp          = file.path(data_dir, "filtereddwtpCOFinal.csv"),
   cejst         = file.path(data_dir, "ColoradoCEJSTData.xlsx"),
-  matched_dmr   = file.path(data_dir, "matchedDMRwwtp_19-24.csv"), 
+  matched_dmr   = file.path(data_dir, "matchedDMRwwtp_19-24.csv"), # Built in preprocessing-scripts
   wwtp          = file.path(data_dir, "PermittedPOTW.xlsx"),
-  flowlines     = fetch_zenodo("Flowlines_Colorado_Filtered.gpkg"),
+  flowlines     = fetch_zenodo("Flowlines_Colorado_Filtered.gpkg"), # Downloads from Zenodo repository
   monthly_flows = file.path(data_dir, "CO_Seasonal_Flow_Summary_Feb2026.csv"),
   gages_sf      = file.path(data_dir, "processed_gages_sf_combinedV4.gpkg"), 
   ur10          = file.path(data_dir, "CO_2010_URBANRURAL_TRACTS.csv")
