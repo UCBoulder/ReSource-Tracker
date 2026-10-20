@@ -6,7 +6,7 @@
 # for a specified region. The app calculates the percentage of wastewater in streams
 # across the given area on a monthly basis, builds in native support for EJ screening 
 # criteria, and provides useful data visualizations for wastewater influence. 
- 
+
 # --- Libraries ----------------------------------------------------------------
 library(tidyverse)
 library(readxl)
@@ -20,12 +20,12 @@ library(here)
 library(jsonlite)
 
 # --- Zenodo Import ------------------------------------------------------------
-data_dir <- here("data-raw") ## Defines data directory
-zenodo_record <- "23444014" ## Directs to Zenodo repository for Resource Tracker
+data_dir <- here("data-raw") # Defines data directory
+zenodo_record <- "23444014" # Directs to Zenodo repository for Resource Tracker
 
 fetch_zenodo <- function(filename, record = zenodo_record, dest_dir = data_dir, timeout = 600) {
   dest <- file.path(dest_dir, filename)
-  if (file.exists(dest)) return(dest)  # already downloaded, no network needed
+  if (file.exists(dest)) return(dest)  # skips following if the file exisits already
 
   # Extend timeout for large files, restore the user's setting afterward
   old_opts <- options(timeout = max(timeout, getOption("timeout")))
@@ -40,7 +40,7 @@ fetch_zenodo <- function(filename, record = zenodo_record, dest_dir = data_dir, 
   file_info    <- file_info[[1]]
   expected_md5 <- sub("^md5:", "", file_info$checksum)
 
-  # Download to a temp file first, so a failed or corrupt download never lands in data-raw/
+  # Download to a temp file first, so a failed or corrupt download doesn't misread
   message("Downloading ", filename, " from Zenodo...")
   tmp <- tempfile(fileext = paste0(".", tools::file_ext(filename)))
   on.exit(unlink(tmp), add = TRUE)
@@ -63,7 +63,7 @@ fetch_zenodo <- function(filename, record = zenodo_record, dest_dir = data_dir, 
 paths <- list(
   dwtp          = file.path(data_dir, "filtereddwtpCOFinal.csv"),
   cejst         = file.path(data_dir, "ColoradoCEJSTData.xlsx"),
-  matched_dmr   = file.path(data_dir, "matchedDMRwwtpupdated6.csv"),
+  matched_dmr   = file.path(data_dir, "matchedDMRwwtp_19-24.csv"), 
   wwtp          = file.path(data_dir, "PermittedPOTW.xlsx"),
   flowlines     = fetch_zenodo("Flowlines_Colorado_Filtered.gpkg"),
   monthly_flows = file.path(data_dir, "CO_Seasonal_Flow_Summary_Feb2026.csv"),
@@ -89,7 +89,7 @@ check_required_file <- function(path, label, url = NULL) {
   }
 }
 
-# Flowlines geopackage: too large to store on repo, provided via GitHub release
+# Flowlines geopackage: this file is dowloaded from Zenodo via 'zenodo_record'
 check_required_file(
   paths$flowlines,
   "Flowlines_Colorado_Filtered.gpkg",
