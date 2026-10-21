@@ -2,6 +2,7 @@
 suppressPackageStartupMessages({
   library(tidyverse)
   library(sf)
+  library(here)
 })
 if (!requireNamespace("patchwork", quietly = TRUE))
   stop('Package "patchwork" is needed for the A/B panel figures. Install it once with: install.packages("patchwork")', call. = FALSE)
@@ -12,7 +13,7 @@ if (!dir.exists(out_dir)) dir.create(out_dir)
 
 data_dir <- here("data-raw")
 paths <- list(
-  matched_dmr   = file.path(data_dir, "matchedDMRwwtpupdated6.csv"),
+  matched_dmr   = file.path(data_dir, "matchedDMRwwtp_19-24.csv"),
   flowlines     = file.path(data_dir, "Flowlines_Colorado_Filtered.gpkg"),
   monthly_flows = file.path(data_dir, "CO_Seasonal_Flow_Summary_Feb2026.csv"),
   gages_sf      = file.path(data_dir, "processed_gages_sf_combinedV4.gpkg")
