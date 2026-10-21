@@ -1,5 +1,5 @@
 # ==============================================================================
-# equity_stats_offline.R  -  run ONCE on your machine; writes 4 spreadsheets (CSV)
+# equity_stats_offline.R  -  run ONCE; writes 4 spreadsheets (CSV)
 # Run in the same R session where the app's objects exist (fl_cejst, cejst, cejst_lgl_cols, mon_codes)
 # ==============================================================================
 list2env(readRDS(file.path(path.expand("~"), "equity_inputs.rds")), envir = .GlobalEnv)
@@ -12,7 +12,7 @@ suppressPackageStartupMessages({
 })
 stopifnot(exists("fl_cejst"), exists("cejst"), exists("cejst_lgl_cols"), exists("mon_codes"))
 
-# ---- CONFIG (the only part you should need to edit) -------------------------------
+# ---- CONFIG  -------------------------------
 SOURCES  <- c("Gage-based", "NHDPlus-based")
 MONTHS   <- mon_codes                    #
 DA_COL   <- "TotDASqKM"                  # drainage-area column in fl_cejst 
