@@ -13,7 +13,7 @@ This is the repository for ReSource Tracker. This tool includes an associated pu
 - Supports census-tract level analysis
 - Displays results using an interactive, clickable basemap and summary plots with statistical analysis
 - Provides a unique, environmental justice screening methodology utilizing CEJST variables
-- Includes equity-focused views for disadvantaged communites 
+- Includes equity-focused views for disadvantaged communities 
 - Is modular, allowing users to change the region of interest *(The current version is built around Colorado)*
 
 ## How it works
@@ -30,7 +30,7 @@ The data files included in `data-raw` are as follows:
 
 | Data Type | File Name | Description | Expected Format | Source | Notes |
 |---|---|---|---|---|---|
-| Rural/Urban Census Tracts | `CO_2010_URBANRURAL_TRACTS.csv` | Data specificying rural/urban designation for Colorado tracts. | CSV | `[Add source]` | 2010 data |
+| Rural/Urban Census Tracts | `CO_2010_URBANRURAL_TRACTS.csv` | Data specifying rural/urban designation for Colorado tracts. | CSV | `[Add source]` | 2010 data |
 | Seasonal Gage Flow | `CO_Seasonal_Flow_Summary.csv` | Monthly summary for flows from gages in Colorado. Includes avg, stdev, max, min, n observations, and location per gage. | USGS NWIS | USGS NWIS | Last updated February 2026| 
 | CEJST Screening | `ColoradoCEJSTData.xlsx` | CEJST data for Colorado, binned by census ID. Categories include percentages and booleans. | XLSX | CEQ | 2010 data |
 | Water Treatment Plant layer | `filteredwtpCO.csv` | Water Treatment Plant ID, service size, and location estimate. | CSV | USEPA SDWIS | Last update?|
@@ -43,13 +43,22 @@ The data files included in `data-raw` are as follows:
 This repository ships with DMR data from 2019 to 2024 precalculated and matched to WWTPs (`matchedDMRwwtp_19-24.csv`). This data can be rebiult (for inclusion of newer data or different regions) utilizing the `preprocessing-scripts` pipeline. `DMRAnalysis_FY2019-FY2024.R` can be used to reconstruct this output, based on raw DMR inputs and POTW data. Notably, this current version ships with a [Zenodo](https://doi.org/10.5281/zenodo.23444014) integration, which can pull the DMR data for Colorado for 2019-2024 (reliant on function outlined in `DMR_download.R`). This integration can be modified by the user to apply their own DMR data, if needed. 
 
 ### Updating Rurality Data
-This repository ships with ruraliy data from the 2010 Colorado census (`CO_2010_URBANRURAL_TRACTS.csv`). This data can be rebuilt  utilizing the `preproccessing-scripts/CensusBasedRurality.R` file. 
+This repository ships with rurality data from the 2010 Colorado census (`CO_2010_URBANRURAL_TRACTS.csv`). This data can be rebuilt utilizing the `preprocessing-scripts/CensusBasedRurality.R` file. 
+
+### Statistics
+The Statistics folder includes helper scripts `OfflineScript.R` and `Statistics.R`. These are not critical for the base functionality of ReSource Tracker, but may be of use for expanding the scope of the tool in the future. 
+
+### Sensitivity Analysis
+The Sensitivity Analysis folder includes a helper script `UpdatedSensitivityAnalysisScript.R` which can be used to compute the sensitivity of the gage-propagation via a 'leave-one-out' method. This is not critical for the base functionality of ReSource Tracker, but may be of use for expanding the scope of the tool in the future.
+
+### Equity Stats Outputs
+The equity_stats_outputs folder includes 8 CSV files with summary statistics for spatial, equity, and rurality analysis. Like the above, these are not critical for the base functionality of ReSource Tracker, but may be of use for expanding the scope of the tool in the future.
 
 ## Rurality Screening
 The app can conduct analysis regarding the impact of rurality (e.g., urban or rural communities) on the prevalence and severity of treated wastewater impact to surface waters. This is conducted utilizing a basin-size adjustment factor to account for the impact of stream size. **Critically, this integration does not imply causality. The results from this analysis must be interpreted as high-level screening, not explicit causation. Please use with caution.** 
 
 ## Environmental Justice Screening
-The app includes native support for environmental justice screening, based on criteria from the Climate and Economic Justice Screening Tool (CEJST). The app overlays census-level data from the CEJST and can conduct comparisons based on wastewater influence. **Critically, this integration does not imply causality. The results from this analysis must be interpreted as high-level screening, not explicit causation. Please use with caution.** The current vesion supports 49 unique CEJST indicators. 
+The app includes native support for environmental justice screening, based on criteria from the Climate and Economic Justice Screening Tool (CEJST). The app overlays census-level data from the CEJST and can conduct comparisons based on wastewater influence. **Critically, this integration does not imply causality. The results from this analysis must be interpreted as high-level screening, not explicit causation. Please use with caution.** The current version supports 49 unique CEJST indicators. 
 
 ## Installation
 The app is built in R, and depends on several packages, including:
