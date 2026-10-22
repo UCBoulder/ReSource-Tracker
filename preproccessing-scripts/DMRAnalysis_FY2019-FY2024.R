@@ -1,6 +1,16 @@
+# ==============================================================================
+# ReSource Tracker DMR data construction
+
 # This script processes multiple years of DMR data into one file to be used in app.R
 # Currrently designed to download from Zenodo repository (Colorado, 2019-2024)
 # This can be modulated to add additional years/regions, depending on the user. 
+# For Zenodo, requirers helper file DMR_download.R
+# Requires the processing in app.R to be completed for defining variables, WWTPs
+
+# Preprocessing data is only required if updating/revising a data source. This script is only
+# included for completeness and is not required for current functionality
+# ==============================================================================
+
 
 # --- Libraries ---------------------------------------------------------------
 library(lubridate)

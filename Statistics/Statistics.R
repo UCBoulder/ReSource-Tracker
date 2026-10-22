@@ -1,4 +1,6 @@
 # ============================================================
+# ReSource Tracker plots for publication
+
 # Manuscript plots: seasonality + field vs. tool comparisons
 # ============================================================
 

@@ -1,5 +1,12 @@
+# ==============================================================================
+# ReSource Tracker census-based rurality
+
 # This script defines the urban and rural census tracts for a given region.
 # It currently defaults to Colorado, although other states can be identified. 
+
+# Preprocessing data is only required if updating/revising a data source. This script is only
+# included for completeness and is not required for current functionality
+# ==============================================================================
 
 # --- Libraries ---------------------------------------------------------------
 library(tigris)

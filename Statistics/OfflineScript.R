@@ -1,7 +1,10 @@
 # ==============================================================================
+# ReSource Tracker export for statistical results
+#  
 # equity_stats_offline.R  -  run ONCE; writes 4 spreadsheets (CSV)
 # Run in the same R session where the app's objects exist (fl_cejst, cejst, cejst_lgl_cols, mon_codes)
 # ==============================================================================
+
 list2env(readRDS(file.path(path.expand("~"), "equity_inputs.rds")), envir = .GlobalEnv)
 sapply(c("fl_cejst", "cejst", "cejst_lgl_cols", "mon_codes", "tracts_sf"), exists)
 head(grep("pct_mean", names(fl_cejst), value = TRUE))

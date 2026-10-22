@@ -1,3 +1,4 @@
+# # ============================================================
 # This is the Shiny app for Resource Tracker.
 
 # Description:
@@ -6,6 +7,9 @@
 # for a specified region. The app calculates the percentage of wastewater in streams
 # across the given area on a monthly basis, builds in native support for EJ screening 
 # criteria, and provides useful data visualizations for wastewater influence. 
+
+# See the included README.md file for additional support. 
+# ============================================================
 
 # --- Libraries ----------------------------------------------------------------
 library(tidyverse)

@@ -1,8 +1,16 @@
+# ==============================================================================
+# ReSource Tracker DMR Zenodo download helper
+
 # Download a zip file from a Zenodo record, unzip it, and read every CSV inside.
 # Supply either: record_id - the Zenodo record number
 # OR url - a direct download link to the zip
 #   reader    - function that takes a file path and returns a data frame
 # This script does not download the zip or CSVs permanently. 
+
+# Preprocessing data is only required if updating/revising a data source. This script is only
+# included for completeness and is not required for current functionality
+# ==============================================================================
+
 
 read_zenodo_zip <- function(record_id = NULL,
                             url = NULL,

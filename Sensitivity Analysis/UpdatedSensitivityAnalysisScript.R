@@ -1,3 +1,15 @@
+# ==============================================================================
+# ReSource Tracker gage-based sensitivity analysis
+
+# This script conducts a sensitivity analysis on the gage propogation method
+# for determining flow in a stream segement. This utilizes a 'leave one out'
+# methodology. 
+
+# The sensitivity analysis is not required for the current use of ReSource Tracker. 
+# It is included for completeness and to aid in expanding the analysis area to 
+# additional regions/states. 
+# ==============================================================================
+
 #Required packages 
 suppressPackageStartupMessages({
   library(tidyverse)
